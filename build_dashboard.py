@@ -233,6 +233,10 @@ a{color:var(--red);text-decoration:none;font-weight:600}a:hover{text-decoration:
     out.append('<p class="small" style="margin-top:28px">생성: '
                '<span class="mono">python build_dashboard.py</span> · '
                '상태 변경: <span class="mono">python review.py mark &lt;문서&gt; --status reviewed</span></p>')
+    out.append('<a href="../index.html" class="back-to-lib" '
+               'style="position:fixed;right:16px;bottom:16px;z-index:99999;background:#c74634;color:#fff;'
+               "font:700 13px/1 system-ui,-apple-system,sans-serif;text-decoration:none;padding:11px 15px;"
+               'border-radius:24px;box-shadow:0 4px 14px rgba(0,0,0,.25)">&larr; 자료실</a>')
     out.append("</div></body></html>")
     return "\n".join(out)
 
