@@ -32,7 +32,7 @@ STATUS_FILE = ROOT / "review_status.json"
 
 # 문서 → (주제 배지, 사람이 읽는 제목)
 DOCS = {
-    "guide_62_68.html": ("내부구조", "DBA 62–68 완전정복 가이드 (내부구조편)"),
+    "guide_62_68.html": ("내부구조", "DBA 완전정복 가이드 (내부구조편)"),
     "sql_tuning.html": ("SQL·실행계획", "SQL 튜닝편 — 실행계획 읽기·인덱스·조인"),
     "buffer_cache_dbwr_checkpoint.html": ("버퍼·DBWR", "버퍼 캐시 · DBWR · 체크포인트"),
     "rman_recovery.html": ("백업·복구", "RMAN 복구 치트시트 (운영편)"),
