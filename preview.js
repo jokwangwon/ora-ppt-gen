@@ -37,29 +37,29 @@ function footer(sl) {
 }
 
 function slideTitle(sl) {
-  let h = box(0, 0, W, 0.72, `background:${C.accent}`);
-  h += txt(M, 0, 4, 0.72, 22, C.white, "font-weight:700;letter-spacing:3px;display:flex;align-items:center", "ORACLE");
-  if (sl.source) h += txt(7.41, 0, 5, 0.72, 12, C.tint, "text-align:right;display:flex;align-items:center;justify-content:flex-end", `Database 19c · ${sl.source}`);
-  if (sl.tag) h += txt(M, 2.0, 11.49, 0.4, 13, C.tint2, "display:flex;align-items:center", sl.tag);
-  h += txt(M, 2.7, 11.49, 1.4, 46, C.white, "font-weight:700;line-height:1.15", sl.title);
-  if (sl.subtitle) h += txt(M, 4.25, 11.49, 0.6, 17, C.muted2, "", sl.subtitle);
-  h += box(M, 6.0, 3.2, 0.02, `background:${C.slate}`);
-  h += txt(M, 6.15, 8, 0.5, 13, C.white, "", sl.presenter || "Oracle DBA 부트캠프");
+  let h = txt(M, 0.66, 4, 0.4, 13, C.tint2, "font-weight:700;letter-spacing:4px;display:flex;align-items:center", "ORACLE");
+  if (sl.source) h += txt(7.41, 0.66, 5, 0.4, 11, C.muted2, "text-align:right;display:flex;align-items:center;justify-content:flex-end", sl.source);
+  h += box(M, 2.62, 0.62, 0.09, `background:${C.accent};border-radius:5px`);
+  if (sl.tag) h += txt(M + 0.82, 2.5, 10.6, 0.34, 13, C.tint2, "letter-spacing:1px;display:flex;align-items:center", sl.tag);
+  h += txt(M, 3.05, 11.7, 1.9, 48, C.white, "font-weight:700;line-height:1.04", sl.title);
+  if (sl.subtitle) h += txt(M, 5.15, 11.49, 0.7, 17, C.muted2, "", sl.subtitle);
+  h += txt(M, 6.55, 8, 0.5, 12, C.muted2, "", sl.presenter || "Oracle DBA 부트캠프");
   return { bg: C.dark, inner: h };
 }
 function slideSection(sl) {
   let h = brand();
-  if (sl.num) h += txt(M, 2.3, 3, 1.7, 90, C.accent, "font-weight:700;line-height:1", sl.num);
-  h += box(0.94, 4.28, 0.16, 0.16, `background:${C.accent}`);
-  h += txt(M, 4.55, 11.49, 0.9, 40, C.white, "font-weight:700", sl.title);
-  if (sl.subtitle) h += txt(M, 5.55, 11.49, 0.6, 16, C.muted2, "", sl.subtitle);
+  if (sl.num) h += txt(M - 0.05, 1.5, 5, 2.2, 130, C.slate, "font-weight:700;line-height:1", sl.num);
+  h += box(M, 4.5, 0.62, 0.09, `background:${C.accent};border-radius:5px`);
+  h += txt(M, 4.75, 11.49, 0.9, 38, C.white, "font-weight:700", sl.title);
+  if (sl.subtitle) h += txt(M, 5.72, 11.49, 0.6, 16, C.muted2, "", sl.subtitle);
   return { bg: C.dark, inner: h };
 }
 function slideRoadmap(sl) {
-  let h = box(M, 0.95, 0.14, 0.14, `background:${C.accent}`);
-  h += txt(1.2, 0.72, 6, 0.7, 26, C.ink, "font-weight:700;display:flex;align-items:center", "발표 흐름");
-  h += txt(1.2, 1.45, 6, 0.3, 12, C.muted2, "letter-spacing:2px", "ROADMAP");
+  let h = box(M, 0.66, 0.46, 0.08, `background:${C.accent};border-radius:4px`);
+  h += txt(M, 0.84, 6, 0.55, 25, C.ink, "font-weight:700", "발표 흐름");
+  h += txt(M, 1.44, 6, 0.3, 11, C.muted2, "letter-spacing:2px", "ROADMAP");
   h += brand() + footer(sl);
+  h += box(M, 1.78, L.CONTENT_W, 0.012, `background:${C.line}`);
   const items = sl.items, cols = items.length > 6 ? 2 : 1, perCol = Math.ceil(items.length / cols);
   const colW = cols === 2 ? 5.55 : 11.49, rowH = Math.min(1.0, L.CONTENT_H / perCol);
   items.forEach((it, i) => {
@@ -72,10 +72,10 @@ function slideRoadmap(sl) {
   return { bg: C.paper, inner: h };
 }
 function slideClosing(sl) {
-  let h = box(0, 0, W, 0.72, `background:${C.accent}`);
-  h += txt(M, 0, 4, 0.72, 22, C.white, "font-weight:700;letter-spacing:3px;display:flex;align-items:center", "ORACLE");
-  h += txt(M, 3.0, 11.49, 1.1, 44, C.white, "font-weight:700", sl.title);
-  if (sl.subtitle) h += txt(M, 4.3, 11.49, 0.6, 16, C.muted2, "", sl.subtitle);
+  let h = txt(M, 0.66, 4, 0.4, 13, C.tint2, "font-weight:700;letter-spacing:4px;display:flex;align-items:center", "ORACLE");
+  h += box(M, 2.95, 0.62, 0.09, `background:${C.accent};border-radius:5px`);
+  h += txt(M, 3.25, 11.49, 1.1, 44, C.white, "font-weight:700", sl.title);
+  if (sl.subtitle) h += txt(M, 4.5, 11.49, 0.7, 16, C.muted2, "", sl.subtitle);
   return { bg: C.dark, inner: h };
 }
 
@@ -95,23 +95,23 @@ function bCallout(b) {
   const label = b.head || (b.tone === "why" ? "왜 중요한가" : "기억할 점");
   const inner = `<div style="font-size:14pt;font-weight:700;color:${stripe === C.accent ? C.accent : C.ink};margin-bottom:8px">${esc(label)}</div>`
     + `<div style="font-size:13pt;color:${C.ink};line-height:1.35">${esc(b.body)}</div>`;
-  return box(b.x, b.y, b.w, b.h, `background:${C.card};border:1px solid ${C.line};border-left:6px solid ${stripe};border-radius:10px;padding:14px 18px 14px 20px;box-shadow:0 4px 14px rgba(138,127,106,.16);box-sizing:border-box;overflow:hidden`, inner);
+  return box(b.x, b.y, b.w, b.h, `background:${C.card};border:1px solid ${C.line};border-left:6px solid ${stripe};border-radius:12px;padding:14px 18px 14px 20px;box-shadow:0 4px 14px rgba(138,127,106,.16);box-sizing:border-box;overflow:hidden`, inner);
 }
 function bCode(b) {
   const dots = [C.dot1, C.dot2, C.dot3].map((c) => `<span style="width:11px;height:11px;border-radius:50%;background:${c};display:inline-block;margin-right:6px"></span>`).join("");
   const lines = b.lines.map((ln) => { const t = ln || " "; const cmt = /^\s*(--|#)/.test(t); return `<div style="color:${cmt ? C.codeComment : C.codeFg};white-space:pre">${esc(t)}</div>`; }).join("");
-  return box(b.x, b.y, b.w, b.h, `background:${C.dark};border-radius:9px;padding:12px 16px;box-shadow:0 4px 14px rgba(138,127,106,.18);box-sizing:border-box;overflow:hidden`,
+  return box(b.x, b.y, b.w, b.h, `background:${C.dark};border-radius:12px;padding:12px 16px;box-shadow:0 4px 14px rgba(138,127,106,.18);box-sizing:border-box;overflow:hidden`,
     `<div style="margin-bottom:8px">${dots}</div><div style="font-family:'WenQuanYi Zen Hei Mono',monospace;font-size:12.5pt;line-height:1.35">${lines}</div>`);
 }
 function bFigure(b) {
   const inner = `<div style="font-size:13pt"><b style="color:${C.accent}">다이어그램</b>&nbsp;&nbsp;<b style="color:${C.ink}">${esc(b.caption)}</b></div>`
     + (b.summary ? `<div style="font-size:12pt;color:${C.muted};font-style:italic;margin-top:6px;line-height:1.3">${esc(b.summary)}</div>` : "");
-  return box(b.x, b.y, b.w, b.h, `background:${C.card};border:1px solid ${C.line};border-left:6px solid ${C.accent};border-radius:10px;padding:12px 18px 12px 20px;box-shadow:0 4px 14px rgba(138,127,106,.16);box-sizing:border-box;overflow:hidden`, inner);
+  return box(b.x, b.y, b.w, b.h, `background:${C.card};border:1px solid ${C.line};border-left:6px solid ${C.accent};border-radius:12px;padding:12px 18px 12px 20px;box-shadow:0 4px 14px rgba(138,127,106,.16);box-sizing:border-box;overflow:hidden`, inner);
 }
 function bAnalogy(b) {
   const inner = `<div style="font-size:13pt;font-weight:700;color:${C.accent};margin-bottom:6px">비유</div>`
     + `<div style="font-size:14pt;font-style:italic;color:${C.ink};line-height:1.35">${esc(b.text)}</div>`;
-  return box(b.x, b.y, b.w, b.h, `background:${C.tint};border:1px solid ${C.line};border-left:6px solid ${C.accent};border-radius:10px;padding:12px 18px 12px 20px;box-shadow:0 4px 14px rgba(138,127,106,.16);box-sizing:border-box;overflow:hidden`, inner);
+  return box(b.x, b.y, b.w, b.h, `background:${C.tint};border:1px solid ${C.line};border-left:6px solid ${C.accent};border-radius:12px;padding:12px 18px 12px 20px;box-shadow:0 4px 14px rgba(138,127,106,.16);box-sizing:border-box;overflow:hidden`, inner);
 }
 function bSteps(b) {
   const rows = b.items.map((it, i) =>
@@ -135,7 +135,7 @@ function bPlan(b) {
       + (r.name ? `<span style="color:${C.muted}">  ${esc(r.name)}</span>` : "") + `</div>`;
   }).join("");
   const pred = b.predicate ? `<div style="color:${C.muted};font-size:11pt;margin-top:6px;white-space:pre-wrap">${esc(b.predicate)}</div>` : "";
-  return box(b.x, b.y, b.w, b.h, `background:${C.card};border:1px solid ${C.line};border-radius:10px;padding:10px 14px;box-shadow:0 4px 14px rgba(138,127,106,.16);box-sizing:border-box;overflow:hidden`,
+  return box(b.x, b.y, b.w, b.h, `background:${C.card};border:1px solid ${C.line};border-radius:12px;padding:10px 14px;box-shadow:0 4px 14px rgba(138,127,106,.16);box-sizing:border-box;overflow:hidden`,
     hdr + `<div style="font-family:'WenQuanYi Zen Hei Mono',monospace;font-size:12pt;line-height:1.35">${rows}</div>${pred}`);
 }
 function bSvg(b) {
@@ -151,10 +151,11 @@ const drawB = { bullets: bBullets, table: bTable, callout: bCallout, code: bCode
 
 function slideContent(sl) {
   const longTitle = (sl.title || "").length > 34;
-  let h = box(M, 0.86, 0.14, 0.14, `background:${C.accent}`);
-  h += txt(1.2, 0.62, 9.3, 1.02, longTitle ? 19 : 24, C.ink, "font-weight:700;line-height:1.1", sl.title);
+  let h = box(M, 0.66, 0.46, 0.08, `background:${C.accent};border-radius:4px`);
+  h += txt(M, 0.84, 10.2, 0.95, longTitle ? 19 : 24, C.ink, "font-weight:700;line-height:1.05", sl.title);
   h += brand() + footer(sl);
-  if (sl.pages > 1) h += txt(W - M - 2.9, 0.72, 1.6, 0.5, 11, C.muted2, "text-align:right;display:flex;align-items:center;justify-content:flex-end", `${sl.page} / ${sl.pages}`);
+  if (sl.pages > 1) h += txt(W - M - 2.9, 0.66, 1.6, 0.4, 11, C.muted2, "text-align:right;display:flex;align-items:center;justify-content:flex-end", `${sl.page} / ${sl.pages}`);
+  h += box(M, 1.78, L.CONTENT_W, 0.012, `background:${C.line}`);
   if (sl.layout === "split") h += drawB[sl.left.kind](sl.left) + drawB[sl.right.kind](sl.right);
   else for (const b of sl.blocks) h += (drawB[b.kind] || (() => ""))(b);
   return { bg: C.paper, inner: h };

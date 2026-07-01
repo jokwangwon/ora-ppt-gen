@@ -23,11 +23,11 @@ const C = {
   slate: "334155", codeFg: "E7E2D8", codeComment: "9AA6A0",
   dot1: "EF4444", dot2: "F59E0B", dot3: "22C55E",
 };
-const FONT = "굴림";
+const FONT = "맑은 고딕";
 const MONO = "Consolas";
 // 부드러운 그림자 (웜 페이퍼)
-const shadow = () => ({ type: "outer", color: "8A7F6A", blur: 11, offset: 2, angle: 90, opacity: 0.16 });
-const RAD = 0.09;  // 카드 모서리 반경
+const shadow = () => ({ type: "outer", color: "8A7F6A", blur: 12, offset: 2, angle: 90, opacity: 0.14 });
+const RAD = 0.12;  // 카드 모서리 반경 (모던: 좀 더 둥글게)
 
 // ── 공통 요소 ────────────────────────────────────────────────────
 function brandMark(pres, s) {
@@ -42,42 +42,46 @@ function footer(s, sl) {
 // ── 슬라이드 종류 ────────────────────────────────────────────────
 function titleSlide(pres, s, sl) {
   s.background = { color: C.dark };
-  s.addShape(pres.shapes.RECTANGLE, { x: 0, y: 0, w: W, h: 0.72, fill: { color: C.accent }, line: { color: C.accent } });
-  s.addText("ORACLE", { x: M, y: 0, w: 4, h: 0.72, fontFace: FONT, fontSize: 22, bold: true, color: C.white, align: "left", valign: "middle", charSpacing: 3, margin: 0 });
-  if (sl.source) s.addText(`Database 19c · ${sl.source}`, { x: 7.41, y: 0, w: 5, h: 0.72, fontFace: FONT, fontSize: 12, color: C.tint, align: "right", valign: "middle", margin: 0 });
-  if (sl.tag) s.addText(sl.tag, { x: M, y: 2.0, w: 11.49, h: 0.4, fontFace: FONT, fontSize: 13, color: C.tint2, align: "left", valign: "middle", margin: 0 });
-  s.addText(sl.title, { x: M, y: 2.7, w: 11.49, h: 1.4, fontFace: FONT, fontSize: 46, bold: true, color: C.white, align: "left", valign: "top", margin: 0 });
-  if (sl.subtitle) s.addText(sl.subtitle, { x: M, y: 4.25, w: 11.49, h: 0.6, fontFace: FONT, fontSize: 17, color: C.muted2, align: "left", valign: "top", margin: 0 });
-  s.addShape(pres.shapes.RECTANGLE, { x: M, y: 6.0, w: 3.2, h: 0.02, fill: { color: C.slate }, line: { color: C.slate } });
+  // 워드마크 (밴드 없이 — 모던 에디토리얼)
+  s.addText("ORACLE", { x: M, y: 0.66, w: 4, h: 0.4, fontFace: FONT, fontSize: 13, bold: true, color: C.tint2, align: "left", valign: "middle", charSpacing: 4, margin: 0 });
+  if (sl.source) s.addText(sl.source, { x: 7.41, y: 0.66, w: 5, h: 0.4, fontFace: FONT, fontSize: 11, color: C.muted2, align: "right", valign: "middle", margin: 0 });
+  // 킥커 액센트 바 + 태그
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: M, y: 2.62, w: 0.62, h: 0.09, fill: { color: C.accent }, line: { color: C.accent }, rectRadius: 0.045 });
+  if (sl.tag) s.addText(sl.tag, { x: M + 0.82, y: 2.5, w: 10.6, h: 0.34, fontFace: FONT, fontSize: 13, color: C.tint2, align: "left", valign: "middle", charSpacing: 1, margin: 0 });
+  s.addText(sl.title, { x: M, y: 3.05, w: 11.7, h: 1.9, fontFace: FONT, fontSize: 48, bold: true, color: C.white, align: "left", valign: "top", lineSpacingMultiple: 1.04, margin: 0 });
+  if (sl.subtitle) s.addText(sl.subtitle, { x: M, y: 5.15, w: 11.49, h: 0.7, fontFace: FONT, fontSize: 17, color: C.muted2, align: "left", valign: "top", margin: 0 });
   const who = sl.presenter ? sl.presenter : "Oracle DBA 부트캠프";
-  s.addText(who, { x: M, y: 6.15, w: 8, h: 0.5, fontFace: FONT, fontSize: 13, color: C.white, align: "left", valign: "top", margin: 0 });
+  s.addText(who, { x: M, y: 6.55, w: 8, h: 0.5, fontFace: FONT, fontSize: 12, color: C.muted2, align: "left", valign: "top", margin: 0 });
 }
 
 function sectionSlide(pres, s, sl) {
   s.background = { color: C.dark };
   brandMark(pres, s);
-  if (sl.num) s.addText(sl.num, { x: M, y: 2.3, w: 3, h: 1.7, fontFace: FONT, fontSize: 90, bold: true, color: C.accent, align: "left", valign: "top", margin: 0 });
-  s.addShape(pres.shapes.RECTANGLE, { x: 0.94, y: 4.28, w: 0.16, h: 0.16, fill: { color: C.accent }, line: { color: C.accent } });
-  s.addText(sl.title, { x: M, y: 4.55, w: 11.49, h: 0.9, fontFace: FONT, fontSize: 40, bold: true, color: C.white, align: "left", valign: "top", margin: 0 });
-  if (sl.subtitle) s.addText(sl.subtitle, { x: M, y: 5.55, w: 11.49, h: 0.6, fontFace: FONT, fontSize: 16, color: C.muted2, align: "left", valign: "top", margin: 0 });
+  // 큰 숫자를 옅은 톤으로 뒤에 깔고, 그 위에 킥커 바 + 제목 (모던)
+  if (sl.num) s.addText(sl.num, { x: M - 0.05, y: 1.5, w: 5, h: 2.2, fontFace: FONT, fontSize: 130, bold: true, color: C.slate, align: "left", valign: "top", margin: 0 });
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: M, y: 4.5, w: 0.62, h: 0.09, fill: { color: C.accent }, line: { color: C.accent }, rectRadius: 0.045 });
+  s.addText(sl.title, { x: M, y: 4.75, w: 11.49, h: 0.9, fontFace: FONT, fontSize: 38, bold: true, color: C.white, align: "left", valign: "top", margin: 0 });
+  if (sl.subtitle) s.addText(sl.subtitle, { x: M, y: 5.72, w: 11.49, h: 0.6, fontFace: FONT, fontSize: 16, color: C.muted2, align: "left", valign: "top", margin: 0 });
 }
 
 function contentHeader(pres, s, sl) {
-  // 주장형 헤드라인(assertion): 한 문장(최대 2줄). 짧은 라벨보다 '요지'를 말한다.
+  // 주장형 헤드라인(assertion). 킥커 액센트 바 + 제목 + 하단 헤어라인 (모던 에디토리얼)
   const longTitle = (sl.title || "").length > 34;
-  s.addShape(pres.shapes.RECTANGLE, { x: M, y: 0.86, w: 0.14, h: 0.14, fill: { color: C.accent }, line: { color: C.accent } });
-  s.addText(sl.title, { x: 1.2, y: 0.62, w: 9.3, h: 1.02, fontFace: FONT, fontSize: longTitle ? 19 : 24, bold: true, color: C.ink, align: "left", valign: "top", lineSpacingMultiple: 1.05, margin: 0 });
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: M, y: 0.66, w: 0.46, h: 0.08, fill: { color: C.accent }, line: { color: C.accent }, rectRadius: 0.04 });
+  s.addText(sl.title, { x: M, y: 0.84, w: 10.2, h: 0.95, fontFace: FONT, fontSize: longTitle ? 19 : 24, bold: true, color: C.ink, align: "left", valign: "top", lineSpacingMultiple: 1.04, margin: 0 });
   brandMark(pres, s);
-  if (sl.pages > 1) s.addText(`${sl.page} / ${sl.pages}`, { x: W - M - 2.9, y: 0.72, w: 1.6, h: 0.5, fontFace: FONT, fontSize: 11, color: C.muted2, align: "right", valign: "middle", margin: 0 });
+  if (sl.pages > 1) s.addText(`${sl.page} / ${sl.pages}`, { x: W - M - 2.9, y: 0.66, w: 1.6, h: 0.4, fontFace: FONT, fontSize: 11, color: C.muted2, align: "right", valign: "middle", margin: 0 });
+  s.addShape(pres.shapes.RECTANGLE, { x: M, y: 1.78, w: L.CONTENT_W, h: 0.012, fill: { color: C.line }, line: { color: C.line } });
   footer(s, sl);
 }
 
 function roadmapSlide(pres, s, sl) {
   s.background = { color: C.paper };
-  s.addShape(pres.shapes.RECTANGLE, { x: M, y: 0.95, w: 0.14, h: 0.14, fill: { color: C.accent }, line: { color: C.accent } });
-  s.addText("발표 흐름", { x: 1.2, y: 0.72, w: 6, h: 0.7, fontFace: FONT, fontSize: 26, bold: true, color: C.ink, align: "left", valign: "middle", margin: 0 });
-  s.addText("ROADMAP", { x: 1.2, y: 1.45, w: 6, h: 0.3, fontFace: FONT, fontSize: 12, color: C.muted2, align: "left", charSpacing: 2, margin: 0 });
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: M, y: 0.66, w: 0.46, h: 0.08, fill: { color: C.accent }, line: { color: C.accent }, rectRadius: 0.04 });
+  s.addText("발표 흐름", { x: M, y: 0.84, w: 6, h: 0.55, fontFace: FONT, fontSize: 25, bold: true, color: C.ink, align: "left", valign: "top", margin: 0 });
+  s.addText("ROADMAP", { x: M, y: 1.44, w: 6, h: 0.3, fontFace: FONT, fontSize: 11, color: C.muted2, align: "left", charSpacing: 2, margin: 0 });
   brandMark(pres, s);
+  s.addShape(pres.shapes.RECTANGLE, { x: M, y: 1.78, w: L.CONTENT_W, h: 0.012, fill: { color: C.line }, line: { color: C.line } });
   footer(s, sl);
   const items = sl.items;
   const cols = items.length > 6 ? 2 : 1;
@@ -96,10 +100,10 @@ function roadmapSlide(pres, s, sl) {
 
 function closingSlide(pres, s, sl) {
   s.background = { color: C.dark };
-  s.addShape(pres.shapes.RECTANGLE, { x: 0, y: 0, w: W, h: 0.72, fill: { color: C.accent }, line: { color: C.accent } });
-  s.addText("ORACLE", { x: M, y: 0, w: 4, h: 0.72, fontFace: FONT, fontSize: 22, bold: true, color: C.white, align: "left", valign: "middle", charSpacing: 3, margin: 0 });
-  s.addText(sl.title, { x: M, y: 3.0, w: 11.49, h: 1.1, fontFace: FONT, fontSize: 44, bold: true, color: C.white, align: "left", valign: "top", margin: 0 });
-  if (sl.subtitle) s.addText(sl.subtitle, { x: M, y: 4.3, w: 11.49, h: 0.6, fontFace: FONT, fontSize: 16, color: C.muted2, align: "left", valign: "top", margin: 0 });
+  s.addText("ORACLE", { x: M, y: 0.66, w: 4, h: 0.4, fontFace: FONT, fontSize: 13, bold: true, color: C.tint2, align: "left", valign: "middle", charSpacing: 4, margin: 0 });
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: M, y: 2.95, w: 0.62, h: 0.09, fill: { color: C.accent }, line: { color: C.accent }, rectRadius: 0.045 });
+  s.addText(sl.title, { x: M, y: 3.25, w: 11.49, h: 1.1, fontFace: FONT, fontSize: 44, bold: true, color: C.white, align: "left", valign: "top", margin: 0 });
+  if (sl.subtitle) s.addText(sl.subtitle, { x: M, y: 4.5, w: 11.49, h: 0.7, fontFace: FONT, fontSize: 16, color: C.muted2, align: "left", valign: "top", margin: 0 });
 }
 
 // ── 블록 그리기 (좌표는 b.x/b.y/b.w/b.h 확정) ─────────────────────
