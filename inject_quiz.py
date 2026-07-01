@@ -95,25 +95,30 @@ def add_day(hub: str, day: int, rep: list[str]) -> str:
 
 
 def add_day_chip(hub: str, day: int, rep: list[str]) -> str:
-    if re.search(r"--d" + str(day) + r"\s*:", hub) and re.search(r"\.dt" + str(day) + r"\s*\{", hub):
+    # 변수·칩을 각각 독립 체크 — 하나만 빠져도 그것만 채운다(중복/누락 방지).
+    have_var = bool(re.search(r"--d" + str(day) + r"\s*:", hub))
+    have_chip = bool(re.search(r"\.dt" + str(day) + r"\s*\{", hub))
+    if have_var and have_chip:
         rep.append(f"· 날짜 칩 이미 존재: {day}")
         return hub
     used = set(re.findall(r"--d\d+\s*:\s*(#[0-9A-Fa-f]{6})", hub))
     color = next((c for c in CHIP_COLORS if c not in used), CHIP_COLORS[day % len(CHIP_COLORS)])
 
-    # --dNN 색 변수: 마지막 --dNN 정의 뒤에 추가
-    var_matches = list(re.finditer(r"(--d\d+\s*:\s*#[0-9A-Fa-f]{6};)", hub))
-    if var_matches:
-        last = var_matches[-1]
-        hub = hub[:last.end()] + f"--d{day}:{color};" + hub[last.end():]
-        rep.append(f"+ 색 변수 --d{day}:{color}")
-    # .dtNN 칩: 마지막 .dtNN 정의 뒤에 추가
-    chip_matches = list(re.finditer(r"\.dt\d+\s*\{[^}]*\}", hub))
-    if chip_matches:
-        last = chip_matches[-1]
-        chip_css = f".dt{day}{{background:var(--d{day});color:#fff}}"
-        hub = hub[:last.end()] + chip_css + hub[last.end():]
-        rep.append(f"+ 칩 .dt{day}")
+    # --dNN 색 변수: 없을 때만, 마지막 --dNN 정의 뒤에 추가
+    if not have_var:
+        var_matches = list(re.finditer(r"--d\d+\s*:\s*#[0-9A-Fa-f]{6};", hub))
+        if var_matches:
+            last = var_matches[-1]
+            hub = hub[:last.end()] + f"--d{day}:{color};" + hub[last.end():]
+            rep.append(f"+ 색 변수 --d{day}:{color}")
+    # .dtNN 칩: 없을 때만, 마지막 .dtNN 정의 뒤에 추가 (배경=색, 글자=흰색 → 항상 대비 확보)
+    if not have_chip:
+        chip_matches = list(re.finditer(r"\.dt\d+\s*\{[^}]*\}", hub))
+        if chip_matches:
+            last = chip_matches[-1]
+            chip_css = f".dt{day}{{background:var(--d{day});color:#fff}}"
+            hub = hub[:last.end()] + chip_css + hub[last.end():]
+            rep.append(f"+ 칩 .dt{day}")
     return hub
 
 
