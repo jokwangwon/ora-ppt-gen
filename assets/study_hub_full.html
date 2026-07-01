@@ -2091,12 +2091,22 @@ Predicate Information:
 <span class="out">| Id | Operation                                | Buffers | Starts |</span>
 <span class="out">--------------------------------------------------------------------------</span>
 <span class="out">|  1 |  NESTED LOOPS                            |    4    |    1   |</span>
-<span class="hl">|  2 |   TABLE ACCESS BY INDEX ROWID EMPLOYEES  |    2    |    1   |  ← 바깥</span>
-<span class="out">|  3 |    INDEX UNIQUE SCAN EMP_EMP_ID_PK       |         |    1   |</span>
-<span class="hl">|  4 |   TABLE ACCESS BY INDEX ROWID DEPARTMENTS|    2    |    1   |  ← 안쪽</span>
-<span class="out">|  5 |    INDEX UNIQUE SCAN DEPT_ID_PK          |         |    1   |</span>
-<span class="out">--------------------------------------------------------------------------</span></pre>
+<span class="hl">|  2 |   TABLE ACCESS BY INDEX ROWID EMPLOYEES  |    2    |    1   |  ← outer/driving</span>
+<span class="hl">|* 3 |    INDEX UNIQUE SCAN EMP_EMP_ID_PK       |         |    1   |</span>
+<span class="hl">|  4 |   TABLE ACCESS BY INDEX ROWID DEPARTMENTS|    2    |    1   |  ← inner/driven</span>
+<span class="hl">|* 5 |    INDEX UNIQUE SCAN DEPT_ID_PK          |         |    1   |</span>
+<span class="out">--------------------------------------------------------------------------</span>
+<span class="cm">Predicate Information (identified by operation id):</span>
+<span class="out">   3 - access("E"."EMPLOYEE_ID"=100)</span>
+<span class="out">   5 - access("E"."DEPARTMENT_ID"="D"."DEPARTMENT_ID")</span></pre>
   <p>실행 순서는 안쪽·위부터라 <b class="k">3 → 2 → 5 → 4 → 1</b>, Buffers 4로 끝난다. 바깥이 1행이라 여기까진 단순하다.</p>
+  <div class="why"><span class="h">Id 옆의 <code class="inl">*</code>와 Predicate Information — 무엇을 알려주나</span>
+  <b><code class="inl">*</code>는 "이 단계에 조건(predicate)이 걸려 있으니 아래를 보라"는 포인터</b>다. 별표 있는 Id(<code class="inl">*3</code>·<code class="inl">*5</code>)만 아래 <b>Predicate Information</b>에 조건이 나오고, 없는 Id(0·1·2·4)는 순수 작업(조인·테이블 접근)일 뿐이다. 아래에서 읽는 것은 <b>어느 단계가 어떤 조건을</b>, 그리고 <b class="k">access(인덱스로 좁힘) 인지 filter(읽고 버림) 인지</b>다(§2.3).
+  <ul class="tight" style="margin:6px 0 0">
+    <li><b>Id 3</b> <code class="inl">access(EMPLOYEE_ID=100)</code> — WHERE 조건을 인덱스 유니크 스캔으로 <b>바로 집었다</b>(filter 아님 = 낭비 없음).</li>
+    <li><b>Id 5</b> <code class="inl">access(E.DEPARTMENT_ID = D.DEPARTMENT_ID)</code> — 이건 <b>조인 조건</b>이다. driven(DEPARTMENTS)을 outer 행의 <code class="inl">department_id</code>로 <b>인덱스 lookup</b>했다는 증거 — 앞의 "<b class="k">driven엔 인덱스</b>"가 여기서 access로 확인된다. 만약 여기가 <code class="inl">filter</code>였다면 조인키 인덱스가 없어 매 반복마다 훑었다는 뜻(터짐 신호).</li>
+  </ul>
+  실전에선 <b>핵심 조건이 <code class="inl">filter</code>로만</b> 잡히거나 <code class="inl">filter(TO_NUMBER("X")=100)</code>처럼 <b>함수가 씌워져</b> 나오면, 인덱스를 못 타는 원인이 여기서 그대로 드러난다.</div>
 
   <h3 class="blk"><span class="ix">7.3</span>실측 ② 바깥이 여러 행 — location_id=1400</h3>
   <p><b class="k">바깥은 고정이 아니다 — 쿼리 조건이 먼저 거르는 쪽이 driving이 된다.</b> <code class="inl">location_id=1400</code>은 부서를 먼저 1행(60번)으로 걸러 이번엔 <b>DEPARTMENTS가 바깥</b>이 되고, 그 부서에 사원이 5명이라 <b>EMPLOYEES가 안쪽으로 5번</b> 돈다.</p>
