@@ -82,7 +82,8 @@ footer{padding:30px 0 50px;color:var(--muted);font-size:13px}
   <a href="#p2">3. 액세스 경로</a>
   <a href="#p3">4. Full Table Scan</a>
   <a href="#p5">5. 인덱스 & rowid</a>
-  <a href="#p6">6. 도구·통계·클러스터링·TRACE</a>
+  <a href="#p6">6. 도구·통계·TRACE·10046·BCHR</a>
+  <a href="#join">7. 조인</a>
   <a href="#road">로드맵</a>
 </div></nav>
 
@@ -360,6 +361,45 @@ Predicate Information:
   <figcaption>SKIP SCAN: 선두값(f, m)이 둘뿐이라, 사실상 "gender별 RANGE SCAN"을 2번 묶은 것. 선두 고유값이 적을수록 쪼개는 횟수가 적어 유리하다.</figcaption>
   </figure>
   <div class="tip"><b>MIN/MAX 함정</b> — <code class="inl">min(c)</code>나 <code class="inl">max(c)</code> 단독은 <code class="inl">INDEX FULL SCAN (MIN/MAX)</code>로 양 끝만 본다. 하지만 <code class="inl">select min(c), max(c)</code>처럼 <b>같이 쓰면</b> 한 번의 스캔으로 양 끝을 못 집어 일반 <code class="inl">INDEX FULL SCAN</code>으로 전체를 읽는다. <code class="inl">min … union all … max</code>로 쪼개면 각각 (MIN/MAX)가 적용돼 빨라진다.</div>
+
+  <h3 class="blk"><span class="ix">5.6</span>접근 경로 실전 — 같은 쿼리, 네 경로 <span class="db add">72일차</span></h3>
+  <p>같은 <code class="inl">where department_id=80 and salary=10000</code>을 힌트만 바꿔 네 번 돌리면 경로마다 <b class="k">Buffers</b>가 갈린다. 여기서 얻는 교훈 하나 — <b class="k">옵티마이저 기본이 늘 최선은 아니다.</b> 무엇이 최선인지는 추정이 아니라 실측 Buffers로 고른다.</p>
+  <table>
+    <tr><th>경로</th><th>힌트</th><th>Buffers</th></tr>
+    <tr><td>① 기본 (옵티마이저 선택)</td><td>EMP_SAL_IDX 단일</td><td><b>5</b></td></tr>
+    <tr><td>② dept 인덱스 강제</td><td><code class="inl">index(e emp_dept_idx)</code></td><td><b>4</b></td></tr>
+    <tr><td>③ and_equal</td><td><code class="inl">and_equal(e emp_dept_idx emp_sal_idx)</code></td><td><b style="color:var(--alert)">10</b> (최악)</td></tr>
+    <tr><td>④ index_combine</td><td><code class="inl">index_combine(e emp_dept_idx emp_sal_idx)</code></td><td><b>4</b></td></tr>
+  </table>
+  <p><b class="k">왜 ③ and_equal이 10이나 되나</b> — 실제 플랜을 펴 보면 숫자가 그대로 답한다.</p>
+  <pre class="term"><span class="pr">HR&gt;</span> select /*+ gather_plan_statistics <span class="hl">and_equal(e emp_dept_idx emp_sal_idx)</span> */ *
+        from hr.emp e where department_id = 80 and salary = 10000;
+<span class="out">------------------------------------------------------------------</span>
+<span class="out">| Id | Operation                        | Name         | Buffers |</span>
+<span class="out">------------------------------------------------------------------</span>
+<span class="hl">|* 1 |  TABLE ACCESS BY INDEX ROWID EMP |              |    10 |</span>
+<span class="out">|  2 |   AND-EQUAL                      |              |     8 |</span>
+<span class="hl">|* 3 |    INDEX RANGE SCAN              | EMP_SAL_IDX  |     5 |</span>
+<span class="hl">|* 4 |    INDEX RANGE SCAN              | EMP_DEPT_IDX |     3 |</span>
+<span class="out">------------------------------------------------------------------</span></pre>
+  <div class="why"><span class="h">두 인덱스를 각각 훑어 합친다</span>
+  and_equal은 EMP_SAL_IDX를 스캔해 <b>5</b>, EMP_DEPT_IDX를 스캔해 <b>3</b>, 이 둘이 준 rowid를 <code class="inl">AND-EQUAL</code>로 교집합(<b>8</b>)한 뒤 테이블 접근까지 더해 <b>10</b>이다. 인덱스 하나만 타면 4~5인데, 둘을 각각 훑어 합치니 오히려 더 많다. 같은 교집합을 index_combine(비트맵 변환)은 <b>4</b>로 더 싸게 처리한다. <b class="k">실측 없이 힌트를 믿으면 이렇게 손해</b>다 — §2.5의 "무엇을 의심하나" 체크를 여기서 그대로 쓴다.</div>
+
+  <h3 class="blk"><span class="ix">5.7</span>비트맵 인덱스 — DW용, 그리고 row lock 함정 <span class="db add">72일차</span></h3>
+  <p>B*tree와 bitmap은 <b class="k">정반대 상황</b>용이다. 헷갈리면 "값 종류(선택도)가 어떤가"로 가른다.</p>
+  <table>
+    <tr><th>기준</th><th>B*tree</th><th>bitmap</th></tr>
+    <tr><td>맞는 컬럼</td><td>유일·고선택도 (예: employee_id)</td><td>중복 많은 저선택도 (예: gender)</td></tr>
+    <tr><td>DML 비용</td><td>낮음 (행 단위 잠금)</td><td>높음 (여러 행을 함께 잠금)</td></tr>
+    <tr><td>연산자</td><td>OR에 비효율</td><td>AND·OR 모두 효율 (index_combine)</td></tr>
+    <tr><td>용도</td><td><b>OLTP</b></td><td><b>DW · DSS</b></td></tr>
+  </table>
+  <p><b class="k">그런데 bitmap을 OLTP에 쓰면 — 한 값이 여러 행을 함께 잠근다.</b> bitmap은 키 하나(<code class="inl">gender='m'</code>)가 그 값을 가진 <b>여러 행을 한 조각(비트맵 세그먼트)으로</b> 덮는다. 그래서 서로 <b>다른 행</b>을 넣어도 gender가 같으면 같은 조각을 두고 잠금이 부딪친다.</p>
+  <pre class="term"><span class="cm">-- 세션1: insert ... values(1,'m','y')    세션2: insert ... values(3,'m','y')</span>
+<span class="pr">SQL&gt;</span> select sid, blocking_session, event from v$session where event like '%TX%';
+<span class="out">  SID   BLOCKING_SESSION   EVENT</span>
+<span class="hl">  286   255                enq: TX - row lock contention</span></pre>
+  <div class="tip"><b>다른 행인데 왜 막혔나</b> — 286은 <code class="inl">(3,'m','y')</code>, 255는 <code class="inl">(1,'m','y')</code>. 행은 다르지만 <code class="inl">gender='m'</code>이 같아 <b>같은 bitmap 조각</b>을 두고 286이 255에 막혔다. B*tree라면 다른 행이라 안 부딪쳤을 경합이다. <b class="k">그래서 bitmap은 동시 DML이 잦은 OLTP엔 독</b>이고, 변경이 드문 DW·DSS에서 <span class="we">enq: TX - row lock contention</span> 걱정 없이 AND/OR을 싸게 처리하는 용도다.</div>
 </section>
 
 <section class="part" id="p6">
@@ -500,13 +540,101 @@ Predicate Information:
   </table>
   <div class="why"><span class="h">한 줄로 외우기</span>
   <b>SELECT → Fetch 줄의 query(consistent gets)·disk</b>를 본다. <b>DML → Execute 줄의 current(db block gets)·disk</b>를 본다. (Row Source Operation 줄의 <code class="inl">cr</code>=논리 블록, <code class="inl">pr</code>=물리 블록, <code class="inl">pw</code>=쓰기도 같은 뜻.) display_cursor의 Buffers/Reads와 같은 것을 파일 관점에서 보는 셈이다.</div>
+
+  <h3 class="blk"><span class="ix">6.6</span>10046 이벤트 — bind 값과 wait까지 <span class="db add">72일차</span></h3>
+  <p><code class="inl">sql_trace=true</code>(§6.5)는 "무슨 SQL이 얼마나 걸렸나"까지다. 한 걸음 더 — <b class="k">어떤 값(bind)으로 돌렸고, 무엇을 기다렸나(wait)</b> — 까지 보려면 <b>10046 이벤트</b>를 건다. 느린 원인이 읽기량이 아니라 <b>기다림</b>일 때 필수다.</p>
+  <pre class="term"><span class="pr">HR&gt;</span> alter session set events '10046 trace name context forever, <span class="hl">level 12</span>';
+<span class="pr">HR&gt;</span> exec :b_id := 50;
+<span class="pr">HR&gt;</span> select * from hr.emp where department_id = :b_id;
+<span class="pr">HR&gt;</span> alter session set events '10046 trace name context off';
+<span class="cm">-- 추적파일에 찍히는 것:</span>
+<span class="out">  BINDS #..:  :b_id = 50                         </span><span class="cm">-- 무슨 값으로</span>
+<span class="out">  WAIT #..:  db file sequential read ...         </span><span class="cm">-- 무엇을 기다렸나</span>
+<span class="out">  WAIT #..:  db file scattered read ...          </span></pre>
+  <table>
+    <tr><th>level</th><th>추가로 찍히는 것</th></tr>
+    <tr><td>1</td><td>기본 — SQL·실행통계 (<code class="inl">sql_trace=true</code>와 동급)</td></tr>
+    <tr><td>4</td><td>+ <b>BINDS</b> (바인드 변수 값)</td></tr>
+    <tr><td>8</td><td>+ <b>WAITS</b> (대기 이벤트)</td></tr>
+    <tr><td>12</td><td><b class="k">4 + 8</b> — bind·wait 둘 다</td></tr>
+  </table>
+  <div class="why"><span class="h">레벨은 더한다 — 12 = 4 + 8</span>
+  1(기본) · 4(+bind) · 8(+wait)이고, <b>둘 다 원하면 더해서 12</b>다(비트마스크라 값을 합친다). tkprof로는 "얼마나 걸렸나"까지지만, level 12를 걸면 <b>무슨 값으로 돌렸고(bind)·무엇을 기다렸나(wait)</b>가 추적파일에 그대로 남는다. 대기가 <span class="we">db file sequential read</span>면 인덱스 단일 블록 읽기, <span class="we">db file scattered read</span>면 full scan multi-block 읽기다 — 어제 본 대기이벤트가 여기서 원인 진단으로 이어진다.</div>
+
+  <h3 class="blk"><span class="ix">6.7</span>버퍼 캐시 히트율(BCHR) — 높다고 좋은 게 아니다 <span class="db add">72일차</span></h3>
+  <p><b>BCHR</b>(Buffer Cache Hit Ratio)은 논리 읽기 중 <b>디스크로 안 간 비율</b>이다.</p>
+  <pre class="term"><span class="out">BCHR = ( 1 - disk / (query + current) ) * 100</span>
+<span class="cm">   query + current = 논리 읽기(블록),   disk = 물리 읽기(블록)</span></pre>
+  <div class="why"><span class="h">히트율이 높은데 느리다면 — 지표를 잘못 본 것</span>
+  "BCHR은 높을수록 좋다"고 배우지만, <b class="k">나쁜 실행계획이 오히려 BCHR을 100%에 가깝게 만든다.</b> 실행계획이 나빠 논리 읽기(query)가 폭증하면 분모가 커져 <code class="inl">disk/(query+current)</code>가 0에 수렴 — 디스크는 안 가고 <b>캐시에서만 잔뜩 읽어서</b> 히트율은 오히려 올라간다. 그래서 봐야 할 것은 히트율(비율)이 아니라 <b>논리 I/O(Buffers·consistent gets)의 절대량</b>이다. §6.2의 "튜닝은 보통 consistent gets를 본다"와 같은 결론이다.</div>
+</section>
+
+<section class="part" id="join">
+  <div class="phead"><div class="pnum">07</div><div><div class="ptitle">조인 — 방법은 건수로, 순서는 힌트로 <span class="db add">72일차</span></div><div class="psub">NL·Sort Merge·Hash, 그리고 반복 횟수를 Starts로 읽는다</div></div></div>
+  <p>조인에는 <b class="k">두 축</b>이 있고 둘은 별개다 — <b class="k">방법</b>(어떻게 붙이나)과 <b class="k">순서</b>(누가 먼저 도나). 방법은 대체로 <b>건수</b>가, 순서는 <b>힌트</b>가 정한다.</p>
+  <table>
+    <tr><th>구분</th><th>언제 유리</th><th>힌트</th></tr>
+    <tr><td><b>NESTED LOOPS</b></td><td>조인 결과가 <b>소량</b> · 안쪽에 인덱스가 있을 때</td><td><code class="inl">use_nl</code></td></tr>
+    <tr><td><b>SORT MERGE</b></td><td>대량 · 양쪽을 정렬해 병합 (부등호 조인에도)</td><td><code class="inl">use_merge</code></td></tr>
+    <tr><td><b>HASH JOIN</b></td><td>대량 · 한쪽으로 해시 테이블을 만들 때 (<code class="inl">=</code> 조인)</td><td><code class="inl">use_hash</code></td></tr>
+    <tr><td>조인 <b>순서</b></td><td>from 순서대로 / 지정 순서로</td><td><code class="inl">ordered</code> / <code class="inl">leading</code></td></tr>
+  </table>
+  <div class="tip"><b>방법과 순서는 다른 축</b> — 바깥이 1행이면 순서를 바꿔도 Buffers는 같다. 하지만 <b>바깥이 여러 행</b>이면 누가 먼저(driving) 도느냐로 안쪽 반복 횟수가 확 달라진다. 그 반복을 실행계획의 <b class="k">Starts</b>로 본다(§6.2).</p></div>
+
+  <h3 class="blk"><span class="ix">7.1</span>NL은 바깥 각 행마다 안쪽을 반복한다</h3>
+  <p>Nested Loop은 <b>바깥(driving) 테이블의 각 행마다 안쪽을 인덱스로 조회</b>해 붙인다. 그래서 바깥이 작을수록 안쪽 반복이 적어 싸다. 반복 횟수는 실행계획의 <b class="k">Starts</b>에 그대로 찍힌다.</p>
+  <figure>
+  <svg viewBox="0 0 680 210" role="img" aria-label="NL 조인: 바깥 각 행마다 안쪽을 반복">
+    <defs><marker id="nl" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aab3c0" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <rect class="ntune" x="40" y="58" width="240" height="94" rx="10" stroke-width="1.2"/>
+    <text class="svg-lbl" x="160" y="88" text-anchor="middle">바깥 (driving)</text>
+    <text class="svg-sub" x="160" y="110" text-anchor="middle">조건이 먼저 거른 쪽</text>
+    <text class="svg-mono" x="160" y="132" text-anchor="middle" style="fill:var(--tune)">각 행마다 →</text>
+    <rect class="ncor" x="400" y="58" width="240" height="94" rx="10" stroke-width="1.2"/>
+    <text class="svg-lbl" x="520" y="88" text-anchor="middle">안쪽 (inner)</text>
+    <text class="svg-sub" x="520" y="110" text-anchor="middle">바깥 행의 키로 인덱스 조회</text>
+    <text class="svg-mono" x="520" y="132" text-anchor="middle" style="fill:#e0892b">Starts = 바깥 행 수</text>
+    <line class="edge" x1="280" y1="105" x2="398" y2="105" marker-end="url(#nl)"/>
+    <text class="svg-sub" x="339" y="96" text-anchor="middle">반복 (loop)</text>
+    <text class="svg-mono" x="340" y="184" text-anchor="middle" style="fill:var(--tune)">바깥이 작을수록 안쪽 반복이 적다 → NL이 싸다</text>
+  </svg>
+  <figcaption>NL의 비용은 바깥 행 수에 달렸다. 안쪽이 몇 번 돌았는지는 실행계획 <b>Starts</b>에 그대로 나온다.</figcaption>
+  </figure>
+
+  <h3 class="blk"><span class="ix">7.2</span>실측 ① 바깥이 1행 — employee_id=100</h3>
+  <p><code class="inl">employee_id=100</code>이면 바깥 EMPLOYEES가 딱 1행이라, 안쪽 DEPARTMENTS도 <b>한 번만</b> 조회한다. 모든 Starts가 1이다.</p>
+  <pre class="term"><span class="pr">HR&gt;</span> select /*+ gather_plan_statistics */ e.last_name, d.department_name
+        from hr.employees e join hr.departments d using(department_id)
+        where e.employee_id = 100;
+<span class="out">--------------------------------------------------------------------------</span>
+<span class="out">| Id | Operation                                | Buffers | Starts |</span>
+<span class="out">--------------------------------------------------------------------------</span>
+<span class="out">|  1 |  NESTED LOOPS                            |    4    |    1   |</span>
+<span class="hl">|  2 |   TABLE ACCESS BY INDEX ROWID EMPLOYEES  |    2    |    1   |  ← 바깥</span>
+<span class="out">|  3 |    INDEX UNIQUE SCAN EMP_EMP_ID_PK       |         |    1   |</span>
+<span class="hl">|  4 |   TABLE ACCESS BY INDEX ROWID DEPARTMENTS|    2    |    1   |  ← 안쪽</span>
+<span class="out">|  5 |    INDEX UNIQUE SCAN DEPT_ID_PK          |         |    1   |</span>
+<span class="out">--------------------------------------------------------------------------</span></pre>
+  <p>실행 순서는 안쪽·위부터라 <b class="k">3 → 2 → 5 → 4 → 1</b>, Buffers 4로 끝난다. 바깥이 1행이라 여기까진 단순하다.</p>
+
+  <h3 class="blk"><span class="ix">7.3</span>실측 ② 바깥이 여러 행 — location_id=1400</h3>
+  <p><b class="k">바깥은 고정이 아니다 — 쿼리 조건이 먼저 거르는 쪽이 driving이 된다.</b> <code class="inl">location_id=1400</code>은 부서를 먼저 1행(60번)으로 걸러 이번엔 <b>DEPARTMENTS가 바깥</b>이 되고, 그 부서에 사원이 5명이라 <b>EMPLOYEES가 안쪽으로 5번</b> 돈다.</p>
+  <pre class="term"><span class="cm">-- location 1400 → 부서 60 (1행) → 그 부서 사원 5명 → 바깥 5행</span>
+<span class="out">| Id | Operation                           | Buffers | Starts | A-Rows |</span>
+<span class="out">-----------------------------------------------------------------------</span>
+<span class="hl">|  3 |   DEPARTMENTS (BY INDEX ROWID)       |    2    |    1   |    1   |  ← 바깥</span>
+<span class="out">|  5 |   INDEX RANGE SCAN EMP_DEPARTMENT_IX |    2    |    1   |    5   |</span>
+<span class="hl">|  6 |  EMPLOYEES  (BY INDEX ROWID)         |    2    |    5   |    5   |  ← 안쪽·Starts=5</span>
+<span class="out">-----------------------------------------------------------------------</span></pre>
+  <div class="why"><span class="h">Starts=5가 곧 다섯 번 반복</span>
+  Id 6(사원 행 읽기)의 <b>Starts=5</b>는 안쪽을 다섯 번 실행했다는 뜻이다. 그래서 실행 순서가 ①처럼 3→2→5→4→1에서 끝나지 않고 <b>3 → 2 → 5 → 4 → 5 → 4 … → 1</b>로 안쪽을 5번 반복하며 길어진다. ①(emp_id=100)에선 사원이 바깥이었는데 여기선 뒤집혔다 — <b class="k">먼저 걸러지는 쪽이 driving이고, 그 건수가 안쪽 반복(Starts)을 정한다.</b> 실행 순서가 헷갈리면 순서를 세지 말고 <b>Starts부터 봐라</b> — 안쪽이 몇 번 돌았는지가 거기 다 있다.</div>
 </section>
 
 <section class="part" id="road">
   <div class="phead"><div class="pnum">▶</div><div><div class="ptitle">앞으로 다룰 것 (로드맵)</div><div class="psub">수업이 진행되며 채워 나갈 목차</div></div></div>
   <ul class="road">
-    <li class="done"><span class="n">01–06</span>개요 · 실행계획 읽기·도구·통계 · 액세스 경로 · 인덱스 · 버퍼 피닝 · <b>클러스터링 팩터 · SQL TRACE</b> <span class="tag">완료</span></li>
-    <li><span class="n">07</span>조인 방식 — Nested Loop · Hash · Sort-Merge가 각각 언제 유리한가 <span class="tag">예정</span></li>
+    <li class="done"><span class="n">01–06</span>개요 · 실행계획 읽기·도구·통계 · 액세스 경로 · 인덱스 · 버퍼 피닝 · <b>클러스터링 팩터 · SQL TRACE · 10046 · BCHR · 비트맵</b> <span class="tag">완료</span></li>
+    <li class="done"><span class="n">07</span><a href="#join" style="color:var(--tune);font-weight:600">조인 방식</a> — Nested Loop · Sort Merge · Hash, 순서와 Starts로 반복 읽기 <span class="tag">완료</span></li>
     <li><span class="n">08</span>옵티마이저 & 통계 — CBO, 카디널리티 추정, 통계 최신화·히스토그램 <span class="tag">예정</span></li>
     <li><span class="n">09</span>증상→원인→처방 안티패턴 + 자주 쓰는 힌트 <span class="tag">예정</span></li>
   </ul>

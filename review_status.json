@@ -53,7 +53,7 @@
     },
     "72": {
       "status": "reviewing",
-      "note": "덱 하이브리드 재구성 완료 — 구조는 그림, 판정은 실제 플랜(display_cursor/tkprof/v$session) 실측값을 읽어. NL Starts=5 반복까지 실제 데이터로 상세. 문서·문제 저작 다음"
+      "note": "덱 하이브리드 + 문서·문제 저작 완료. 문서: §5.6 접근경로 4플랜(and_equal 10)·§5.7 비트맵 row lock·§6.6 10046 level12·§6.7 BCHR·§7 조인(NL Starts). 문제: MCQ5·ESSAY2·TERMS6·PLANQ2. NL driving 전환(emp_id=100↔location=1400) 덱·문서 모두 명시."
     }
   }
 }

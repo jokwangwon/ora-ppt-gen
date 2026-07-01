@@ -31,20 +31,20 @@ a{color:var(--red);text-decoration:none;font-weight:600}a:hover{text-decoration:
 <tr><td></td><td colspan="9" class="note">↳ 해시테이블 소유·latch 36·redo copy 정정</td></tr>
 <tr><td class="mono">rman_recovery.html</td><td class="small">백업·복구</td><td><span class="chip" style="color:#16803d;background:#dcfce7">✅ 검토완료</span></td><td><span class="ok" title="LLM 정독(h2 사각지대) · 2026-07-01 · 발견/수정 5건">✔ 검증(5)</span></td><td><span class="bar" title="쉬움 0·보통 3·어려움 3"><span style="width:50%;background:#f59e0b"></span><span style="width:50%;background:#C74634"></span></span> <span class="small">6개</span></td><td><span class="warn">1</span></td><td>0</td><td><span class="ok">0</span></td><td class="small">2026-07-01</td><td><a href="rman_recovery.html">열기</a></td></tr>
 <tr><td></td><td colspan="9" class="note">↳ dbms_repair 포기·MOUNT 상태·SYSTEM/UNDO 경계</td></tr>
-<tr><td class="mono">sql_tuning.html</td><td class="small">SQL·실행계획</td><td><span class="chip" style="color:#16803d;background:#dcfce7">✅ 검토완료</span></td><td><span class="ok" title="LLM 정독 · 2026-07-01 · 발견/수정 0건">✔ 검증</span></td><td><span class="bar" title="쉬움 1·보통 6·어려움 8"><span style="width:7%;background:#94a3b8"></span><span style="width:40%;background:#f59e0b"></span><span style="width:53%;background:#C74634"></span></span> <span class="small">15개</span></td><td><span class="ok">0</span></td><td>0</td><td><span class="ok">0</span></td><td class="small">2026-07-01</td><td><a href="sql_tuning.html">열기</a></td></tr>
+<tr><td class="mono">sql_tuning.html</td><td class="small">SQL·실행계획</td><td><span class="chip" style="color:#16803d;background:#dcfce7">✅ 검토완료</span></td><td><span class="ok" title="LLM 정독 · 2026-07-01 · 발견/수정 0건">✔ 검증</span></td><td><span class="bar" title="쉬움 2·보통 9·어려움 11"><span style="width:9%;background:#94a3b8"></span><span style="width:41%;background:#f59e0b"></span><span style="width:50%;background:#C74634"></span></span> <span class="small">22개</span></td><td><span class="warn">1</span></td><td>0</td><td><span class="ok">0</span></td><td class="small">2026-07-01</td><td><a href="sql_tuning.html">열기</a></td></tr>
 <tr><td></td><td colspan="9" class="note">↳ 검은박스 .nal 정의 추가</td></tr>
 </table>
 <h2>일차 저작물</h2>
 <table><tr><th>일차</th><th>문제</th><th>일차덱</th><th>상태</th><th>메모</th></tr>
 <tr><td class="mono">68일차</td><td><span class="small">-</span></td><td><span class="ok">있음</span></td><td><span class="chip" style="color:#64748b;background:#f1f5f9">· 미검토</span></td><td class="note">덱 생성(문서·문제는 기 저작). row migration·ITL·full scan</td></tr>
-<tr><td class="mono">72일차</td><td><span class="small">-</span></td><td><span class="ok">있음</span></td><td><span class="chip" style="color:#b45309;background:#fef3c7">● 검토중</span></td><td class="note">덱 하이브리드 재구성 완료 — 구조는 그림, 판정은 실제 플랜(display_cursor/tkprof/v$session) 실측값을 읽어. NL Starts=5 반복까지 실제 데이터로 상세. 문서·문제 저작 다음</td></tr>
+<tr><td class="mono">72일차</td><td><span class="ok">있음</span></td><td><span class="ok">있음</span></td><td><span class="chip" style="color:#b45309;background:#fef3c7">● 검토중</span></td><td class="note">덱 하이브리드 + 문서·문제 저작 완료. 문서: §5.6 접근경로 4플랜(and_equal 10)·§5.7 비트맵 row lock·§6.6 10046 level12·§6.7 BCHR·§7 조인(NL Starts). 문제: MCQ5·ESSAY2·TERMS6·PLANQ2. NL driving 전환(emp_id=100↔location=1400) 덱·문서 모두 명시.</td></tr>
 </table>
 <h2>PPT 덱</h2>
 <table><tr><th>덱</th><th>슬라이드</th><th>빌드</th></tr>
 <tr><td class="mono">buffer_cache_dbwr_checkpoint</td><td>18장</td><td><span class="ok">완료</span></td></tr>
 <tr><td class="mono">guide_62_68</td><td>56장</td><td><span class="ok">완료</span></td></tr>
 <tr><td class="mono">rman_recovery</td><td>13장</td><td><span class="ok">완료</span></td></tr>
-<tr><td class="mono">sql_tuning</td><td>27장</td><td><span class="ok">완료</span></td></tr>
+<tr><td class="mono">sql_tuning</td><td>36장</td><td><span class="ok">완료</span></td></tr>
 </table>
 <p class="small" style="margin-top:28px">생성: <span class="mono">python build_dashboard.py</span> · 상태 변경: <span class="mono">python review.py mark &lt;문서&gt; --status reviewed</span></p>
 </div></body></html>
