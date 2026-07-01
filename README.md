@@ -42,6 +42,8 @@ HTML 문서 ─▶ sync_and_verify.py ─▶ extract_slides.py ─▶ build_ppt.
 
 | 명령 | 설명 |
 |------|------|
+| `python make_day.py <N> --doc <topic.html>` | **일차 파이프라인**(문제 주입 + 일차 덱 + 문서 덱). 저작은 대화로 `days/<N>/`·문서에 미리 준비 |
+| `python inject_quiz.py days/<N>/quiz.json --day <N>` | 하루치 문제를 허브에 주입(멱등) |
 | `python make.py <doc.html>` | 한 문서 파이프라인 |
 | `python make.py --all` | assets/의 4개 문서 전부 |
 | `python make.py <doc> --preview` | QA 스크린샷까지 |

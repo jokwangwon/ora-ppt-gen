@@ -8,7 +8,9 @@ PPT는 HTML에서 파생하되 **새 사실을 지어내지 않는다.**
 
 | 경로 | 역할 |
 |------|------|
-| `sync_and_verify.py` | 동기화(한글→ASCII) · 재주입(docsrc-*) · 검증. **검증 실패 시 멈춤.** |
+| `sync_and_verify.py` | 동기화(한글→ASCII) · 재주입(docsrc-*) · 검증. **검증 실패 시 멈춤**(`--force`로 무시). |
+| `inject_quiz.py`     | 하루치 문제(JSON)를 허브 JS 배열(MCQ/ESSAY/TERMS/PLANQ)·DAYS·날짜칩에 주입(멱등) |
+| `make_day.py`        | **일차 파이프라인** — 동기화·검증 → 문제 주입 → 일차 덱 + 문서 덱 + QA |
 | `extract_slides.py`  | HTML 문서 → 슬라이드 스펙 JSON (추출) |
 | `layout.js`          | 레이아웃 엔진 — 좌표/페이지네이션 (렌더러·프리뷰 공유) |
 | `build_ppt.js`       | 스펙 JSON → PPTX (pptxgenjs, 참고 디자인) |
@@ -19,14 +21,38 @@ PPT는 HTML에서 파생하되 **새 사실을 지어내지 않는다.**
 | `ref/`               | 참고 디자인 PPTX (`reference.pptx`) + 언팩 — git 제외 |
 | `out/`               | 산출물(JSON/PPTX/QA 이미지) — git 제외 |
 
-## 매일 하는 일 (명령)
+## 매일 하는 일 (일일 워크플로)
 
+**저작은 대화(Claude), 배선은 스크립트.** 하루치 노트(`N일차_강사.txt`)가 오면:
+
+1. **[Claude가 대화로 저작]**
+   - `assets/<topic>.html` 에 그날 섹션을 문서 스타일로 직접 추가
+     (`<section class="part">`·`<h3 class="blk">`·표·`.why`/`.tip`·`<pre class="term">`·인라인 `<svg>`).
+     **SVG는 쓰는 `class="nXXX"` 를 그 문서 `<style>`에 반드시 정의**(검은박스 방지).
+   - `days/<N>/quiz.json` — 문제(아래 규약)
+   - `days/<N>/<N>.slides.json` — 일차 덱 스펙(기존 스펙 포맷; 없으면 일차 덱 생략)
+2. **[스크립트가 배선]**
+   ```bash
+   python make_day.py 71 --doc sql_tuning.html            # 검증→문제주입→일차덱+문서덱
+   python make_day.py 71 --doc sql_tuning.html --preview  # + QA 스크린샷
+   python make_day.py 71 --doc sql_tuning.html --force    # HTML 검증 실패해도 진행
+   ```
+
+### `days/<N>/quiz.json` 규약 (허브 배열과 동일 필드)
+```json
+{ "MCQ":  [{"id":"m71a","d":71,"q":"...","o":["...","..."],"a":1,"e":"해설"}],
+  "ESSAY":[{"id":"e71a","d":71,"q":"...","a":"모범답안","k":["채점 키워드"]}],
+  "TERMS":[{"t":"용어","e":"짧은 뜻","d":"자세히"}],
+  "PLANQ":[{"id":"pl71a","q":"...","plan":"| Id | ... |","a":"..."}] }
+```
+`a`(MCQ)=정답 인덱스. `id`(또는 TERMS의 `t`)로 멱등 — 재실행해도 중복 안 됨.
+
+### 문서만/전체만 돌릴 때
 ```bash
-python make.py assets/sql_tuning.html            # 한 문서 → out/sql_tuning.pptx
+python make.py assets/sql_tuning.html            # 문서 하나 → PPT
 python make.py --all                             # 4개 문서 전부
-python make.py assets/sql_tuning.html --preview  # + QA 스크린샷(out/qa/*.png)
-python make.py assets/sql_tuning.html --force    # HTML 검증 실패해도 PPT는 생성
 python sync_and_verify.py --dir assets           # 동기화·재주입·검증만
+python inject_quiz.py days/71/quiz.json --day 71 --dry-run   # 문제 주입 미리보기
 ```
 
 ## 슬라이드 스펙 JSON (extract ↔ build 계약)

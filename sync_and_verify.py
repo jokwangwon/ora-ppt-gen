@@ -186,6 +186,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="동기화 · 재주입 · 검증")
     ap.add_argument("--dir", type=Path, default=Path("."), help="HTML 자산 폴더")
     ap.add_argument("--check-only", action="store_true", help="재주입 없이 검증만")
+    ap.add_argument("--force", action="store_true", help="검증 실패해도 허브 재주입본을 기록")
     args = ap.parse_args(argv)
     base = args.dir
     rep = Report()
@@ -198,16 +199,17 @@ def main(argv: list[str] | None = None) -> int:
     print("\n결과:")
     rep.dump()
 
-    if not ok:
+    if not ok and not args.force:
         print(f"\n✗ 검증 실패 ({len(rep.errors)}건) — 허브를 쓰지 않고 중단합니다.")
         return 1
 
     if hub_html is not None:
         (base / HUB).write_text(hub_html, encoding="utf-8")
-        print(f"\n✓ 검증 통과 — {base / HUB} 갱신 완료.")
-    else:
+        note = "검증 통과" if ok else f"검증 실패 {len(rep.errors)}건이지만 --force"
+        print(f"\n{'✓' if ok else '⚠'} {note} — {base / HUB} 갱신 완료.")
+    elif ok:
         print("\n✓ 검증 통과.")
-    return 0
+    return 0 if ok else (0 if args.force else 1)
 
 
 if __name__ == "__main__":
