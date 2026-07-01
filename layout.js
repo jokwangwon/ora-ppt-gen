@@ -52,6 +52,10 @@ function stepsHeight(s, w = CONTENT_W) {             // 문제→원인→해결
   for (const it of s.items) h += 0.42 + wrapLines(it.body || "", w - 1.1) * 0.28 + 0.16;
   return h;
 }
+function planHeight(p, w = CONTENT_W) {              // 실행계획 표 (P3)
+  const pred = p.predicate ? wrapLines(p.predicate, w - 0.9) * 0.26 + 0.2 : 0;
+  return 0.5 + p.rows.length * 0.3 + pred + 0.25;
+}
 function blockHeight(b, w = CONTENT_W) {
   switch (b.kind) {
     case "bullets": return bulletHeight(b.items, w);
@@ -61,6 +65,7 @@ function blockHeight(b, w = CONTENT_W) {
     case "figure": return figureHeight(b, w);
     case "analogy": return analogyHeight(b, w);
     case "steps": return stepsHeight(b, w);
+    case "plan": return planHeight(b, w);
     default: return 0.5;
   }
 }
@@ -100,6 +105,16 @@ function splitBlock(b) {
       cur.push(it); h += ih;
     }
     if (cur.length) out.push({ kind: "steps", items: cur });
+    return out;
+  }
+  if (b.kind === "plan") {
+    const per = Math.max(4, Math.floor((MAXH - 1.0) / 0.3));
+    if (b.rows.length <= per) return [b];
+    const out = [];
+    for (let i = 0; i < b.rows.length; i += per) {
+      const last = i + per >= b.rows.length;
+      out.push({ kind: "plan", title: i === 0 ? b.title : (b.title ? b.title + " (계속)" : ""), rows: b.rows.slice(i, i + per), predicate: last ? b.predicate : "", order: last ? b.order : "" });
+    }
     return out;
   }
   return [b];

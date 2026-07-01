@@ -123,7 +123,22 @@ function bSteps(b) {
     + `</div></div>`).join("");
   return box(b.x, b.y, b.w, b.h, "", rows);
 }
-const drawB = { bullets: bBullets, table: bTable, callout: bCallout, code: bCode, figure: bFigure, analogy: bAnalogy, steps: bSteps };
+function bPlan(b) {
+  const hdr = `<div style="font-size:12pt;margin-bottom:6px"><b style="color:${C.accent}">실행계획</b>`
+    + (b.title ? `&nbsp;&nbsp;&nbsp;<b style="color:${C.ink}">${esc(b.title)}</b>` : "")
+    + (b.order ? `<span style="color:${C.muted};font-size:11pt">&nbsp;&nbsp;&nbsp;&nbsp;읽는 순서 ${esc(b.order)}</span>` : "") + `</div>`;
+  const rows = b.rows.map((r) => {
+    const star = /\*/.test(String(r.id));
+    return `<div style="white-space:pre">`
+      + `<span style="color:${star ? C.accent : C.muted};font-weight:700">${esc(String(r.id).padEnd(4))} </span>`
+      + `<span style="color:${C.ink}">${esc(r.op || "")}</span>`
+      + (r.name ? `<span style="color:${C.muted}">  ${esc(r.name)}</span>` : "") + `</div>`;
+  }).join("");
+  const pred = b.predicate ? `<div style="color:${C.muted};font-size:11pt;margin-top:6px;white-space:pre-wrap">${esc(b.predicate)}</div>` : "";
+  return box(b.x, b.y, b.w, b.h, `background:${C.card};border:1px solid ${C.line};border-radius:6px;padding:10px 14px;box-shadow:0 2px 6px rgba(0,0,0,.10);box-sizing:border-box;overflow:hidden`,
+    hdr + `<div style="font-family:'WenQuanYi Zen Hei Mono',monospace;font-size:12pt;line-height:1.35">${rows}</div>${pred}`);
+}
+const drawB = { bullets: bBullets, table: bTable, callout: bCallout, code: bCode, figure: bFigure, analogy: bAnalogy, steps: bSteps, plan: bPlan };
 
 function slideContent(sl) {
   let h = box(M, 0.95, 0.14, 0.14, `background:${C.accent}`);

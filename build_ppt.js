@@ -151,8 +151,26 @@ function drawSteps(pres, s, b) {
     y += bh + 0.16;
   });
 }
+function drawPlan(pres, s, b) {
+  s.addShape(pres.shapes.RECTANGLE, { x: b.x, y: b.y, w: b.w, h: b.h, fill: { color: C.card }, line: { color: C.line }, shadow: shadow() });
+  const hdr = [{ text: "실행계획", options: { bold: true, color: C.accent, fontSize: 12 } }];
+  if (b.title) hdr.push({ text: `   ${b.title}`, options: { color: C.ink, fontSize: 12, bold: true } });
+  if (b.order) hdr.push({ text: `      읽는 순서 ${b.order}`, options: { color: C.muted, fontSize: 11 } });
+  s.addText(hdr, { x: b.x + 0.25, y: b.y + 0.12, w: b.w - 0.5, h: 0.32, fontFace: FONT, align: "left", valign: "middle", margin: 0 });
+  const runs = b.rows.map((r) => {
+    const star = /\*/.test(String(r.id));
+    return [
+      { text: `${String(r.id).padEnd(4)} `, options: { color: star ? C.accent : C.muted, bold: true } },
+      { text: (r.op || ""), options: { color: C.ink } },
+      { text: r.name ? `  ${r.name}` : "", options: { color: C.muted } },
+      { text: "", options: { breakLine: true } },
+    ];
+  }).flat();
+  s.addText(runs, { x: b.x + 0.25, y: b.y + 0.5, w: b.w - 0.5, h: b.rows.length * 0.3, fontFace: MONO, fontSize: 12, align: "left", valign: "top", margin: 0 });
+  if (b.predicate) s.addText(b.predicate, { x: b.x + 0.25, y: b.y + 0.5 + b.rows.length * 0.3, w: b.w - 0.5, h: b.h - 0.5 - b.rows.length * 0.3 - 0.1, fontFace: MONO, fontSize: 11, color: C.muted, align: "left", valign: "top", margin: 0 });
+}
 function drawBlock(pres, s, b) {
-  ({ bullets: drawBullets, table: drawTable, callout: drawCallout, code: drawCode, figure: drawFigure, analogy: drawAnalogy, steps: drawSteps }[b.kind] || (() => {}))(pres, s, b);
+  ({ bullets: drawBullets, table: drawTable, callout: drawCallout, code: drawCode, figure: drawFigure, analogy: drawAnalogy, steps: drawSteps, plan: drawPlan }[b.kind] || (() => {}))(pres, s, b);
 }
 
 function contentSlide(pres, s, sl) {
