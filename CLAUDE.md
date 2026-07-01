@@ -68,15 +68,17 @@ python inject_quiz.py days/71/quiz.json --day 71 --dry-run   # 문제 주입 미
 ```
 { deck_id, title, subtitle, source, slides:[
   {type:"title"} | {type:"section", num, title, subtitle} |
-  {type:"content", title, blocks:[
+  {type:"content", title(=주장 문장), notes(=발표자 노트), blocks:[
      {kind:"bullets", items:[]} | {kind:"table", headers:[], rows:[[]]} |
      {kind:"callout", tone:"why|tip", head, body} |
      {kind:"code", lines:[]} | {kind:"figure", caption, summary} |
+     {kind:"svg", svg:"<svg 자체완결>", caption} |
      {kind:"analogy", text} | {kind:"steps", items:[{n,head,body}]} ]}
 ]}
 ```
-**정답지 작법**은 `AUTHORING.md` 참고: 개념마다 비유(analogy)·문제→원인→해결(steps)·
-다이어그램(svg_snippets)·why/tip·실측표. `make_day`가 `lint_authoring.py`로 얇은 개념을 지적한다.
+**일차 덱 작법은 `docs/DECK_DESIGN.md`** (Assertion-Evidence·Mayer·시각설계): 제목은 **주장 문장**,
+본문은 **다이어그램(svg 블록, 자체완결 SVG→sharp 래스터)**, 상세 설명은 **notes(발표자 노트)**로.
+3층 구조(큰 그림·핵심·빈틈&질문). `make_day`가 `lint_authoring.py`로 얇은 개념을 지적한다.
 build 단계에서 title 뒤 **로드맵**, 맨 끝 **감사** 슬라이드가 자동 추가되고,
 `[bullets + callout|figure]` 2개면 좌/우 2단 레이아웃, 넘치면 자동 페이지네이션.
 

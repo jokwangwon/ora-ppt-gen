@@ -56,6 +56,17 @@ function planHeight(p, w = CONTENT_W) {              // 실행계획 표 (P3)
   const pred = p.predicate ? wrapLines(p.predicate, w - 0.9) * 0.26 + 0.2 : 0;
   return 0.5 + p.rows.length * 0.3 + pred + 0.25;
 }
+function svgAspect(svg) {                            // viewBox → 가로/세로 비
+  const m = /viewBox\s*=\s*"[\d.]+\s+[\d.]+\s+([\d.]+)\s+([\d.]+)"/.exec(svg || "");
+  return m ? (+m[1]) / (+m[2]) : 2.5;
+}
+function svgHeight(b, w = CONTENT_W) {               // 다이어그램(evidence) — 비율로 높이 산정
+  if (b.h) return b.h;
+  let h = w / svgAspect(b.svg);
+  const cap = CONTENT_H - (b.caption ? 0.4 : 0.1);
+  if (h > cap) h = cap;
+  return h + (b.caption ? 0.35 : 0);
+}
 function blockHeight(b, w = CONTENT_W) {
   switch (b.kind) {
     case "bullets": return bulletHeight(b.items, w);
@@ -63,6 +74,7 @@ function blockHeight(b, w = CONTENT_W) {
     case "callout": return calloutHeight(b, w);
     case "code": return codeHeight(b);
     case "figure": return figureHeight(b, w);
+    case "svg": return svgHeight(b, w);
     case "analogy": return analogyHeight(b, w);
     case "steps": return stepsHeight(b, w);
     case "plan": return planHeight(b, w);
@@ -150,6 +162,14 @@ function planContent(blocks) {
     y += h + GAP;
   }
   if (cur.length) pages.push(cur);
+
+  // 의도적 여백(Reynolds/Duarte): 내용이 콘텐츠 밴드보다 짧으면 수직 중앙으로 내려
+  // 위에 붙고 아래가 뻥 뚫린 '사고성 여백'을 '프레임형 여백'으로 바꾼다.
+  for (const pg of pages) {
+    const used = pg[pg.length - 1].y + pg[pg.length - 1].h - CONTENT_Y0;
+    const slack = CONTENT_H - used;
+    if (slack > 0.4) { const off = slack / 2; for (const b of pg) b.y += off; }
+  }
   return (pages.length ? pages : [[]]).map((blocks) => ({ layout: "stack", blocks }));
 }
 
@@ -169,7 +189,7 @@ function planDeck(spec) {
       slides.push({ type: "section", num: sl.num, title: sl.title, subtitle: sl.subtitle });
     } else if (sl.type === "content") {
       const pages = planContent(sl.blocks);
-      pages.forEach((pg, pi) => slides.push({ type: "content", title: sl.title, page: pi + 1, pages: pages.length, footer, ...pg }));
+      pages.forEach((pg, pi) => slides.push({ type: "content", title: sl.title, page: pi + 1, pages: pages.length, footer, notes: pi === 0 ? sl.notes : undefined, ...pg }));
     }
   });
 
@@ -196,4 +216,5 @@ module.exports = {
   W, H, M, CONTENT_X, CONTENT_W, CONTENT_Y0, CONTENT_Y1, CONTENT_H, GAP,
   SPLIT_LEFT_W, SPLIT_RIGHT_X, SPLIT_RIGHT_W,
   blockHeight, splitBlock, planContent, planDeck, overflowReport,
+  svgAspect, svgHeight,
 };

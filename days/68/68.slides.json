@@ -1,77 +1,106 @@
 {
   "deck_id": "day68",
-  "title": "68일차 — row migration · ITL · 저장 구조 실습",
-  "subtitle": "블록이 꽉 차면 생기는 일 — 행 이사, ITL 슬롯 부족, 그리고 full scan",
+  "title": "블록이 꽉 차면 생기는 일",
+  "subtitle": "68일차 — pctfree 하나에서 갈라지는 row migration · ITL · 재구성",
   "source": "68일차 노트 · guide_62_68.html §7",
+  "tag": "Oracle DBA · 68일차",
+  "closing": "오늘의 한 줄: 블록에 여유(pctfree)를 남기면 이사도 대기도 준다.",
   "slides": [
-    { "type": "title", "title": "68일차 — row migration · ITL 실습", "subtitle": "블록이 꽉 차면 생기는 일" },
+    { "type": "title", "title": "블록이 꽉 차면 생기는 일", "subtitle": "68일차 — pctfree 하나에서 갈라지는 row migration · ITL · 재구성" },
+
+    { "type": "section", "num": "00", "title": "오늘의 큰 그림", "subtitle": "한 뿌리에서 갈라지는 세 현상" },
+    { "type": "content",
+      "title": "블록에 여유 공간이 없으면 행 이사·ITL 대기·재구성이 한 뿌리에서 터진다",
+      "blocks": [
+        { "kind": "svg", "caption": "pctfree(블록 여유)가 0이면 두 갈래로 문제가 터지고, 처방은 하나로 모인다",
+          "svg": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 960 300' font-family='sans-serif'><defs><marker id='ah0' markerWidth='9' markerHeight='9' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 Z' fill='#94A3B8'/></marker></defs><rect x='30' y='118' width='210' height='68' rx='10' fill='#FBE3DD' stroke='#C74634' stroke-width='1.6'/><text x='135' y='148' text-anchor='middle' font-size='17' font-weight='700' fill='#1E293B'>블록에 pctfree</text><text x='135' y='172' text-anchor='middle' font-size='17' font-weight='700' fill='#1E293B'>여유가 없다</text><rect x='390' y='40' width='300' height='66' rx='10' fill='#F1F5F9' stroke='#C74634' stroke-width='1.3'/><text x='540' y='70' text-anchor='middle' font-size='16' font-weight='700' fill='#1E293B'>row migration</text><text x='540' y='92' text-anchor='middle' font-size='13' fill='#64748B'>행이 새 블록으로 이사 → 더블 홉</text><rect x='390' y='196' width='300' height='66' rx='10' fill='#F1F5F9' stroke='#C74634' stroke-width='1.3'/><text x='540' y='226' text-anchor='middle' font-size='16' font-weight='700' fill='#1E293B'>ITL 슬롯 부족</text><text x='540' y='248' text-anchor='middle' font-size='13' fill='#64748B'>enq: TX - allocate ITL entry (대기)</text><rect x='740' y='118' width='196' height='68' rx='10' fill='#F1F5F9' stroke='#16803d' stroke-width='1.6'/><text x='838' y='148' text-anchor='middle' font-size='16' font-weight='700' fill='#1E293B'>재구성</text><text x='838' y='172' text-anchor='middle' font-size='13' fill='#64748B'>move + rebuild online</text><line x1='240' y1='140' x2='384' y2='78' stroke='#94A3B8' stroke-width='1.6' marker-end='url(#ah0)'/><line x1='240' y1='164' x2='384' y2='226' stroke='#94A3B8' stroke-width='1.6' marker-end='url(#ah0)'/><line x1='690' y1='78' x2='800' y2='128' stroke='#94A3B8' stroke-width='1.6' marker-end='url(#ah0)'/><line x1='690' y1='226' x2='800' y2='176' stroke='#94A3B8' stroke-width='1.6' marker-end='url(#ah0)'/></svg>" }
+      ],
+      "notes": "오늘 68일차의 줄기는 '블록에 여유 공간(pctfree)이 있는가' 하나다. 여유가 없으면 두 갈래로 문제가 터진다. (1) update로 커진 행이 다른 블록으로 이사하는 row migration, (2) 한 블록을 여러 트랜잭션이 고칠 때 ITL 슬롯을 못 늘려 생기는 enq: TX - allocate ITL entry 대기. 흥미로운 건 처방이 똑같다는 점이다 — 파라미터를 바꾼 뒤 테이블을 move로 재구성하고 인덱스를 rebuild online 한다. 뒤 슬라이드들은 이 두 갈래를 하나씩 실습으로 확인하고, 마지막에 full table scan으로 넘어간다." },
 
     { "type": "section", "num": "01", "title": "UNDO 테이블스페이스", "subtitle": "extent는 오라클이 관리한다" },
-    { "type": "content", "title": "UNDO — 사용자가 extent를 못 정한다", "blocks": [
-      { "kind": "analogy", "text": "UNDO는 트랜잭션 크기에 따라 수시로 늘고 줄어야 하는 공간이라, 방 크기를 세입자가 아니라 건물주(오라클)가 직접 정한다." },
-      { "kind": "bullets", "items": [
-        "LMT(Locally Managed)만 가능 — Dictionary Managed로 못 만든다.",
-        "extent 크기와 확장 방식을 오라클이 자동 결정 — 사용자가 UNIFORM SIZE로 못 정한다.",
-        "그래서 CREATE UNDO TABLESPACE는 datafile 절까지만 쓴다."
-      ]},
-      { "kind": "callout", "tone": "why", "head": "왜 datafile 절까지만인가",
-        "body": "extent 절(EXTENT MANAGEMENT·UNIFORM 등)을 쓸 여지가 없어서, DATAFILE·SIZE·AUTOEXTEND·MAXSIZE 같은 datafile 옵션만 작성한다." }
-    ]},
+    { "type": "content",
+      "title": "UNDO는 사용자가 extent 크기를 못 정한다 — 오라클이 자동으로 관리한다",
+      "blocks": [
+        { "kind": "table", "headers": ["항목", "일반 테이블스페이스", "UNDO 테이블스페이스"], "rows": [
+          ["extent 관리", "DMT 또는 LMT 선택", "LMT만 (DMT 불가)"],
+          ["extent 크기", "UNIFORM으로 지정 가능", "오라클이 자동 결정(지정 불가)"],
+          ["CREATE 구문", "extent 절 작성", "datafile 절까지만"]
+        ]}
+      ],
+      "notes": "UNDO는 트랜잭션 크기에 따라 수시로 늘고 줄어야 해서 오라클이 공간을 직접 관리한다. 그래서 일반 테이블스페이스와 달리 LMT만 가능하고(DMT로 못 만든다), extent 크기도 UNIFORM SIZE로 사용자가 못 정한다. 결과적으로 CREATE UNDO TABLESPACE 문은 DATAFILE·SIZE·AUTOEXTEND·MAXSIZE 같은 datafile 옵션까지만 작성한다 — extent 절을 쓸 여지가 없다." },
 
     { "type": "section", "num": "02", "title": "row migration", "subtitle": "행이 블록을 옮길 때" },
-    { "type": "content", "title": "row migration — 행이 이사하면 더블 홉", "blocks": [
-      { "kind": "analogy", "text": "서랍(블록)에 든 물건이 커져 안 들어가면, 옆 서랍으로 옮기고 원래 자리엔 '옆 서랍 감' 쪽지(포인터)만 남긴다. 찾을 때 두 번 연다." },
-      { "kind": "steps", "items": [
-        { "n": "①", "head": "문제 — 행이 커졌다", "body": "update로 행이 커졌는데 그 블록에 pctfree 여유가 없다." },
-        { "n": "②", "head": "원인 — 새 블록으로 이사", "body": "행이 새 블록으로 옮겨가고, 원래 블록엔 새 주소 포인터만 남는다. 인덱스는 옛 rowid를 그대로 가리킨다." },
-        { "n": "③", "head": "해결 — 테이블 재구성", "body": "alter table ... move 로 행을 재배치(→ 인덱스가 UNUSABLE) 후 alter index ... rebuild online 으로 복구." }
-      ]},
-      { "kind": "table", "headers": ["통계 수집", "chain_cnt", "blocks"], "rows": [
-        ["dbms_stats.gather_table_stats", "0 (안 채워짐)", "748"],
-        ["analyze table ... compute statistics", "334", "748"]
-      ]},
-      { "kind": "callout", "tone": "why", "head": "chain_cnt는 analyze로만 채워진다 (함정)",
-        "body": "dbms_stats로는 0으로 남고, analyze를 써야 migration된 334행이 잡힌다. 인덱스 스캔을 돌리면 table fetch continued row가 정확히 334 증가 — 더블 홉(추가 I/O)의 증거." },
-      { "kind": "callout", "tone": "tip", "head": "migration ≠ chaining",
-        "body": "row migration은 커진 행의 이사(pctfree로 예방). row chaining은 행 자체가 블록보다 커서 처음부터 여러 블록에 걸치는 것(긴 행·LOB) — 블록 크기가 답." }
-    ]},
+    { "type": "content",
+      "title": "행이 커져 안 들어가면 새 블록으로 이사하고, 인덱스는 두 번 점프한다",
+      "blocks": [
+        { "kind": "svg", "caption": "인덱스는 옛 rowid를 그대로 가리켜, Block A의 포인터를 거쳐 Block B로 한 번 더 간다",
+          "svg": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 230' font-family='sans-serif'><defs><marker id='ah2' markerWidth='9' markerHeight='9' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 Z' fill='#94A3B8'/></marker></defs><text x='450' y='30' text-anchor='middle' font-size='15' fill='#64748B'>update로 행이 커짐 + Block A에 여유 없음 → 행이 Block B로 이사</text><rect x='40' y='72' width='180' height='74' rx='10' fill='#F1F5F9' stroke='#C74634' stroke-width='1.4'/><text x='130' y='104' text-anchor='middle' font-size='16' font-weight='700' fill='#1E293B'>Index</text><text x='130' y='127' text-anchor='middle' font-size='13' fill='#64748B'>옛 rowid 보관</text><rect x='360' y='72' width='180' height='74' rx='10' fill='#FBE3DD' stroke='#C74634' stroke-width='1.4'/><text x='450' y='104' text-anchor='middle' font-size='16' font-weight='700' fill='#1E293B'>Block A</text><text x='450' y='127' text-anchor='middle' font-size='13' fill='#64748B'>포인터만 남음</text><rect x='680' y='72' width='180' height='74' rx='10' fill='#F1F5F9' stroke='#16803d' stroke-width='1.4'/><text x='770' y='104' text-anchor='middle' font-size='16' font-weight='700' fill='#1E293B'>Block B</text><text x='770' y='127' text-anchor='middle' font-size='13' fill='#64748B'>이사 간 실제 행</text><line x1='220' y1='109' x2='352' y2='109' stroke='#94A3B8' stroke-width='1.6' marker-end='url(#ah2)'/><text x='286' y='99' text-anchor='middle' font-size='12' fill='#64748B'>rowid(원래)</text><line x1='540' y1='109' x2='672' y2='109' stroke='#94A3B8' stroke-width='1.6' marker-end='url(#ah2)'/><text x='606' y='99' text-anchor='middle' font-size='12' fill='#64748B'>또 점프</text><text x='450' y='188' text-anchor='middle' font-size='14' font-weight='700' fill='#D6453D'>인덱스 스캔은 A→B 두 번 = table fetch continued row +1 (추가 I/O)</text></svg>" }
+      ],
+      "notes": "update로 행이 커졌는데 그 블록에 pctfree 여유가 없으면, 행이 새 블록(B)으로 이사하고 원래 블록(A)엔 새 주소 포인터만 남는다. 인덱스는 여전히 옛 rowid(=A)를 가리키므로, 인덱스 스캔은 A로 갔다가 포인터를 따라 B로 한 번 더 점프한다. 이 '더블 홉'이 v$sysstat의 table fetch continued row를 migration된 행 수만큼(실습에선 334) 올린다. 이게 추가 I/O의 증거다." },
+
+    { "type": "content",
+      "title": "chain_cnt는 analyze로만 채워진다 — dbms_stats로는 0으로 남는다",
+      "blocks": [
+        { "kind": "table", "headers": ["통계 수집 방법", "chain_cnt", "의미"], "rows": [
+          ["dbms_stats.gather_table_stats", "0", "migration을 안 센다 (함정)"],
+          ["analyze table … compute statistics", "334", "migration된 행 수가 잡힌다"]
+        ]},
+        { "kind": "callout", "tone": "why", "head": "왜 이게 함정인가",
+          "body": "정기 통계는 보통 dbms_stats로 돌린다. 그런데 chain_cnt는 그걸로 0이라, migration을 놓치기 쉽다. 확인하려면 analyze를 따로 쓰거나, table fetch continued row 추이로 본다." }
+      ],
+      "notes": "같은 데이터를 두고도 통계 수집 방법에 따라 chain_cnt가 다르게 나온다. dbms_stats.gather_table_stats는 chain_cnt를 채우지 않아 0으로 남고, analyze table … compute statistics를 써야 migration된 334행이 잡힌다. 시험·실무 함정. blocks 수(370→748)는 두 방법 모두 같게 보이지만 migration 여부는 analyze라야 드러난다. 해결은 alter table move로 행을 재배치(→ 인덱스 UNUSABLE)한 뒤 alter index rebuild online." },
 
     { "type": "section", "num": "03", "title": "ITL 슬롯 부족", "subtitle": "enq: TX - allocate ITL entry" },
-    { "type": "content", "title": "ITL 슬롯 부족 — 창구가 모자랄 때", "blocks": [
-      { "kind": "analogy", "text": "ITL 슬롯은 블록의 '거래 창구'다. 한 블록의 여러 행을 여러 세션이 동시에 고치는데 창구가 1개(initrans 1)이고 늘릴 공간도 없으면(pctfree 0), 다음 세션은 기다린다." },
-      { "kind": "table", "headers": ["파라미터", "지정값", "조회값(dba_tables)"], "rows": [
-        ["initrans", "1", "1 (미리 만드는 슬롯 수)"],
-        ["maxtrans", "2", "255 — 10g 이후 폐기, 항상 255"],
-        ["pctfree", "0", "0 (슬롯 늘릴 여유 없음)"]
-      ]},
-      { "kind": "steps", "items": [
-        { "n": "①", "head": "재현", "body": "initrans 1 maxtrans 2 pctfree 0 테이블에서, 한 블록에 든 row1·row2·row3을 세 세션이 동시에 update." },
-        { "n": "②", "head": "관찰", "body": "세 번째 세션이 enq: TX - allocate ITL entry로 대기. v$session.blocking_session으로 막은 세션 추적, v$segment_statistics의 'ITL waits'로 경합 객체 확인." },
-        { "n": "③", "head": "해결", "body": "alter table ... initrans 2 pctfree 10 — 단 새 블록부터만 적용. 기존 블록도 먹이려면 move(data_object_id 바뀜) + rebuild online. row migration과 같은 처방." }
-      ]},
-      { "kind": "callout", "tone": "why", "head": "v$lock에서 구분",
-        "body": "allocate ITL entry는 TX를 REQUEST=4(Share)로 요청한다 — row lock contention의 X(6)과 다르다." }
-    ]},
+    { "type": "content",
+      "title": "한 블록을 여러 세션이 고치는데 ITL 슬롯이 모자라면 마지막 세션이 대기한다",
+      "blocks": [
+        { "kind": "svg", "caption": "initrans 1이라 슬롯은 하나, pctfree 0이라 늘릴 자리도 없다 → 세 번째 세션이 대기",
+          "svg": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 300' font-family='sans-serif'><defs><marker id='ah3' markerWidth='9' markerHeight='9' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 Z' fill='#94A3B8'/></marker></defs><rect x='60' y='24' width='150' height='40' rx='7' fill='#F1F5F9' stroke='#16803d' stroke-width='1.3'/><text x='135' y='49' text-anchor='middle' font-size='13' fill='#1E293B'>Sess A · row1</text><rect x='375' y='24' width='150' height='40' rx='7' fill='#FBE3DD' stroke='#C74634' stroke-width='1.3'/><text x='450' y='49' text-anchor='middle' font-size='13' fill='#1E293B'>Sess B · row2</text><rect x='690' y='24' width='150' height='40' rx='7' fill='#FBE3DD' stroke='#C74634' stroke-width='1.3'/><text x='765' y='49' text-anchor='middle' font-size='13' fill='#1E293B'>Sess C · row3</text><text x='450' y='104' text-anchor='middle' font-size='15' font-weight='700' fill='#1E293B'>하나의 블록 (row1·row2·row3 같이 들어있음)</text><rect x='190' y='118' width='520' height='150' rx='10' fill='#F8FAFC' stroke='#E2E8F0' stroke-width='1.4'/><rect x='210' y='134' width='480' height='34' rx='6' fill='#F1F5F9' stroke='#16803d' stroke-width='1.2'/><text x='450' y='156' text-anchor='middle' font-size='13' fill='#1E293B'>ITL 슬롯 #1 [Sess A 사용중] — initrans 1 → 슬롯 1개뿐</text><rect x='210' y='176' width='480' height='34' rx='6' fill='#FBE3DD' stroke='#D6453D' stroke-width='1.2'/><text x='450' y='198' text-anchor='middle' font-size='13' fill='#1E293B'>free 공간 0 (pctfree 0) → 새 ITL 슬롯 만들 자리 없음</text><rect x='210' y='218' width='480' height='30' rx='6' fill='#EEF1F5' stroke='#E2E8F0' stroke-width='1'/><text x='450' y='238' text-anchor='middle' font-size='12' fill='#64748B'>row data</text><line x1='135' y1='64' x2='300' y2='132' stroke='#94A3B8' stroke-width='1.4' marker-end='url(#ah3)'/><line x1='450' y1='64' x2='450' y2='172' stroke='#D6453D' stroke-width='1.6' stroke-dasharray='5 4' marker-end='url(#ah3)'/><line x1='765' y1='64' x2='600' y2='172' stroke='#D6453D' stroke-width='1.6' stroke-dasharray='5 4' marker-end='url(#ah3)'/><text x='450' y='290' text-anchor='middle' font-size='14' font-weight='700' fill='#D6453D'>슬롯 부족 + free 없음 → enq: TX - allocate ITL entry</text></svg>" }
+      ],
+      "notes": "ITL 슬롯은 블록의 '거래 창구'다. initrans 1 maxtrans 2 pctfree 0으로 만든 테이블에서 한 블록에 든 row1·row2·row3을 세 세션이 동시에 update하면, 슬롯은 처음 하나뿐이고(initrans 1) 새 슬롯을 만들 자리도 없어(pctfree 0) 세 번째 세션이 enq: TX - allocate ITL entry로 대기한다. 진단은 v$session.blocking_session으로 막은 세션을 추적하고(그 세션은 SQL*Net message from client = commit 안 함), 경합 객체는 v$segment_statistics의 'ITL waits'로 본다. v$lock에서 이 대기는 TX를 REQUEST=4(Share)로 요청 — row lock contention의 X(6)과 다르다." },
+
+    { "type": "content",
+      "title": "maxtrans는 10g 이후 무시되어 항상 255다 — 실질 레버는 initrans와 pctfree다",
+      "blocks": [
+        { "kind": "table", "headers": ["파라미터", "지정값", "조회값 (dba_tables)"], "rows": [
+          ["initrans", "1", "1 — 미리 만드는 슬롯 수 (실질 레버)"],
+          ["maxtrans", "2", "255 — 지정 무시, 항상 255"],
+          ["pctfree", "0", "0 — 슬롯 늘릴 여유 (실질 레버)"]
+        ]},
+        { "kind": "callout", "tone": "tip", "head": "해결도 migration과 같다",
+          "body": "alter table … initrans 2 pctfree 10 은 새 블록부터만 적용된다. 기존 블록에도 먹이려면 move(data_object_id 바뀜) + rebuild online — row migration과 똑같은 처방." }
+      ],
+      "notes": "initrans 1 maxtrans 2 pctfree 0으로 만들었는데 dba_tables를 보면 max_trans가 255로 나온다. maxtrans는 10g부터 폐기(deprecated)돼 지정값이 무시되고 항상 255이기 때문이다. 그래서 ITL 동시성을 조절하는 실질 레버는 initrans(미리 만드는 슬롯 수)와 pctfree(슬롯 늘릴 여유)뿐이다. 해결책 alter table initrans 2 pctfree 10은 새로 만드는 블록에만 적용되므로, 기존 블록까지 고치려면 move + rebuild online으로 재구성한다." },
 
     { "type": "section", "num": "04", "title": "Full Table Scan", "subtitle": "튜닝으로 가는 길" },
-    { "type": "content", "title": "Full Table Scan — 첫 블록부터 HWM까지", "blocks": [
-      { "kind": "bullets", "items": [
-        "세그먼트의 첫 블록부터 HWM(High Water Mark, 사용·미사용 경계)까지 통째로 읽는다.",
-        "많은 양의 데이터를 검색할 때 유리하다.",
-        "한 번의 I/O call에 db_file_multiblock_read_count(이 환경 78)만큼 묶어 읽는 Multi Block I/O.",
-        "그래서 db file scattered read 대기가 발생한다."
-      ]},
-      { "kind": "callout", "tone": "tip", "head": "HWM은 delete로 안 내려간다",
-        "body": "행을 다 지워도 HWM은 그대로라 full scan이 여전히 느리다. truncate가 HWM을 리셋한다." },
-      { "kind": "code", "lines": [
-        "SYS@ora19c> create table hr.emp as select * from hr.employees;",
-        "SYS@ora19c> select * from hr.emp where employee_id = 100;",
-        "",
-        "| Id | Operation          | Name |",
-        "|  0 | SELECT STATEMENT   |      |",
-        "|* 1 |  TABLE ACCESS FULL | EMP  |   <- 인덱스가 없어 full scan",
-        "   1 - filter(\"EMPLOYEE_ID\"=100)"
-      ]}
-    ]}
+    { "type": "content",
+      "title": "인덱스가 없으면 첫 블록부터 HWM까지 multiblock으로 쓸어 읽는다",
+      "blocks": [
+        { "kind": "code", "lines": [
+          "SYS@ora19c> create table hr.emp as select * from hr.employees;",
+          "SYS@ora19c> select * from hr.emp where employee_id = 100;",
+          "",
+          "| Id | Operation          | Name |",
+          "|  0 | SELECT STATEMENT   |      |",
+          "|* 1 |  TABLE ACCESS FULL | EMP  |   <- 인덱스가 없어 full scan",
+          "   1 - filter(\"EMPLOYEE_ID\"=100)"
+        ]},
+        { "kind": "callout", "tone": "tip", "head": "HWM은 delete로 안 내려간다",
+          "body": "첫 블록~HWM(사용·미사용 경계)까지 db_file_multiblock_read_count(=78)만큼 묶어 읽어 db file scattered read가 뜬다. 행을 다 지워도 HWM은 그대로라 여전히 느리다 → truncate가 리셋." }
+      ],
+      "notes": "CTAS로 만든 hr.emp는 인덱스가 없다. 그래서 employee_id=100처럼 한 행만 찾아도 TABLE ACCESS FULL이 나온다. full scan은 세그먼트의 첫 블록부터 HWM(High Water Mark, 사용·미사용 경계)까지 한 번에 db_file_multiblock_read_count(이 환경 78)만큼 묶어 읽는 Multi Block I/O라, db file scattered read 대기가 뜬다. HWM은 delete로 행을 다 지워도 안 내려가 full scan이 계속 느리다 — truncate라야 HWM을 리셋한다. 다음 시간의 인덱스·액세스 경로 튜닝으로 이어진다." },
+
+    { "type": "section", "num": "05", "title": "빈틈 & 궁금한 점", "subtitle": "노트가 안 다룬 것 · 더 확인할 것" },
+    { "type": "content",
+      "title": "여기서 남는 질문 — 확인하고 넘어가면 좋은 것들",
+      "blocks": [
+        { "kind": "bullets", "items": [
+          "row chaining(행이 블록보다 큼)은 pctfree로 못 막는다 → 더 큰 db_block_size나 설계로 접근. (노트는 migration만 다룸)",
+          "운영 중 move는 테이블을 잠근다 → 무중단이 필요하면 online redefinition(dbms_redefinition)이 대안인가? (확인 권장)",
+          "chain_cnt를 analyze로만 얻는다면, dbms_stats 정기 수집만으론 migration을 놓친다 → 모니터링은 table fetch continued row 추이로?",
+          "인덱스 initrans 기본이 2(테이블은 1)인 이유 — 인덱스 블록이 동시 갱신 경합에 더 취약해서인가? (확인 권장)"
+        ]}
+      ],
+      "notes": "이 슬라이드가 '그저 정리'와 '이해하고 설명'을 가르는 부분이다. 노트가 다루지 않았거나 자연스럽게 떠오르는 질문을 정리했다. (1) row chaining은 migration과 달리 pctfree로 예방 불가 — 블록 크기나 설계 문제다. (2) alter table move는 Exclusive 잠금이라 운영 중엔 dbms_redefinition(online redefinition)이 무중단 대안일 가능성이 높다(확인 권장). (3) chain_cnt는 analyze 전용이라 dbms_stats 정기 수집만으론 migration을 못 본다 — 운영에선 table fetch continued row 추이로 감시하는 편이 현실적이다. (4) 인덱스 initrans 기본값이 2인 건 인덱스 블록이 동시 DML 경합에 더 노출되기 때문으로 보인다(확인 권장). 이 질문들은 노트 밖 일반 지식이라 '확인 권장'으로 표시했다 — 지어내지 않는다." }
   ]
 }

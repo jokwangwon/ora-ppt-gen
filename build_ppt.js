@@ -11,6 +11,7 @@
 const fs = require("fs");
 const path = require("path");
 const pptxgen = require("pptxgenjs");
+const sharp = require("sharp");
 const L = require("./layout");
 const { W, H, M } = L;
 
@@ -60,10 +61,12 @@ function sectionSlide(pres, s, sl) {
 }
 
 function contentHeader(pres, s, sl) {
-  s.addShape(pres.shapes.RECTANGLE, { x: M, y: 0.95, w: 0.14, h: 0.14, fill: { color: C.accent }, line: { color: C.accent } });
-  s.addText(sl.title, { x: 1.2, y: 0.72, w: 9.2, h: 0.7, fontFace: FONT, fontSize: 26, bold: true, color: C.ink, align: "left", valign: "middle", margin: 0 });
+  // 주장형 헤드라인(assertion): 한 문장(최대 2줄). 짧은 라벨보다 '요지'를 말한다.
+  const longTitle = (sl.title || "").length > 34;
+  s.addShape(pres.shapes.RECTANGLE, { x: M, y: 0.86, w: 0.14, h: 0.14, fill: { color: C.accent }, line: { color: C.accent } });
+  s.addText(sl.title, { x: 1.2, y: 0.62, w: 9.3, h: 1.02, fontFace: FONT, fontSize: longTitle ? 19 : 24, bold: true, color: C.ink, align: "left", valign: "top", lineSpacingMultiple: 1.05, margin: 0 });
   brandMark(pres, s);
-  if (sl.pages > 1) s.addText(`${sl.page} / ${sl.pages}`, { x: W - M - 2.9, y: 0.72, w: 1.6, h: 0.7, fontFace: FONT, fontSize: 11, color: C.muted2, align: "right", valign: "middle", margin: 0 });
+  if (sl.pages > 1) s.addText(`${sl.page} / ${sl.pages}`, { x: W - M - 2.9, y: 0.72, w: 1.6, h: 0.5, fontFace: FONT, fontSize: 11, color: C.muted2, align: "right", valign: "middle", margin: 0 });
   footer(s, sl);
 }
 
@@ -151,6 +154,16 @@ function drawSteps(pres, s, b) {
     y += bh + 0.16;
   });
 }
+function drawSvg(pres, s, b) {
+  // evidence 다이어그램. sharp가 미리 래스터한 PNG(b._png)를 비율 유지·중앙 배치.
+  const ar = L.svgAspect(b.svg);
+  let w = b.w, h = w / ar;
+  const capH = b.h - (b.caption ? 0.35 : 0);
+  if (h > capH) { h = capH; w = h * ar; }
+  const x = b.x + (b.w - w) / 2, y = b.y;
+  if (b._png) s.addImage({ data: b._png, x, y, w, h });
+  if (b.caption) s.addText(b.caption, { x: b.x, y: y + h + 0.06, w: b.w, h: 0.3, fontFace: FONT, fontSize: 11, italic: true, color: C.muted, align: "center", valign: "top", margin: 0 });
+}
 function drawPlan(pres, s, b) {
   s.addShape(pres.shapes.RECTANGLE, { x: b.x, y: b.y, w: b.w, h: b.h, fill: { color: C.card }, line: { color: C.line }, shadow: shadow() });
   const hdr = [{ text: "실행계획", options: { bold: true, color: C.accent, fontSize: 12 } }];
@@ -170,7 +183,7 @@ function drawPlan(pres, s, b) {
   if (b.predicate) s.addText(b.predicate, { x: b.x + 0.25, y: b.y + 0.5 + b.rows.length * 0.3, w: b.w - 0.5, h: b.h - 0.5 - b.rows.length * 0.3 - 0.1, fontFace: MONO, fontSize: 11, color: C.muted, align: "left", valign: "top", margin: 0 });
 }
 function drawBlock(pres, s, b) {
-  ({ bullets: drawBullets, table: drawTable, callout: drawCallout, code: drawCode, figure: drawFigure, analogy: drawAnalogy, steps: drawSteps, plan: drawPlan }[b.kind] || (() => {}))(pres, s, b);
+  ({ bullets: drawBullets, table: drawTable, callout: drawCallout, code: drawCode, figure: drawFigure, svg: drawSvg, analogy: drawAnalogy, steps: drawSteps, plan: drawPlan }[b.kind] || (() => {}))(pres, s, b);
 }
 
 function contentSlide(pres, s, sl) {
@@ -178,6 +191,8 @@ function contentSlide(pres, s, sl) {
   contentHeader(pres, s, sl);
   if (sl.layout === "split") { drawBlock(pres, s, sl.left); drawBlock(pres, s, sl.right); }
   else for (const b of sl.blocks) drawBlock(pres, s, b);
+  // Mayer 중복/양식 원리: 상세 설명은 화면이 아니라 발표자 노트로.
+  if (sl.notes) s.addNotes(sl.notes);
 }
 
 // ── 엔트리 ───────────────────────────────────────────────────────
@@ -192,6 +207,20 @@ async function main() {
   const planned = L.planDeck(spec);
   const bad = L.overflowReport(planned);
   if (bad.length) console.warn("[build] ⚠ 오버플로 의심:", bad.map((b) => `${b.title}(${b.bottom}/${b.limit})`));
+
+  // svg 블록을 미리 PNG로 래스터(sharp) — 그리기는 동기라 사전 처리 필요.
+  for (const sl of planned) {
+    const blocks = sl.layout === "split" ? [sl.left, sl.right] : (sl.blocks || []);
+    for (const b of blocks) {
+      if (b && b.kind === "svg" && b.svg) {
+        try {
+          const px = Math.round((b.w || 8) * 200);
+          const buf = await sharp(Buffer.from(b.svg), { density: 220 }).resize({ width: px }).png().toBuffer();
+          b._png = "image/png;base64," + buf.toString("base64");
+        } catch (e) { console.warn("[build] ⚠ svg 래스터 실패:", e.message); }
+      }
+    }
+  }
 
   const pres = new pptxgen();
   pres.layout = "LAYOUT_WIDE";

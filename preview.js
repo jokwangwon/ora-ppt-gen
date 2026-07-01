@@ -138,13 +138,21 @@ function bPlan(b) {
   return box(b.x, b.y, b.w, b.h, `background:${C.card};border:1px solid ${C.line};border-radius:6px;padding:10px 14px;box-shadow:0 2px 6px rgba(0,0,0,.10);box-sizing:border-box;overflow:hidden`,
     hdr + `<div style="font-family:'WenQuanYi Zen Hei Mono',monospace;font-size:12pt;line-height:1.35">${rows}</div>${pred}`);
 }
-const drawB = { bullets: bBullets, table: bTable, callout: bCallout, code: bCode, figure: bFigure, analogy: bAnalogy, steps: bSteps, plan: bPlan };
+function bSvg(b) {
+  const capH = b.h - (b.caption ? 0.35 : 0);
+  const svg = String(b.svg || "").replace("<svg", '<svg style="max-width:100%;max-height:100%;height:auto"');
+  const inner = `<div style="width:100%;height:${capH}in;display:flex;align-items:center;justify-content:center">${svg}</div>`
+    + (b.caption ? `<div style="text-align:center;font-size:11pt;color:${C.muted};font-style:italic;margin-top:3px">${esc(b.caption)}</div>` : "");
+  return box(b.x, b.y, b.w, b.h, "box-sizing:border-box", inner);
+}
+const drawB = { bullets: bBullets, table: bTable, callout: bCallout, code: bCode, figure: bFigure, svg: bSvg, analogy: bAnalogy, steps: bSteps, plan: bPlan };
 
 function slideContent(sl) {
-  let h = box(M, 0.95, 0.14, 0.14, `background:${C.accent}`);
-  h += txt(1.2, 0.72, 9.2, 0.7, 26, C.ink, "font-weight:700;display:flex;align-items:center", sl.title);
+  const longTitle = (sl.title || "").length > 34;
+  let h = box(M, 0.86, 0.14, 0.14, `background:${C.accent}`);
+  h += txt(1.2, 0.62, 9.3, 1.02, longTitle ? 19 : 24, C.ink, "font-weight:700;line-height:1.1", sl.title);
   h += brand() + footer(sl);
-  if (sl.pages > 1) h += txt(W - M - 2.9, 0.72, 1.6, 0.7, 11, C.muted2, "text-align:right;display:flex;align-items:center;justify-content:flex-end", `${sl.page} / ${sl.pages}`);
+  if (sl.pages > 1) h += txt(W - M - 2.9, 0.72, 1.6, 0.5, 11, C.muted2, "text-align:right;display:flex;align-items:center;justify-content:flex-end", `${sl.page} / ${sl.pages}`);
   if (sl.layout === "split") h += drawB[sl.left.kind](sl.left) + drawB[sl.right.kind](sl.right);
   else for (const b of sl.blocks) h += (drawB[b.kind] || (() => ""))(b);
   return { bg: C.white, inner: h };
