@@ -394,12 +394,41 @@ Predicate Information:
     <tr><td>연산자</td><td>OR에 비효율</td><td>AND·OR 모두 효율 (index_combine)</td></tr>
     <tr><td>용도</td><td><b>OLTP</b></td><td><b>DW · DSS</b></td></tr>
   </table>
+  <p><b class="k">비트맵이 뭐길래</b> — 값 하나마다 "그 값을 가진 행은 1, 아니면 0"인 <b>비트벡터</b>를 만든다. 값 종류가 적을수록(저선택도) 벡터가 몇 개 안 되고 압축이 잘 돼 작다.</p>
+  <figure>
+  <svg viewBox="0 0 680 200" role="img" aria-label="비트맵 인덱스: 값마다 비트벡터">
+    <text class="svg-sub" x="366" y="20" text-anchor="middle">gender 5행 — 값마다 비트벡터 하나 (1 = 그 값을 가진 행, 0 = 아님)</text>
+    <text class="svg-mono" x="190" y="50" text-anchor="middle" style="fill:var(--muted)">r1</text>
+    <text class="svg-mono" x="278" y="50" text-anchor="middle" style="fill:var(--muted)">r2</text>
+    <text class="svg-mono" x="366" y="50" text-anchor="middle" style="fill:var(--muted)">r3</text>
+    <text class="svg-mono" x="454" y="50" text-anchor="middle" style="fill:var(--muted)">r4</text>
+    <text class="svg-mono" x="542" y="50" text-anchor="middle" style="fill:var(--muted)">r5</text>
+    <text class="svg-lbl" x="60" y="86">'m'</text>
+    <rect class="ntune" x="150" y="64" width="80" height="32" rx="5" stroke-width="1.1"/><text class="svg-mono" x="190" y="85" text-anchor="middle" style="fill:var(--tune)">1</text>
+    <rect class="nmut" x="238" y="64" width="80" height="32" rx="5" stroke-width="1.1"/><text class="svg-mono" x="278" y="85" text-anchor="middle">0</text>
+    <rect class="ntune" x="326" y="64" width="80" height="32" rx="5" stroke-width="1.1"/><text class="svg-mono" x="366" y="85" text-anchor="middle" style="fill:var(--tune)">1</text>
+    <rect class="ntune" x="414" y="64" width="80" height="32" rx="5" stroke-width="1.1"/><text class="svg-mono" x="454" y="85" text-anchor="middle" style="fill:var(--tune)">1</text>
+    <rect class="nmut" x="502" y="64" width="80" height="32" rx="5" stroke-width="1.1"/><text class="svg-mono" x="542" y="85" text-anchor="middle">0</text>
+    <text class="svg-lbl" x="60" y="134">'f'</text>
+    <rect class="nmut" x="150" y="112" width="80" height="32" rx="5" stroke-width="1.1"/><text class="svg-mono" x="190" y="133" text-anchor="middle">0</text>
+    <rect class="ncor" x="238" y="112" width="80" height="32" rx="5" stroke-width="1.1"/><text class="svg-mono" x="278" y="133" text-anchor="middle" style="fill:#e0892b">1</text>
+    <rect class="nmut" x="326" y="112" width="80" height="32" rx="5" stroke-width="1.1"/><text class="svg-mono" x="366" y="133" text-anchor="middle">0</text>
+    <rect class="nmut" x="414" y="112" width="80" height="32" rx="5" stroke-width="1.1"/><text class="svg-mono" x="454" y="133" text-anchor="middle">0</text>
+    <rect class="ncor" x="502" y="112" width="80" height="32" rx="5" stroke-width="1.1"/><text class="svg-mono" x="542" y="133" text-anchor="middle" style="fill:#e0892b">1</text>
+    <text class="svg-mono" x="366" y="176" text-anchor="middle" style="fill:var(--tune)">'m'의 1들(r1·r3·r4)이 한 조각 — 이 조각을 잠그면 셋 다 대기</text>
+  </svg>
+  <figcaption>값(m/f)마다 행 전체를 훑는 비트벡터가 하나씩. AND/OR은 이 벡터들을 비트로 겹치면 끝이라 대량·저선택도에 빠르다. 대신 한 값이 여러 행(r1·r3·r4)을 한 덩어리로 묶는 게 OLTP 잠금 함정의 씨앗이다.</figcaption>
+  </figure>
+  <div class="why"><span class="h">AND/OR이 왜 싼가 — index_combine의 정체</span>
+  두 조건을 겹칠 때 bitmap은 <b>두 비트벡터를 bitwise AND/OR</b>만 하면 된다(<code class="inl">gender='m'</code> AND <code class="inl">dept=10</code> → 두 벡터에서 나란히 1인 자리만 남긴다). §5.6에서 index_combine이 and_equal(10)보다 싼 <b>4</b>였던 이유가 이것 — 옵티마이저가 B*tree의 rowid를 <b>비트맵으로 변환(BITMAP CONVERSION FROM ROWIDS)</b>해 비트 연산으로 교집합하기 때문이다. rowid를 하나씩 맞춰보는 AND-EQUAL보다 비트 겹치기가 싸다. <span class="db add">확인 권장</span></div>
   <p><b class="k">그런데 bitmap을 OLTP에 쓰면 — 한 값이 여러 행을 함께 잠근다.</b> bitmap은 키 하나(<code class="inl">gender='m'</code>)가 그 값을 가진 <b>여러 행을 한 조각(비트맵 세그먼트)으로</b> 덮는다. 그래서 서로 <b>다른 행</b>을 넣어도 gender가 같으면 같은 조각을 두고 잠금이 부딪친다.</p>
   <pre class="term"><span class="cm">-- 세션1: insert ... values(1,'m','y')    세션2: insert ... values(3,'m','y')</span>
 <span class="pr">SQL&gt;</span> select sid, blocking_session, event from v$session where event like '%TX%';
 <span class="out">  SID   BLOCKING_SESSION   EVENT</span>
 <span class="hl">  286   255                enq: TX - row lock contention</span></pre>
   <div class="tip"><b>다른 행인데 왜 막혔나</b> — 286은 <code class="inl">(3,'m','y')</code>, 255는 <code class="inl">(1,'m','y')</code>. 행은 다르지만 <code class="inl">gender='m'</code>이 같아 <b>같은 bitmap 조각</b>을 두고 286이 255에 막혔다. B*tree라면 다른 행이라 안 부딪쳤을 경합이다. <b class="k">그래서 bitmap은 동시 DML이 잦은 OLTP엔 독</b>이고, 변경이 드문 DW·DSS에서 <span class="we">enq: TX - row lock contention</span> 걱정 없이 AND/OR을 싸게 처리하는 용도다.</div>
+  <div class="why"><span class="h">왜 '다른 행'인데 막히나 — 조각 단위 잠금</span>
+  bitmap은 공간을 아끼려 <b>연속된 여러 행의 비트를 한 조각(bitmap piece)으로 압축</b>해 둔다. 그래서 그 안의 <b>비트 하나</b>만 바꾸려 해도(=한 행이 그 값을 갖게 insert/update되면) 조각을 통째로 풀었다 다시 압축해야 하고, 그동안 <b>같은 조각이 덮는 다른 행들까지 함께 잠긴다</b>. B*tree는 행마다 인덱스 엔트리가 따로라 딱 한 행만 잠그지만, bitmap은 한 값의 여러 행이 한 조각이라 <b class="k">"다른 행인데 같은 값"이면 부딪친다</b>(위 286↔255). 동시 입력·수정이 몰릴수록 <span class="we">enq: TX - row lock contention</span>이 쌓인다. <span class="db add">확인 권장</span></div>
 </section>
 
 <section class="part" id="p6">
