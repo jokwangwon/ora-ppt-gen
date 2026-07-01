@@ -67,14 +67,20 @@ def extract_units(path: Path) -> list[tuple[str, str]]:
     if path.suffix == ".html":
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(raw, "lxml")
+        heads = soup.find_all("h3", class_="blk")
+        # 폴백: h3.blk이 없으면 h2 구조(rman_recovery)로 본다 — 안 그러면 검사에서 빠진다.
+        stop = ("h3",) if heads else ("h2", "h1")
+        if not heads:
+            heads = soup.find_all("h2")
         units = []
-        for h3 in soup.find_all("h3", class_="blk"):
+        for h in heads:
             body = []
-            for sib in h3.next_siblings:
-                if getattr(sib, "name", None) == "h3" and "blk" in (sib.get("class") or []):
+            for sib in h.next_siblings:
+                nm = getattr(sib, "name", None)
+                if nm in stop and (nm != "h3" or "blk" in (sib.get("class") or [])):
                     break
                 body.append(getattr(sib, "get_text", lambda **k: str(sib))(separator=" "))
-            units.append((re.sub(r"\s+", " ", h3.get_text(" ", strip=True))[:50], " ".join(body)))
+            units.append((re.sub(r"\s+", " ", h.get_text(" ", strip=True))[:50], " ".join(body)))
         return units
     if path.suffix == ".json":
         spec = json.loads(raw)

@@ -49,6 +49,28 @@ def _concept_html(h3: Tag) -> str:
     return "".join(parts)
 
 
+def _concepts(soup: BeautifulSoup) -> list[tuple[str, str]]:
+    """(제목, 본문 HTML) 개념 목록. h3.blk 구조가 기본, 없으면 h2 폴백.
+
+    rman_recovery 처럼 `<section><h2>…</h2>…</section>` 구조인 문서는 h3.blk이
+    없어 통째로 검사에서 빠졌다(사각지대). 이 경우 각 h2를 개념 경계로 본다 —
+    h2 다음 형제부터 다음 h2/h1(또는 섹션 끝)까지를 본문으로.
+    """
+    h3s = soup.find_all("h3", class_="blk")
+    if h3s:
+        return [(_text(h), _concept_html(h)) for h in h3s]
+    concepts = []
+    for h2 in soup.find_all("h2"):
+        parts = []
+        for sib in h2.next_siblings:
+            if isinstance(sib, Tag):
+                if sib.name in ("h2", "h1"):
+                    break
+                parts.append(str(sib))
+        concepts.append((_text(h2), "".join(parts)))
+    return concepts
+
+
 def complexity(title: str, html: str) -> str:
     """개념 난이도: 쉬움 / 보통 / 어려움.
 
@@ -125,8 +147,8 @@ def score_concept(title: str, html: str) -> dict:
 def lint(doc_path: Path, min_score: int) -> tuple[list[dict], int]:
     soup = BeautifulSoup(doc_path.read_text(encoding="utf-8"), "lxml")
     results = []
-    for h3 in soup.find_all("h3", class_="blk"):
-        results.append(score_concept(_text(h3), _concept_html(h3)))
+    for title, html in _concepts(soup):
+        results.append(score_concept(title, html))
     # 보강 대상 = '어려운데 구조가 약한' 개념만. 쉬운 개념은 얇아도 정상.
     need = [r for r in results if r["needs_work"]]
     return results, len(need)

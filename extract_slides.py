@@ -207,6 +207,50 @@ def _section_slides(section: Tag) -> list[dict]:
     return slides
 
 
+def _h2_section_slides(section: Tag) -> list[dict]:
+    """h2 구조(section>h2>본문) 한 섹션 → [섹션 슬라이드, 개념 슬라이드].
+
+    rman_recovery 처럼 `.part`/`h3.blk` 이 없는 문서용 폴백. h2를 섹션 경계로,
+    그 아래 표/박스/코드/그림/문단을 개념 슬라이드 블록으로 옮긴다(재작성 없음).
+    """
+    h2 = section.find("h2")
+    if h2 is None:
+        return []
+    num_el = h2.find(class_="n")
+    num = _text(num_el) if num_el else ""
+    # 제목 = h2 전체에서 번호(span.n) 라벨을 뺀 나머지
+    full = _text(h2)
+    title = full[len(num):].strip(" —-:·") if num and full.startswith(num) else full
+
+    slides: list[dict] = [{"type": "section", "num": num, "title": title, "subtitle": ""}]
+    cur_blocks: list[dict] = []
+    bullet_buf: list[str] = []
+    for kind, el in _walk(section):
+        if kind in ("h3", "h2"):
+            continue
+        if kind == "p":
+            bullet_buf.append(_text(el))
+            continue
+        b = _flush_bullets(bullet_buf)
+        if b:
+            cur_blocks.append(b)
+        bullet_buf = []
+        if kind == "table":
+            cur_blocks.append(_table_block(el))
+        elif kind == "callout":
+            cur_blocks.append(_callout_block(el))
+        elif kind == "code":
+            cur_blocks.append(_code_block(el))
+        elif kind == "figure":
+            cur_blocks.append(_figure_block(el))
+    b = _flush_bullets(bullet_buf)
+    if b:
+        cur_blocks.append(b)
+    if cur_blocks:
+        slides.append({"type": "content", "title": title or "내용", "blocks": cur_blocks})
+    return slides
+
+
 def extract(html_path: Path) -> dict:
     soup = BeautifulSoup(html_path.read_text(encoding="utf-8"), "lxml")
     h1 = soup.find("h1")
@@ -221,8 +265,15 @@ def extract(html_path: Path) -> dict:
                 subtitle = _text(sib)
 
     slides: list[dict] = [{"type": "title", "title": title, "subtitle": subtitle}]
-    for section in soup.find_all("section", class_="part"):
-        slides.extend(_section_slides(section))
+    parts = soup.find_all("section", class_="part")
+    if parts:
+        for section in parts:
+            slides.extend(_section_slides(section))
+    else:
+        # 폴백: .part/h3.blk 구조가 아니면 h2 섹션(rman_recovery)으로 추출
+        for section in soup.find_all("section"):
+            if section.find("h2"):
+                slides.extend(_h2_section_slides(section))
 
     return {
         "deck_id": html_path.stem,
