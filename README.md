@@ -1,64 +1,62 @@
-# 강의 → PPT 생성기 (Lecture → PPT)
+# ora-ppt-gen — 수업자료 HTML → 발표 PPTX 자동 생성
 
-수업 내용(텍스트/마크다운)을 붙여넣으면 **Claude가 내용을 정리·구조화**하고,
-그 결과를 웹에서 미리 본 뒤 **PowerPoint(.pptx) 파일로 바로 내려받는** 시스템입니다.
+Oracle DBA 부트캠프 학습 문서(HTML)를 **소스 오브 트루스**로 삼아,
+발표용 **PPTX** 를 자동 생성하고 학습 허브의 동기화·검증을 자동화하는 파이프라인.
 
-## 동작 방식
+디자인은 첨부한 참고 템플릿(**Slate + Oracle Red**, 맑은 고딕)을 따른다.
 
-```
-강의 텍스트/MD ─▶ Claude (opus-4-8, 구조화 출력) ─▶ 슬라이드 JSON ─▶ 웹 미리보기
-                                                       └─▶ python-pptx ─▶ .pptx 다운로드
-```
-
-1. **`/api/generate`** — 강의 텍스트를 Claude에 보내 `Deck`(제목/부제/슬라이드) JSON으로 구조화합니다.
-   Anthropic 구조화 출력(`messages.parse` + `output_format`)으로 스키마에 맞는 검증된 결과를 받습니다.
-2. **웹 미리보기** — 슬라이드별 제목·불릿·발표자 노트를 브라우저에서 확인합니다.
-3. **`/api/pptx`** — (필요하면 수정한) 덱 JSON을 받아 `python-pptx`로 `.pptx`를 생성해 반환합니다.
-
-슬라이드는 4가지 레이아웃을 지원합니다: `title`(표지), `section`(섹션 구분), `bullets`(불릿 본문),
-`two_column`(2단 비교). 발표자 노트는 .pptx의 노트 영역에 그대로 들어갑니다.
-
-## 구성
-
-| 경로 | 역할 |
-|------|------|
-| `lecture_ppt/models.py`  | 슬라이드 덱 데이터 모델 (Pydantic) |
-| `lecture_ppt/llm.py`     | Claude 호출 · 구조화 출력 |
-| `lecture_ppt/builder.py` | `Deck` → `.pptx` (python-pptx) |
-| `lecture_ppt/app.py`     | FastAPI 엔드포인트 + 정적 파일 |
-| `lecture_ppt/static/index.html` | 단일 페이지 웹 UI |
-| `scripts/selftest.py`    | LLM 없이 빌더만 검증하는 오프라인 테스트 |
-
-## 실행
+## 빠른 시작
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
+# 1) 의존성
 pip install -r requirements.txt
+npm install
 
-# 인증: API 키를 환경변수로 지정 (또는 `ant auth login` 프로필 사용)
-export ANTHROPIC_API_KEY=sk-ant-...
+# 2) HTML 자산을 assets/ 에 둔다 (문서 4종 + study_hub_full.html)
 
-uvicorn lecture_ppt.app:app --reload
-# 브라우저에서 http://127.0.0.1:8000 접속
+# 3) 실행
+python make.py assets/sql_tuning.html            # 한 문서 → out/sql_tuning.pptx
+python make.py --all                             # 4개 문서 전부
+python make.py assets/sql_tuning.html --preview  # + QA 스크린샷 out/qa/*.png
 ```
 
-## 오프라인 자가 테스트
+생성물은 `out/` 에 쌓인다: `*.slides.json`(스펙), `*.pptx`(덱), `qa/*.png`(QA 이미지).
 
-API 키 없이 빌더가 정상 동작하는지 확인:
+## 파이프라인
 
-```bash
-python scripts/selftest.py
-# OK: 38,135 bytes -> examples/sample_output.pptx
+```
+HTML 문서 ─▶ sync_and_verify.py ─▶ extract_slides.py ─▶ build_ppt.js ─▶ rezip ─▶ .pptx
+ (소스)       동기화·재주입·검증      슬라이드 스펙 JSON     pptxgenjs 렌더           └▶ preview.js ─▶ QA 이미지
 ```
 
-## 사용 모델
+- **sync_and_verify.py** — 한글→ASCII 사본 복사, 4개 문서를 `study_hub_full.html`의
+  `docsrc-*` 블록에 재주입(`</script` 이스케이프), 검증(태그 균형 · 메인 스크립트 JS
+  문법 · 미정의 SVG 클래스=검은박스 탐지). **검증 실패 시 허브를 쓰지 않고 멈춘다.**
+- **extract_slides.py** — 섹션/개념/표/박스/코드/다이어그램을 스펙 JSON으로 추출.
+  원문을 재작성하지 않는다(새 사실 지어내기 금지). 추출이 부정확하면 JSON만 손보면 된다.
+- **build_ppt.js** — 스펙 → PPTX. 타이틀·로드맵·섹션·콘텐츠·코드·비교·감사 슬라이드,
+  넘치면 자동 페이지네이션. 좌표는 `layout.js`가 계획(프리뷰 QA와 동일 기하).
+- **preview.js** — 동일 좌표로 HTML을 만들어 Chromium으로 슬라이드별 PNG를 찍는다.
 
-`claude-opus-4-8` — 긴 강의 내용을 요약·구조화하는 데 강점이 있습니다.
-`lecture_ppt/llm.py`의 `MODEL` 상수에서 변경할 수 있습니다.
+## 주요 명령
 
-## 향후 확장 아이디어
+| 명령 | 설명 |
+|------|------|
+| `python make_day.py <N> --doc <topic.html>` | **일차 파이프라인**(문제 주입 + 일차 덱 + 문서 덱). 저작은 대화로 `days/<N>/`·문서에 미리 준비 |
+| `python inject_quiz.py days/<N>/quiz.json --day <N>` | 하루치 문제를 허브에 주입(멱등) |
+| `python make.py <doc.html>` | 한 문서 파이프라인 |
+| `python make.py --all` | assets/의 4개 문서 전부 |
+| `python make.py <doc> --preview` | QA 스크린샷까지 |
+| `python make.py <doc> --force` | HTML 검증 실패해도 PPT 생성 |
+| `python sync_and_verify.py --dir assets` | 동기화·재주입·검증만 |
+| `python extract_slides.py <doc> -o out/x.json` | 추출만 |
+| `node build_ppt.js out/x.json -o out/x.pptx` | 렌더만 |
 
-- PDF/DOCX 파일 업로드 입력 (현재는 텍스트/마크다운 붙여넣기)
-- 테마/색상 커스터마이징, 회사 템플릿(.potx) 적용
-- 슬라이드별 재생성, 이미지·다이어그램 자동 삽입
-- 웹 미리보기에서 슬라이드 직접 편집 후 다운로드
+## 환경 메모
+
+- 이 저장소는 파이프라인 **스크립트**를 담는다. HTML 자산(`assets/`)·참고 PPTX(`ref/`)·
+  산출물(`out/`)은 `.gitignore` 대상(사용자 콘텐츠).
+- 참고: 일부 샌드박스에서 LibreOffice 변환이 동작하지 않아, QA는 `preview.js`(Chromium)로
+  한다. 최종 미세 검수는 PowerPoint/로컬 LibreOffice 권장.
+
+자세한 규칙·함정·데이터 계약은 [CLAUDE.md](CLAUDE.md) 참고.

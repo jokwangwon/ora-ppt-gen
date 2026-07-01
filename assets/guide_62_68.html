@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DBA 62~64일차 완전정복 · SELECT/DML 처리의 모든 것</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F6F7F9; --panel:#FFFFFF; --ink:#161B22; --muted:#5A6472; --line:#E4E8EE;
+  --d62:#6E56CF; --d63:#0E9F8C; --d64:#DB7B2B; --d65:#34528C; --d66:#B23A6F; --d67:#8C6A43; --d68:#4E8A57; --alert:#D6453D; --add:#2D6FE0;
+  --d62-t:#efeafc; --d63-t:#e2f6f3; --d64-t:#fbeedd; --d65-t:#e8edf6; --d66-t:#f9e7f0; --d67-t:#f0e9dd; --d68-t:#e7f1e9; --alert-t:#fbe6e4; --add-t:#e7f0fd;
+  --term:#10151E; --term-ink:#D6DEEA; --term-dim:#7E8BA0;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --sans:'Pretendard',system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.68;font-size:15px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:900px;margin:0 auto;padding:0 22px}
+
+header.top{padding:54px 0 30px;border-bottom:1px solid var(--line)}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+h1.title{font-size:clamp(28px,5vw,44px);font-weight:800;line-height:1.1;letter-spacing:-.02em;margin:12px 0 10px}
+h1.title b{color:var(--d63)}
+.lede{color:var(--muted);font-size:16px;max-width:64ch}
+.legend{margin-top:18px;display:flex;gap:8px;flex-wrap:wrap}
+.tag{font-family:var(--mono);font-size:12px;padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:var(--panel)}
+.tag.t62{color:var(--d62);border-color:#d8cffa}.tag.t63{color:var(--d63);border-color:#bfe9e3}
+.tag.t64{color:var(--d64);border-color:#f3d6b3}.tag.t65{color:var(--d65);border-color:#c4d0e6}.tag.t66{color:var(--d66);border-color:#ebc4d8}.tag.t67{color:var(--d67);border-color:#dccbb0}.tag.t68{color:var(--d68);border-color:#bcd9c2}.tag.tadd{color:var(--add);border-color:#bcd5f7}
+
+nav.jump{position:sticky;top:0;z-index:20;background:rgba(246,247,249,.9);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+nav.jump .wrap{display:flex;gap:2px;flex-wrap:wrap;padding:9px 22px}
+nav.jump a{font-family:var(--mono);font-size:12px;color:var(--muted);text-decoration:none;padding:6px 9px;border-radius:8px}
+nav.jump a:hover{background:var(--panel);color:var(--ink)}
+
+main{padding:6px 0 60px}
+section.part{padding:44px 0 10px;border-bottom:1px solid var(--line)}
+.phead{display:flex;align-items:flex-start;gap:18px;margin-bottom:8px}
+.pnum{font-family:var(--mono);font-weight:700;font-size:13px;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:6px 9px;white-space:nowrap;margin-top:4px}
+.ptitle{font-size:24px;font-weight:800;letter-spacing:-.015em;line-height:1.15}
+.psub{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin-top:4px}
+h3.blk{font-size:17px;font-weight:700;margin:32px 0 10px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+h3.blk .ix{font-family:var(--mono);font-size:13px;color:var(--muted);font-weight:500}
+h4.sub{font-size:15px;font-weight:700;margin:20px 0 6px}
+p{margin:10px 0}
+ul.tight{margin:9px 0;padding-left:20px}ul.tight li{margin:5px 0}
+ol.tight{margin:9px 0;padding-left:22px}ol.tight li{margin:6px 0}
+.muted{color:var(--muted)}
+b.k{font-weight:700}
+code.inl{font-family:var(--mono);font-size:.85em;background:#eef1f5;padding:1px 6px;border-radius:5px;color:#2a3340}
+
+.db{font-family:var(--mono);font-size:11px;padding:2px 7px;border-radius:6px;font-weight:700;vertical-align:middle}
+.db.d62{background:var(--d62-t);color:var(--d62)}.db.d63{background:var(--d63-t);color:var(--d63)}
+.db.d64{background:var(--d64-t);color:var(--d64)}.db.d65{background:var(--d65-t);color:var(--d65)}.db.d66{background:var(--d66-t);color:var(--d66)}.db.d67{background:var(--d67-t);color:var(--d67)}.db.d68{background:var(--d68-t);color:var(--d68)}.db.add{background:var(--add-t);color:var(--add)}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:13px 0}
+.card h4{margin:0 0 6px;font-size:15px;font-weight:700}
+
+/* wait chip */
+.we{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px;font-weight:500;background:var(--alert-t);color:var(--alert);border:1px solid #f1c4c0;border-radius:7px;padding:3px 9px;margin:2px 4px 2px 0}
+.we::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--alert)}
+.we.amber{background:var(--d64-t);color:#b0641f;border-color:#eecba0}.we.amber::before{background:var(--d64)}
+
+/* facts */
+.facts{display:flex;gap:10px;flex-wrap:wrap;margin:13px 0}
+.fact{flex:1;min-width:135px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.fact .n{font-family:var(--mono);font-size:22px;font-weight:700;letter-spacing:-.02em}
+.fact.c62 .n{color:var(--d62)}.fact.c63 .n{color:var(--d63)}.fact.c64 .n{color:var(--d64)}.fact.c65 .n{color:var(--d65)}.fact.c66 .n{color:var(--d66)}.fact.c67 .n{color:var(--d67)}.fact.c68 .n{color:var(--d68)}
+.fact .l{font-size:12.5px;color:var(--muted);margin-top:2px}
+
+/* stepper */
+.steps{margin:16px 0;counter-reset:s}
+.step{position:relative;padding:2px 0 18px 44px;border-left:2px solid var(--line);margin-left:14px}
+.step:last-child{border-left-color:transparent}
+.step::before{counter-increment:s;content:counter(s);position:absolute;left:-15px;top:-3px;width:28px;height:28px;border-radius:50%;background:var(--panel);border:2px solid currentColor;font-family:var(--mono);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
+.steps.s62 .step{color:var(--d62)}.steps.s63 .step{color:var(--d63)}.steps.s64 .step{color:var(--d64)}.steps.s65 .step{color:var(--d65)}.steps.s66 .step{color:var(--d66)}.steps.s67 .step{color:var(--d67)}.steps.s68 .step{color:var(--d68)}.steps.sn .step{color:var(--muted)}
+.step .sttl{color:var(--ink);font-weight:700;font-size:14.5px}
+.step .sbody{color:var(--ink);font-weight:400;font-size:14px;margin-top:3px}
+.pending{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--d64);background:var(--d64-t);border:1px dashed #e3b885;border-radius:6px;padding:1px 8px;margin-left:6px}
+
+/* tables */
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-size:12px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.04em}
+td code{font-family:var(--mono);font-size:.92em}
+table.we-tbl tr td:first-child{font-family:var(--mono);font-weight:500;white-space:nowrap;color:var(--alert)}
+
+.bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:7px;margin:12px 0}
+.bgrid span{font-family:var(--mono);font-size:12px;padding:7px 10px;background:var(--panel);border:1px solid var(--line);border-radius:8px}
+.bgrid span.hot{border-color:#bfe9e3;background:var(--d63-t);color:#0a7a6c;font-weight:600}
+.bgrid span.note{border-color:#f3d6b3;background:var(--d64-t);color:#a05e1c}
+
+pre.term{background:var(--term);color:var(--term-ink);font-family:var(--mono);font-size:12.5px;line-height:1.55;border-radius:12px;padding:15px 16px;overflow-x:auto;margin:13px 0;border:1px solid #1f2733}
+pre.term .pr{color:#5fb0a3}pre.term .cm{color:var(--term-dim)}pre.term .out{color:#9fb0c6}pre.term .hl{color:#e0a45e}
+
+figure{margin:18px 0;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+figure svg{width:100%;height:auto;display:block}
+figcaption{font-size:12.5px;color:var(--muted);margin-top:8px;font-family:var(--mono)}
+.svg-lbl{font-family:var(--sans);font-size:13px;font-weight:700;fill:var(--ink)}
+.svg-sub{font-family:var(--sans);font-size:11px;fill:var(--muted)}
+.svg-mono{font-family:var(--mono);font-size:11px;fill:var(--muted)}
+.n62{fill:var(--d62-t);stroke:var(--d62)}.n63{fill:var(--d63-t);stroke:var(--d63)}
+.n64{fill:var(--d64-t);stroke:var(--d64)}.n65{fill:var(--d65-t);stroke:var(--d65)}.n66{fill:var(--d66-t);stroke:var(--d66)}.n67{fill:var(--d67-t);stroke:var(--d67)}.n68{fill:var(--d68-t);stroke:var(--d68)}.nal{fill:var(--alert-t);stroke:var(--alert)}
+.nmut{fill:#f1f3f6;stroke:#cbd2db}.ncor{fill:#fdeee2;stroke:#e0892b}.nadd{fill:var(--add-t);stroke:var(--add)}
+.edge{stroke:#aab3c0;stroke-width:1.4;fill:none}
+.dash{stroke-dasharray:5 5}
+
+/* callouts */
+.tip{background:var(--d63-t);border:1px solid #bfe9e3;border-radius:12px;padding:13px 16px;margin:15px 0;font-size:14px}
+.tip b{color:#0a7a6c}
+.q{background:var(--d62-t);border:1px solid #ddd3f7;border-radius:12px;padding:13px 16px;margin:15px 0;font-size:14px}
+.q b{color:var(--d62)}
+.why{background:var(--add-t);border:1px solid #cfe0fb;border-left:3px solid var(--add);border-radius:12px;padding:13px 16px;margin:15px 0;font-size:14px}
+.why .h{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--add);font-weight:700;text-transform:uppercase;display:block;margin-bottom:4px}
+
+.check{padding-left:0}
+.check li{margin:7px 0;list-style:none;position:relative;padding-left:26px}
+.check li::before{content:"□";position:absolute;left:0;color:var(--muted);font-family:var(--mono)}
+
+dl.gloss{margin:12px 0}
+dl.gloss dt{font-weight:700;font-family:var(--mono);font-size:13.5px;margin-top:14px;color:var(--ink)}
+dl.gloss dd{margin:3px 0 0;color:var(--ink);font-size:14px}
+
+footer{padding:30px 0 50px;color:var(--muted);font-size:13px}
+@media(max-width:560px){.facts{flex-direction:column}.phead{gap:12px}}
+</style>
+</head>
+<body>
+
+<header class="top"><div class="wrap">
+  <div class="eyebrow">Oracle DBA · 62–68일차 · 완전정복판</div>
+  <h1 class="title">SQL 한 줄이 메모리에서<br><b>처리되는 모든 과정</b></h1>
+  <p class="lede">User Process가 SQL을 던진 순간부터 parse · bind · execute · fetch를 거쳐 결과가 돌아올 때까지. 그 사이 Shared Pool · Buffer Cache · Undo · Redo가 어떻게 맞물리는지를 단계별로 따라가며, 수업에서 짧게 지나간 부분은 <span class="db add">보충</span>으로 채웁니다.</p>
+  <div class="legend">
+    <span class="tag t62">62 · Parse / Shared Pool</span>
+    <span class="tag t63">63 · Execute 읽기 / Buffer Cache</span>
+    <span class="tag t64">64 · Execute 쓰기 / Transaction</span>
+    <span class="tag t65">65 · Redo / LGWR / Commit</span>
+    <span class="tag t66">66 · Lock & 동시성</span>
+    <span class="tag t67">67 · 저장구조 & 공간관리</span>
+    <span class="tag t68">68 · row migration·ITL</span>
+    <span class="tag tadd">보충 · 이해를 위한 추가</span>
+  </div>
+</div></header>
+
+<nav class="jump"><div class="wrap">
+  <a href="#p0">0. 프로세스·메모리</a>
+  <a href="#p1">1. Parse</a>
+  <a href="#p2">2. Bind</a>
+  <a href="#p3">3. Execute·읽기</a>
+  <a href="#p5">4. Fetch</a>
+  <a href="#p4">5. Execute·트랜잭션</a>
+  <a href="#p45">5.5 Redo·LGWR</a>
+  <a href="#p6">6. Lock & 동시성</a>
+  <a href="#p7">7. 저장구조 & 공간</a>
+  <a href="#waits">Wait Event</a>
+  <a href="#gloss">용어집</a>
+  <a href="#queries">쿼리</a>
+</div></nav>
+
+<main><div class="wrap">
+
+<!-- ===================== PART 0 ===================== -->
+<section class="part" id="p0">
+  <div class="phead"><div class="pnum">PART 0</div><div><div class="ptitle">등장인물 — 프로세스와 메모리</div><div class="psub">무대를 먼저 깔아야 모든 동작이 제자리에 들어맞는다</div></div></div>
+
+  <p>SQL 처리를 이해하려면 "누가(프로세스)" "어디에(메모리)" 접근하는지를 먼저 알아야 합니다. 두 종류의 프로세스와 두 종류의 메모리가 무대의 전부예요.</p>
+
+  <figure>
+  <svg viewBox="0 0 680 372" role="img" aria-label="오라클 프로세스와 메모리 구조">
+    <defs><marker id="a0" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aab3c0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <rect class="nmut" x="40" y="60" width="150" height="50" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="115" y="81" text-anchor="middle">User Process</text><text class="svg-sub" x="115" y="98" text-anchor="middle">클라이언트</text>
+    <line class="edge" x1="190" y1="85" x2="226" y2="85" marker-end="url(#a0)"/><text class="svg-mono" x="208" y="78" text-anchor="middle">SQL</text>
+    <rect class="n63" x="230" y="60" width="160" height="50" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="310" y="81" text-anchor="middle">Server Process</text><text class="svg-sub" x="310" y="98" text-anchor="middle">전용 서버</text>
+    <line class="edge" x1="310" y1="110" x2="310" y2="130" marker-end="url(#a0)"/>
+    <rect class="dash" x="230" y="132" width="160" height="80" rx="12" fill="none" stroke="#cbd2db"/><text class="svg-mono" x="244" y="150">PGA</text>
+    <rect class="n63" x="242" y="158" width="136" height="46" rx="8" stroke-width="1.2"/><text class="svg-lbl" x="310" y="178" text-anchor="middle">Cursor</text><text class="svg-sub" x="310" y="194" text-anchor="middle">Private SQL Area</text>
+    <rect class="dash" x="440" y="40" width="200" height="300" rx="14" fill="none" stroke="#cbd2db"/><text class="svg-mono" x="454" y="60">SGA</text>
+    <rect class="dash" x="452" y="74" width="176" height="150" rx="10" fill="none" stroke="#cbd2db"/><text class="svg-mono" x="462" y="92">Shared Pool</text>
+    <rect class="n62" x="462" y="102" width="156" height="54" rx="8" stroke-width="1.2"/><text class="svg-lbl" x="540" y="123" text-anchor="middle">Library Cache</text><text class="svg-sub" x="540" y="140" text-anchor="middle">공유 SQL·실행계획</text>
+    <rect class="n62" x="462" y="164" width="156" height="52" rx="8" stroke-width="1.2"/><text class="svg-lbl" x="540" y="184" text-anchor="middle">Dictionary Cache</text><text class="svg-sub" x="540" y="201" text-anchor="middle">row cache</text>
+    <rect class="n63" x="452" y="236" width="176" height="50" rx="8" stroke-width="1.2"/><text class="svg-lbl" x="540" y="256" text-anchor="middle">Buffer Cache</text><text class="svg-sub" x="540" y="273" text-anchor="middle">데이터 블록 복사본</text>
+    <rect class="n64" x="452" y="296" width="176" height="36" rx="8" stroke-width="1.2"/><text class="svg-lbl" x="540" y="318" text-anchor="middle">Redo Log Buffer</text>
+    <path class="edge" d="M392 80 L456 126" marker-end="url(#a0)"/>
+    <path class="edge" d="M392 100 L418 100 L418 260 L448 260" marker-end="url(#a0)"/>
+  </svg>
+  <figcaption>parse는 위쪽(Shared Pool), execute는 아래쪽(Buffer Cache·Redo)을 건드린다.</figcaption>
+  </figure>
+
+  <h4 class="sub">프로세스 둘</h4>
+  <ul class="tight">
+    <li><b class="k">User Process</b> — SQL*Plus·애플리케이션 등 SQL을 작성하는 클라이언트 측 프로세스.</li>
+    <li><b class="k">Server Process</b> — 그 SQL을 실제로 처리하는 서버 측 프로세스. 전용 서버(dedicated) 구성이면 세션마다 1:1로 붙는다. <span class="db add">보충</span> SQL*Net(Oracle Net)이 둘 사이 통신을 담당하며, 이 통신 대기가 <code class="inl">SQL*Net message from client</code>다.</li>
+  </ul>
+
+  <h4 class="sub">메모리 둘 — SGA vs PGA</h4>
+  <ul class="tight">
+    <li><b class="k">SGA</b>(System Global Area) — 모든 세션이 공유하는 메모리. <b class="k">Shared Pool</b>(Library Cache + Dictionary Cache), <b class="k">Buffer Cache</b>, <b class="k">Redo Log Buffer</b> 등.</li>
+    <li><b class="k">PGA</b>(Program Global Area) — 세션 전용 메모리. 커서의 작업 영역·정렬·바인드 값이 여기 있다.</li>
+  </ul>
+
+  <div class="why"><span class="h">보충 · 커서는 두 부분으로 나뉜다</span>
+  <b class="k">Shared SQL Area</b>(파스 트리·실행계획)는 Library Cache에 두고 <b>여러 세션이 공유</b>한다. <b class="k">Private SQL Area</b>(바인드 값·fetch 진행 상태)는 PGA에 두고 <b>세션마다 따로</b> 갖는다. 이 분리 덕분에 같은 SQL의 실행계획을 한 번만 만들어 모두가 재사용(soft parse)하면서도, 세션별로 다른 값을 동시에 처리할 수 있다.</div>
+
+  <div class="why"><span class="h">보충 · Shared Pool과 PGA도 '작업 공간'이 있다</span>
+  Buffer Cache만 깊게 보면 균형이 안 맞는다. 나머지 두 영역도 처리에 직접 쓰인다.
+  <ul class="tight" style="margin-top:8px">
+    <li><b class="k">Shared Pool</b> = Library Cache(공유 SQL·실행계획) + <b>Dictionary(row) Cache</b>(테이블·컬럼·권한 등 메타데이터) + <b>Reserved Pool</b>(큰 청크용 예약 ~5%). parse가 여기서 일어난다(Part 1). 메타데이터 변경 경합이 <code class="inl">row cache lock</code>, 큰 청크 부족이 <code class="inl">ORA-04031</code>.</li>
+    <li><b class="k">PGA 작업 영역(work area)</b> — <code class="inl">ORDER BY</code>·<code class="inl">GROUP BY</code>·<code class="inl">DISTINCT</code>는 <b>sort area</b>, <b>HASH JOIN</b>은 <b>hash area</b>에서 처리된다. PGA에서 다 못 담으면 <b>temp 테이블스페이스로 흘러넘쳐</b>(spill) <span class="we">direct path read/write temp</span>가 발생한다. 그래서 정렬·조인 튜닝은 PGA(<code class="inl">pg_aggregate_target</code>) 이야기로 이어진다(→ SQL 튜닝편).</li>
+  </ul>
+  한 줄로: <b>parse·메타데이터 = Shared Pool</b>, <b>블록 캐싱 = Buffer Cache</b>, <b>정렬·해시 작업 = PGA</b>. 세 곳이 역할을 나눠 맡는다.</div>
+</section>
+
+<!-- ===================== PART 1 PARSE ===================== -->
+<section class="part" id="p1">
+  <div class="phead"><div class="pnum">PART 1</div><div><div class="ptitle">Parse <span class="db d62">62</span></div><div class="psub">SQL을 검사하고 실행계획을 마련한다 — Shared Pool에서</div></div></div>
+
+  <p>Server Process가 SQL을 받으면 가장 먼저 <b class="k">커서</b>를 준비하고 parse를 시작합니다. parse는 네 개의 검사를 순서대로 거쳐요.</p>
+
+  <figure>
+  <svg viewBox="0 0 680 470" role="img" aria-label="parse 단계 내부와 soft/hard parse 분기">
+    <defs><marker id="a1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aab3c0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <rect class="nmut" x="200" y="20" width="280" height="40" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="340" y="44" text-anchor="middle">SQL 수신 → 커서 생성</text>
+    <line class="edge" x1="340" y1="60" x2="340" y2="76" marker-end="url(#a1)"/>
+    <rect class="n62" x="200" y="78" width="280" height="46" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="340" y="98" text-anchor="middle">① 문법 검사 (Syntax)</text><text class="svg-sub" x="340" y="114" text-anchor="middle">구문이 올바른가</text>
+    <line class="edge" x1="340" y1="124" x2="340" y2="138" marker-end="url(#a1)"/>
+    <rect class="n62" x="200" y="140" width="280" height="46" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="340" y="160" text-anchor="middle">② 의미 검사 (Semantic)</text><text class="svg-sub" x="340" y="176" text-anchor="middle">객체·컬럼 존재? (딕셔너리)</text>
+    <line class="edge" x1="340" y1="186" x2="340" y2="200" marker-end="url(#a1)"/>
+    <rect class="n62" x="200" y="202" width="280" height="46" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="340" y="222" text-anchor="middle">③ 권한 검사 (Privilege)</text><text class="svg-sub" x="340" y="238" text-anchor="middle">접근 권한 확인</text>
+    <line class="edge" x1="340" y1="248" x2="340" y2="262" marker-end="url(#a1)"/>
+    <rect class="n62" x="200" y="264" width="280" height="46" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="340" y="284" text-anchor="middle">④ 라이브러리 캐시 검색</text><text class="svg-sub" x="340" y="300" text-anchor="middle">SQL 해시로 기존 커서 탐색</text>
+    <path class="edge" d="M340 310 L340 330 L190 330 L190 350" marker-end="url(#a1)"/>
+    <path class="edge" d="M340 310 L340 330 L490 330 L490 350" marker-end="url(#a1)"/>
+    <text class="svg-mono" x="250" y="326" text-anchor="middle">있으면</text><text class="svg-mono" x="430" y="326" text-anchor="middle">없으면</text>
+    <rect class="n63" x="60" y="350" width="260" height="58" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="190" y="374" text-anchor="middle">Soft Parse</text><text class="svg-sub" x="190" y="392" text-anchor="middle">기존 실행계획 재사용 (가볍다)</text>
+    <rect class="ncor" x="360" y="350" width="260" height="58" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="490" y="374" text-anchor="middle">Hard Parse</text><text class="svg-sub" x="490" y="392" text-anchor="middle">옵티마이저가 계획 생성·적재 (비싸다)</text>
+  </svg>
+  <figcaption>네 검사를 통과한 뒤 라이브러리 캐시에 같은 커서가 있으면 soft, 없으면 hard.</figcaption>
+  </figure>
+
+  <h3 class="blk"><span class="ix">1.1</span>네 가지 검사</h3>
+  <table class="we-tbl">
+    <tr><th>단계</th><th>하는 일 / 무엇을 보는가</th></tr>
+    <tr><td>① 문법</td><td>키워드·구문이 오라클 문법에 맞는가. 틀리면 <code>ORA-00936</code> 등. 아직 객체 존재는 안 봄.</td></tr>
+    <tr><td>② 의미</td><td>테이블·컬럼이 실제로 존재하는가. <b>Dictionary Cache(row cache)</b>를 조회. 없으면 <code>ORA-00904</code>.</td></tr>
+    <tr><td>③ 권한</td><td>이 사용자가 객체에 접근 권한이 있는가. ②③은 둘 다 딕셔너리 근거라 묶어서 보기도 함.</td></tr>
+    <tr><td>④ 캐시검색</td><td>SQL 텍스트를 해시 → Library Cache 버킷에서 같은 커서 탐색. 결과로 soft/hard 분기.</td></tr>
+  </table>
+
+  <div class="q"><b>수업 질문 — 실행계획은 어느 단계에서 생성될까?</b> → <b class="k">parse 단계, 그중 hard parse</b>에서. 옵티마이저(CBO)가 통계를 보고 비용을 계산해 계획을 만들고 라이브러리 캐시에 적재한다. soft parse는 이미 있는 계획을 재사용할 뿐 새로 만들지 않는다.</div>
+
+  <div class="why"><span class="h">보충 · 왜 바인드 변수가 중요한가</span>
+  리터럴을 매번 박으면(<code class="inl">=100</code>, <code class="inl">=101</code> …) SQL 텍스트가 달라져 해시값이 매번 바뀌고, 그때마다 <b>hard parse</b>가 일어난다. hard parse는 옵티마이저 연산 + shared pool에 새 청크 할당(→ <code class="inl">shared pool latch</code>, 심하면 <code class="inl">ORA-04031</code>)이라 비싸다. <code class="inl">:emp_id</code> 같은 바인드 변수를 쓰면 텍스트가 고정돼 soft parse로 재사용된다. 운영 튜닝의 1순위 항목.</div>
+
+  <h3 class="blk"><span class="ix">1.2</span>hard parse는 내부에서 무슨 일을 하나 <span class="db d62">62</span></h3>
+  <p>위 ④ 캐시검색에서 같은 커서를 못 찾으면(cache miss) <b class="k">hard parse</b>가 시작된다. 단순히 "계획을 만든다"가 아니라 아래 단계를 차례로 거친다.</p>
+  <table class="we-tbl">
+    <tr><th>단계</th><th>하는 일</th></tr>
+    <tr><td>1. 공유 가능성 확인</td><td>해시는 같아도 <b>완전히 동일한 SQL</b>인지(텍스트·바인드 타입·옵티마이저 환경·참조 객체)를 비교. 다르면 같은 부모 아래 <b>child cursor</b>를 새로 만든다.</td></tr>
+    <tr><td>2. Query Transformation</td><td>옵티마이저가 같은 결과를 내는 <b>더 나은 형태로 SQL을 재작성</b>한다. view merging, subquery unnesting, predicate pushing, OR 확장 등.</td></tr>
+    <tr><td>3. Optimization (CBO)</td><td>통계(행 수·카디널리티·클러스터링 팩터)로 후보 계획들의 <b>비용(Cost)을 추정·비교</b>해 최저 비용을 선택. 액세스 경로·조인 방식·조인 순서를 정한다.</td></tr>
+    <tr><td>4. Row Source Generation</td><td>고른 논리 계획을 실제 실행 가능한 <b>반복자 트리(=실행계획)</b>로 변환. 실행계획에 보이는 <code>TABLE ACCESS FULL</code>·<code>NESTED LOOPS</code>가 이 단계의 산물.</td></tr>
+    <tr><td>5. Library Cache 적재</td><td>완성된 커서(파스 트리+실행계획)를 Shared SQL Area로 <b>적재</b>. 이때 shared pool 청크를 할당한다(→ latch/mutex, 부족하면 <code>ORA-04031</code>). 이후 같은 SQL은 soft parse로 재사용.</td></tr>
+  </table>
+  <div class="why"><span class="h">soft parse와 갈리는 지점</span>
+  soft parse도 ①문법·②의미·③권한·④캐시검색은 <b>똑같이 수행</b>한다. 차이는 ④에서 기존 커서를 찾으면 <b>2~4단계(변환·최적화·생성)를 통째로 건너뛰고</b> 그 계획을 재사용한다는 것이다. 그래서 hard parse의 진짜 비용은 <b>CBO 연산(CPU)</b>과 <b>적재 시 메모리 할당 직렬화(latch)</b>다. 바인드 변수가 ④의 해시를 고정해 2~4단계를 안 타게 만드는 것이 parse 튜닝의 핵심이다.</div>
+  <div class="tip"><b>parent vs child cursor</b> — SQL 텍스트가 같으면 하나의 <b>parent cursor</b>(<code class="inl">v$sqlarea</code>)로 묶이고, 텍스트는 같지만 바인드 타입·환경이 달라 계획이 갈리면 그 아래 여러 <b>child cursor</b>(<code class="inl">v$sql</code>)로 나뉜다. child가 과도하게 많으면(high version count) 그 자체가 parse 부하·공유 실패의 신호다.</div>
+
+  <p style="margin-top:18px"><b class="k">그럼 그 단계들이 진행되는 동안 라이브러리 캐시를 어떻게 잡고 푸는가.</b> 도구는 셋이다 — <b>latch/mutex</b>(해시 체인 탐색, 찰나) · <b>library cache lock</b>(객체 <u>핸들</u>의 존재·권한 고정) · <b>library cache pin</b>(객체 <u>본문(heap)</u> 접근). <b class="k">lock은 이름표(핸들)에 대한 권한, pin은 본문에 대한 접근</b>이라 역할이 다르다.</p>
+  <figure>
+  <svg viewBox="0 0 680 250" role="img" aria-label="hard parse가 lock/pin을 잡고 푸는 순서">
+    <defs><marker id="hp" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aab3c0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <rect class="nmut" x="20" y="92" width="120" height="58" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="80" y="116" text-anchor="middle">① 체인 진입</text><text class="svg-sub" x="80" y="134" text-anchor="middle">latch/mutex (찰나)</text>
+    <rect class="ncor" x="170" y="92" width="140" height="58" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="240" y="112" text-anchor="middle">② 참조 객체</text><text class="svg-sub" x="240" y="130" text-anchor="middle">lock S + pin S</text><text class="svg-sub" x="240" y="144" text-anchor="middle">(존재 고정·정의 읽기)</text>
+    <rect class="nal" x="340" y="92" width="150" height="58" rx="9" stroke-width="1.4"/><text class="svg-lbl" x="415" y="112" text-anchor="middle">③ 새 커서 적재</text><text class="svg-sub" x="415" y="130" text-anchor="middle">lock X + pin X</text><text class="svg-sub" x="415" y="144" text-anchor="middle">(독점 · 청크 할당)</text>
+    <rect class="nadd" x="520" y="92" width="140" height="58" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="590" y="116" text-anchor="middle">④ 전부 해제</text><text class="svg-sub" x="590" y="134" text-anchor="middle">→ 공유 가능</text>
+    <line class="edge" x1="140" y1="121" x2="168" y2="121" marker-end="url(#hp)"/>
+    <line class="edge" x1="310" y1="121" x2="338" y2="121" marker-end="url(#hp)"/>
+    <line class="edge" x1="490" y1="121" x2="518" y2="121" marker-end="url(#hp)"/>
+    <text class="svg-sub" x="340" y="40" text-anchor="middle" style="fill:var(--alert)">③에서 shared pool latch도 잡음 · 부족하면 ORA-04031</text>
+    <text class="svg-mono" x="240" y="210" text-anchor="middle" style="fill:var(--mut)">S = share (읽기·공유)</text>
+    <text class="svg-mono" x="440" y="210" text-anchor="middle" style="fill:var(--mut)">X = exclusive (독점)</text>
+  </svg>
+  <figcaption>hard parse의 동시성 동작: 체인 진입(latch) → 참조 객체 lock S·pin S → 새 커서 lock X·pin X로 적재 → 해제.</figcaption>
+  </figure>
+  <table class="we-tbl">
+    <tr><th>순서</th><th>무엇을 잡나 / 왜</th></tr>
+    <tr><td>① 해시 버킷 진입</td><td>SQL 해시 → 버킷 체인을 뒤지려 <b>latch/mutex</b>를 <b>찰나만</b> 잡고 놓는다. 같은 커서를 찾으면 soft, miss면 hard로.</td></tr>
+    <tr><td>② 참조 객체 보호</td><td>테이블·뷰 등 핸들에 <b>library cache lock S</b>(파싱 중 그 객체가 drop·변경되지 않게 존재·정의 고정) + 정의를 읽는 동안 본문에 <b>pin S</b>. 그래서 파싱 중 그 객체에 DDL(X)이 들어오면 충돌해 막힌다.</td></tr>
+    <tr><td>③ 새 커서 적재</td><td>변환·최적화·생성으로 만든 새 child cursor를 적재할 때 그 객체에 <b>lock X + pin X(독점)</b>. 동시에 shared pool에서 청크를 할당하느라 <code>shared pool latch</code>를 잡는다(부족하면 <code>ORA-04031</code>).</td></tr>
+    <tr><td>④ 해제</td><td>적재가 끝나면 새 커서의 X lock/pin을 풀고, 참조 객체의 S lock/pin도 푼다. 이제 공유 가능 → 다음 세션은 soft parse로 재사용.</td></tr>
+  </table>
+  <div class="why"><span class="h">lock과 pin을 왜 나누나</span>
+  <b>lock</b>은 핸들(이름표)에 대한 권한이라 "이 객체가 파싱 내내 살아있고 정의가 안 바뀜"을 비교적 오래 보장한다. <b>pin</b>은 본문(heap)에 대한 접근이라 "지금 실제로 읽거나 쓰는 그 순간"만 잡는다. 그래서 정의를 lock S로 붙잡아 둔 채, 본문을 읽을 때만 pin S를 걸었다 푸는 식으로 따로 움직인다. 최신 버전은 latch·일부 pin을 더 가벼운 <b>mutex</b>로 대체해 경합을 줄였다(<code class="inl">cursor: pin S</code>, <code class="inl">library cache: mutex X</code> 대기).</div>
+
+  <h3 class="blk"><span class="ix">1.3</span>Shared Pool 보호 장치 — Library Cache lock/pin/mutex <span class="db d62">62</span></h3>
+  <p>라이브러리 캐시의 커서를 탐색·실행하는 동안 다른 세션이 그 커서를 갈아엎지 못하게 보호해야 한다. 이를 위해 <code class="inl">library cache lock</code>(객체 핸들 보호)·<code class="inl">library cache pin</code>(실제 실행 중 보호)을 shared 모드로 잡고, 최신 버전에선 <code class="inl">library cache: mutex</code>를 쓴다. 경합 시 <span class="we">library cache: mutex X</span> 대기가 발생.</p>
+
+  <h3 class="blk"><span class="ix">1.4</span>Row Cache Lock & 시퀀스 경합 <span class="db d62">62</span></h3>
+  <p>의미·권한 검사가 뒤지는 <b class="k">Dictionary Cache(row cache)</b>는 객체·유저·시퀀스 메타정보가 사는 곳. 이를 보호하는 시스템 lock이 <b class="k">row cache lock</b>이다. 시퀀스가 대표적 경합원이다.</p>
+  <div class="why"><span class="h">보충 · 시퀀스는 왜 row cache를 건드리나</span>
+  시퀀스의 다음 값은 딕셔너리의 <code class="inl">LAST_NUMBER</code>로 관리된다. <b>nocache</b>면 <code class="inl">nextval</code> 한 번마다 이 값을 갱신해야 하고, 갱신은 row cache를 <b>ssx(5) 모드</b>로 잡는 변경 작업이다. 동시에 여러 세션이 nextval을 호출하면 이 lock을 두고 줄을 선다 → <span class="we">row cache lock</span> 폭증.</div>
+  <table class="we-tbl">
+    <tr><th>설정</th><th>동작</th><th>대기</th></tr>
+    <tr><td><code>nocache</code></td><td>매 값마다 딕셔너리 변경</td><td><span class="we">row cache lock</span></td></tr>
+    <tr><td><code>cache 20</code></td><td>20개씩 메모리 선점 → 딕셔너리 접근 1/20로 감소</td><td><span class="we">enq: SQ - contention</span></td></tr>
+    <tr><td><code>cache 100</code></td><td>100개씩 → 경합 거의 해소</td><td class="muted">거의 없음</td></tr>
+  </table>
+  <p class="muted">※ <code class="inl">enq: SQ</code>는 캐시 소진 후 다음 묶음을 채울 때 시퀀스 자체에 걸리는 enqueue. cache를 키울수록 빈도가 준다.</p>
+
+  <h3 class="blk"><span class="ix">1.5</span>Reserved Pool — ORA-04031 방지 <span class="db d62">62</span></h3>
+  <p>Shared Pool 안에서 메모리는 <b class="k">청크(chunk)</b> 단위로 할당된다. 작은 조각만 남아 큰 청크를 못 만들면 <code class="inl">ORA-04031</code>이 난다. 이를 막으려 shared pool의 약 <b class="k">5%</b>를 예약해 두고, 일반 영역에서 free chunk를 못 찾고 요청 크기가 <b class="k">4400 byte 이상</b>이면 이 예약 영역을 사용한다.</p>
+  <div class="facts">
+    <div class="fact c62"><div class="n">5%</div><div class="l">_shared_pool_reserved_pct</div></div>
+    <div class="fact c62"><div class="n">4400</div><div class="l">_shared_pool_reserved_min_alloc (byte)</div></div>
+  </div>
+
+  <h3 class="blk"><span class="ix">1.6</span>Keep / Unkeep — 프로그램 고정 <span class="db d62">62</span></h3>
+  <p>Shared Pool도 LRU로 관리되어, 안 쓰는 객체는 밀려난다(aged out). 자주 쓰는 큰 패키지가 밀려났다 다시 적재되면 hard parse·단편화를 유발하므로, <code class="inl">dbms_shared_pool.keep('객체')</code>로 메모리에 <b class="k">고정</b>한다. <code class="inl">unkeep</code>으로 해제, <code class="inl">v$db_object_cache</code>의 <code class="inl">KEPT='YES'</code>로 확인. <span class="db add">보충</span> 패키지 전역 변수(<code class="inl">g_comm</code> 등)는 세션 동안 PGA가 아닌 UGA에 유지되며, 패키지가 메모리에 살아있어야 안정적이라 keep과 잘 어울린다.</p>
+</section>
+
+<!-- ===================== PART 2 BIND ===================== -->
+<section class="part" id="p2">
+  <div class="phead"><div class="pnum">PART 2</div><div><div class="ptitle">Bind</div><div class="psub">실행계획의 빈칸에 실제 값을 채운다 — PGA에서</div></div></div>
+  <p>실행계획은 이미 완성됐고, 이제 <code class="inl">:emp_id</code> 같은 바인드 변수 자리에 실제 값을 넣습니다. 값은 공유 영역이 아니라 <b class="k">PGA의 Private SQL Area</b>에 들어가요. 그래서 같은 커서(공유 실행계획)를 여러 세션이 서로 다른 값으로 동시에 실행할 수 있습니다.</p>
+  <div class="why"><span class="h">보충 · Bind Variable Peeking</span>
+  hard parse 시점에 오라클은 첫 바인드 값을 한 번 "엿보고(peeking)" 그 값에 최적화된 계획을 만든다. 값 분포가 한쪽으로 치우친 컬럼(예: 99%가 'Y')에서는 이 첫 값에 따라 계획이 좋게도 나쁘게도 굳어버린다. 이를 보완하는 기능이 <b>Adaptive Cursor Sharing</b>(값에 따라 복수 계획 유지)이다.</div>
+</section>
+
+<!-- ===================== PART 3 EXECUTE READ ===================== -->
+<section class="part" id="p3">
+  <div class="phead"><div class="pnum">PART 3</div><div><div class="ptitle">Execute — 읽기 <span class="db d63">63</span></div><div class="psub">실행계획을 따라 블록을 찾는다 — Buffer Cache</div></div></div>
+
+  <p>execute가 시작되면 <code class="inl">library cache lock/pin</code>을 shared로 잡아 커서를 보호하고, 실행계획의 연산(예: <code class="inl">INDEX UNIQUE SCAN → TABLE ACCESS BY INDEX ROWID</code>)을 따라 <b class="k">블록 I/O</b>를 일으킵니다. 인덱스는 <code class="inl">root → branch → leaf → 데이터 블록</code> 순으로 내려가며, 매 단계가 "이 블록을 읽어라"는 요청이에요. 그 요청을 처리하는 메커니즘 전체가 Buffer Cache입니다.</p>
+
+  <h3 class="blk"><span class="ix">3.1</span>버퍼 캐시란, 그리고 왜 해시인가</h3>
+  <p><b class="k">Database Buffer Cache</b>는 데이터파일에서 읽은 블록의 복사본을 담아 물리 I/O를 최소화하는 메모리 영역이다. <code class="inl">v$buffer_pool</code> 기준 DEFAULT 풀은 8KB 블록 버퍼 37,202개.</p>
+  <div class="why"><span class="h">보충 · 왜 해시 테이블을 쓰는가</span>
+  버퍼가 수만~수백만 개인데 "이 블록이 캐시에 있나?"를 매번 전부 훑으면 O(n)이라 느리다. 블록 주소를 해시해 버킷으로 바로 점프하면 평균 O(1)에 가깝게 찾는다. 그래서 <b>"오라클이 메모리 관리에 쓰는 하나의 방법이 hash table"</b>이라고 한 것. 스택·큐·링크드리스트·해시를 공부하라는 당부가 여기서 나온다.</div>
+
+  <h3 class="blk"><span class="ix">3.2</span>블록 찾기 — hash → bucket → chain → buffer header</h3>
+  <p>요청 블록의 <b class="k">DBA</b>(Data Block Address = 파일#·블록#) + <b class="k">블록 클래스</b>를 해시해 hash bucket을 찾는다. 한 버킷에는 같은 해시값을 가진 <b class="k">버퍼 헤더</b>들이 체인으로 매달려 있고, 버퍼 헤더는 실제 버퍼 캐시 위치를 가리키는 메타정보다. 이 hash table 구조는 <b class="k">SGA</b>에 있고, 각 체인은 <b class="k">cache buffers chains</b> latch로 보호된다.</p>
+
+  <figure>
+  <svg viewBox="0 0 680 372" role="img" aria-label="버퍼 캐시 블록 탐색 해시 구조">
+    <defs><marker id="a3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aab3c0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <rect class="nmut" x="210" y="20" width="260" height="48" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="340" y="40" text-anchor="middle">요청 블록 (DBA)</text><text class="svg-sub" x="340" y="57" text-anchor="middle">파일#·블록# + 블록 클래스</text>
+    <line class="edge" x1="340" y1="68" x2="340" y2="84" marker-end="url(#a3)"/><text class="svg-mono" x="350" y="80">해시 함수</text>
+    <rect class="n62" x="210" y="86" width="260" height="48" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="340" y="106" text-anchor="middle">Hash Bucket</text><text class="svg-sub" x="340" y="123" text-anchor="middle">SGA · cache buffers chains latch</text>
+    <line class="edge" x1="340" y1="134" x2="340" y2="150" marker-end="url(#a3)"/><text class="svg-mono" x="350" y="146">체인 검색 → latch</text>
+    <rect class="ncor" x="210" y="152" width="260" height="48" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="340" y="172" text-anchor="middle">cache buffers chains latch</text><text class="svg-sub" x="340" y="189" text-anchor="middle">읽기 shared · 쓰기 exclusive</text>
+    <path class="edge" d="M340 200 L340 212 L210 212 L210 222" marker-end="url(#a3)"/>
+    <rect class="n63" x="150" y="222" width="110" height="42" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="205" y="248" text-anchor="middle">버퍼 헤더</text>
+    <line class="edge" x1="260" y1="243" x2="278" y2="243" marker-end="url(#a3)"/>
+    <rect class="n63" x="280" y="222" width="110" height="42" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="335" y="248" text-anchor="middle">버퍼 헤더</text>
+    <line class="edge" x1="390" y1="243" x2="408" y2="243" marker-end="url(#a3)"/>
+    <rect class="n63" x="410" y="222" width="110" height="42" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="465" y="248" text-anchor="middle">버퍼 헤더</text>
+    <line class="edge" x1="205" y1="264" x2="205" y2="288" marker-end="url(#a3)"/><line class="edge" x1="335" y1="264" x2="335" y2="288" marker-end="url(#a3)"/><line class="edge" x1="465" y1="264" x2="465" y2="288" marker-end="url(#a3)"/>
+    <rect class="nmut" x="130" y="290" width="420" height="50" rx="10" stroke-width="1.2"/><text class="svg-lbl" x="340" y="311" text-anchor="middle">Database Buffer Cache</text><text class="svg-sub" x="340" y="328" text-anchor="middle">실제 데이터 블록 복사본</text>
+  </svg>
+  </figure>
+
+  <p>체인을 뒤지려면 <span class="we">latch: cache buffers chains</span> 를 잡아야 한다. 읽기는 shared, 쓰기는 exclusive 모드.</p>
+  <div class="facts">
+    <div class="fact c63"><div class="n">1024</div><div class="l">chains latch (_db_block_hash_latches)</div></div>
+    <div class="fact c63"><div class="n">131072</div><div class="l">hash bucket (_db_block_hash_buckets)</div></div>
+    <div class="fact c63"><div class="n">128</div><div class="l">latch 1개당 bucket 수 (131072/1024)</div></div>
+  </div>
+  <p class="muted">전체 latch 수는 <code class="inl">select count(*) from v$latch_children where name='cache buffers chains';</code> 로 확인 (1024).</p>
+
+  <h4 class="sub">버퍼 헤더란 — 그리고 헷갈리는 "세 가지 헤더"</h4>
+  <p><b class="k">버퍼 헤더</b>는 버퍼 캐시 바깥(SGA)에 있는 작은 <b>메타 구조</b>다. 블록 하나(=버퍼 하나)마다 정확히 하나씩 있고, 그 버퍼의 주소·상태·LRU/해시 체인 포인터, 그리고 <b class="k">잠금(핀) 상태</b>를 담는다. 즉 버퍼 헤더는 "그 블록을 대표하는 표딱지"이고, 실제 데이터는 그 헤더가 가리키는 버퍼에 들어 있다.</p>
+  <p>이름이 비슷해 자주 섞이는 <b>세 가지 헤더</b>를 반드시 구분하자:</p>
+  <table class="we-tbl">
+    <tr><th>헤더</th><th>어디에</th><th>무엇을 담나</th></tr>
+    <tr><td style="color:var(--ink);font-family:var(--mono)">buffer header</td><td>SGA(블록 바깥)</td><td>버퍼 위치·상태·<b>핀(lock)</b> — 잠금이 기록되는 곳</td></tr>
+    <tr><td style="color:var(--ink);font-family:var(--mono)">block header</td><td>데이터 블록 <b>안쪽</b></td><td>ITL·SCN 등 (Part 7.5의 블록 구조 맨 위)</td></tr>
+    <tr><td style="color:var(--ink);font-family:var(--mono)">segment header</td><td>세그먼트 첫 <b>블록</b></td><td>extent map·HWM·freelist (buffer busy waits 단골)</td></tr>
+  </table>
+  <p>두 세션이 같은 블록에 접근하면, 둘 다 같은 DBA를 해시해 <b class="k">똑같은 하나의 버퍼 헤더</b>를 찾고(각자 chains latch를 찰나 잡았다 놓음), 그 헤더에 각자 핀을 건다.</p>
+  <figure>
+  <svg viewBox="0 0 680 320" role="img" aria-label="버퍼 헤더와 버퍼, 두 세션">
+    <defs><marker id="a3h" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aab3c0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <rect class="nmut" x="130" y="34" width="170" height="46" rx="8" stroke-width="1.2"/><text class="svg-lbl" x="215" y="61" text-anchor="middle" dominant-baseline="central">Session A</text>
+    <rect class="nmut" x="380" y="34" width="170" height="46" rx="8" stroke-width="1.2"/><text class="svg-lbl" x="465" y="61" text-anchor="middle" dominant-baseline="central">Session B</text>
+    <line class="edge" x1="250" y1="80" x2="305" y2="124" marker-end="url(#a3h)"/>
+    <line class="edge" x1="430" y1="80" x2="375" y2="124" marker-end="url(#a3h)"/>
+    <text class="svg-mono" x="340" y="106" text-anchor="middle">둘 다 같은 헤더 1개에 핀</text>
+    <rect class="n63" x="200" y="126" width="280" height="60" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="340" y="148" text-anchor="middle">Buffer Header (1개)</text><text class="svg-sub" x="340" y="167" text-anchor="middle">핀(lock) 기록 · SGA 메타구조</text>
+    <line class="edge" x1="340" y1="186" x2="340" y2="222" marker-end="url(#a3h)"/><text class="svg-mono" x="352" y="208">가리킴(포인터)</text>
+    <rect x="160" y="224" width="360" height="64" rx="9" fill="#e8f0fb" stroke="#3a6fc0" stroke-width="1.2"/><text class="svg-lbl" x="340" y="247" text-anchor="middle">Buffer — 데이터 블록 8K 복사본</text><text class="svg-sub" x="340" y="266" text-anchor="middle">이 안에 block header(ITL·SCN)가 들어있음</text>
+    <text class="svg-sub" x="340" y="306" text-anchor="middle">shared + shared = 공존 · exclusive 포함 = buffer busy waits</text>
+  </svg>
+  <figcaption>"헤더를 잡느냐 블록을 잡느냐"가 아니라, 헤더를 통해 블록을 잡는 구조. 헤더는 블록마다 1개.</figcaption>
+  </figure>
+
+  <h3 class="blk"><span class="ix">3.3</span>논리 I/O vs 물리 I/O, 그리고 버퍼의 상태</h3>
+  <ul class="tight">
+    <li><b class="k">논리적 I/O</b> = 블록 I/O. 캐시에 블록이 있으면 여기서 끝.</li>
+    <li><b class="k">물리적 I/O</b> = 캐시에 없어 디스크에서 읽어야 함 → free buffer 확보 필요.</li>
+  </ul>
+  <div class="why"><span class="h">보충 · 버퍼의 상태</span>
+  <b>free</b>(비었거나 깨끗해 재사용 가능) · <b>pinned</b>(현재 누가 사용 중) · <b>dirty</b>(변경됐지만 아직 디스크에 안 씀) · <b>clean</b>(디스크와 동일). dirty buffer는 LRUW로 옮겨져 DBWR가 내려쓸 때까지 free가 될 수 없다.</div>
+
+  <h3 class="blk"><span class="ix">3.4</span>Working Set — LRU / LRUW + touch count</h3>
+  <figure>
+  <svg viewBox="0 0 680 300" role="img" aria-label="working set LRU와 LRUW 구조">
+    <rect x="30" y="20" width="620" height="200" rx="14" fill="none" stroke="#cbd2db" stroke-width="1" stroke-dasharray="5 5"/>
+    <text class="svg-lbl" x="48" y="44">Working Set — 버퍼 캐시 관리</text>
+    <text class="svg-mono" x="48" y="64">LRU List (재사용 관리)</text>
+    <rect class="ncor" x="60" y="72" width="340" height="48" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="230" y="92" text-anchor="middle">Hot 영역</text><text class="svg-sub" x="230" y="109" text-anchor="middle">앞(MRU) · 자주 사용</text>
+    <rect class="n63" x="408" y="72" width="212" height="48" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="514" y="92" text-anchor="middle">Cold 영역</text><text class="svg-sub" x="514" y="109" text-anchor="middle">뒤(LRU) · free 후보</text>
+    <rect class="nmut" x="60" y="128" width="560" height="36" rx="9" stroke-width="1.2"/><text class="svg-sub" x="340" y="151" text-anchor="middle">보조 리스트 — free · 미사용 · DBWR 기록완료 버퍼</text>
+    <text class="svg-mono" x="48" y="184">LRUW List (쓰기 대기 관리)</text>
+    <rect class="ncor" x="60" y="190" width="280" height="22" rx="7" stroke-width="1.2"/><text class="svg-sub" x="200" y="205" text-anchor="middle">메인: dirty buffer (기록 대기)</text>
+    <rect class="nmut" x="346" y="190" width="274" height="22" rx="7" stroke-width="1.2"/><text class="svg-sub" x="483" y="205" text-anchor="middle">보조: 현재 DBWR가 기록 중</text>
+    <rect class="ncor" x="30" y="248" width="195" height="42" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="127" y="268" text-anchor="middle">touch +1</text><text class="svg-sub" x="127" y="284" text-anchor="middle">3초 주기 재접근</text>
+    <rect class="ncor" x="240" y="248" width="195" height="42" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="337" y="268" text-anchor="middle">hot 승격</text><text class="svg-sub" x="337" y="284" text-anchor="middle">touch count ≥ 2</text>
+    <rect class="n63" x="450" y="248" width="200" height="42" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="550" y="268" text-anchor="middle">스캔 한계</text><text class="svg-sub" x="550" y="284" text-anchor="middle">메인 40%까지</text>
+  </svg>
+  </figure>
+  <ul class="tight">
+    <li><b class="k">LRU List</b> — 메인(사용된 버퍼: hot/cold) + 보조(free·미사용·DBWR 기록완료).</li>
+    <li><b class="k">LRUW List</b> — 메인(기록 대기 dirty buffer) + 보조(현재 DBWR가 기록 중).</li>
+    <li><b class="k">touch count</b> — 마지막 접근 후 3초 뒤 재접근하면 +1. 스캔 중 touch count ≥ 2인 버퍼를 만나면 hot 앞으로 옮기고 count를 0으로 리셋.</li>
+  </ul>
+  <div class="why"><span class="h">보충 · midpoint insertion (hot/cold로 나누는 이유)</span>
+  새 블록을 무조건 맨 앞에 넣으면, 한 번만 읽고 말 블록(예: full scan)이 자주 쓰는 블록을 밀어낸다. 그래서 오라클은 새 버퍼를 hot/cold 경계(midpoint)에 넣고, touch count가 쌓여 "진짜 자주 쓰인다"가 증명돼야 hot으로 승격시킨다. 캐시 오염을 막는 장치다.</div>
+  <div class="facts">
+    <div class="fact c63"><div class="n">3초</div><div class="l">_db_aging_touch_time</div></div>
+    <div class="fact c63"><div class="n">≥2</div><div class="l">_db_aging_hot_criteria</div></div>
+    <div class="fact c63"><div class="n">40%</div><div class="l">_db_block_max_scan_pct</div></div>
+  </div>
+
+  <h3 class="blk"><span class="ix">3.5</span>free buffer 확보 흐름</h3>
+  <div class="steps s63">
+    <div class="step"><div class="sttl">cache buffers lru chain latch 획득 → 보조 리스트에서 free 탐색</div><div class="sbody">있으면 즉시 사용. 경합 시 <span class="we">latch: cache buffers lru chain</span></div></div>
+    <div class="step"><div class="sttl">없으면 메인 cold 끝부터 스캔</div><div class="sbody">touch count ≤ 1 → free로 사용 / ≥ 2 → hot 이동(count=0)</div></div>
+    <div class="step"><div class="sttl">40% 스캔에도 못 찾으면 DBWR 호출</div><div class="sbody">dirty buffer를 데이터파일에 기록하고 free 확보 요청 → <span class="we">free buffer waits</span></div></div>
+  </div>
+
+  <h3 class="blk"><span class="ix">3.6</span>cache buffers lru chain latch <span class="db d64">64</span> <span class="muted" style="font-weight:500">(chains latch와 혼동 금지)</span></h3>
+  <div class="facts">
+    <div class="fact c64"><div class="n">36</div><div class="l">v$latch_children 개수</div></div>
+    <div class="fact c64"><div class="n">18</div><div class="l">_db_block_lru_latches</div></div>
+  </div>
+  <p class="muted">latch set이 쌍(working/auxiliary)으로 나뉘어 <b class="k">18 × 2 = 36</b> — child가 파라미터(<code>_db_block_lru_latches</code>=18)보다 많이 보이는 이유다. 아래 쿼리로 <b class="k">실제 사용 중인 latch</b>를 식별 — <b class="k">SLEEPS = 대기 중인 세션 수.</b></p>
+  <pre class="term"><span class="pr">SYS@ora19c &gt;</span> select a.bp_blksz, c.child#, a.bp_name, c.gets, c.misses, c.sleeps
+  from x$kcbwbpd a, x$kcbwds b, v$latch_children c
+ where b.set_id between a.bp_lo_sid and a.bp_hi_sid and c.addr = b.set_latch order by 1,2;
+<span class="out">8192  9   DEFAULT  133382  67  7</span>   <span class="hl">&lt;- 실사용 (sleeps=대기 세션)</span>
+<span class="out">8192  11  DEFAULT  116263  65  0</span>   <span class="hl">&lt;- 실사용</span>
+<span class="out">(그 외 child들은 GETS 70, 거의 미사용)</span></pre>
+
+  <h3 class="blk"><span class="ix">3.7</span>물리 I/O 관련 대기 이벤트 <span class="db d64">64</span></h3>
+  <p>인덱스 스캔을 유도(<code class="inl">/*+ index(e emp_idx) */</code>)하고 <code class="inl">flush buffer_cache</code> 후 <code class="inl">v$session_event</code>로 관찰. 어떤 상황에서 어떤 대기가 뜨는지 설명할 수 있어야 한다.</p>
+  <table class="we-tbl">
+    <tr><th>Wait Event</th><th>발생 상황</th></tr>
+    <tr><td>read by other session</td><td>한 세션이 블록을 물리 I/O로 적재 중(buffer를 exclusive로 점유)일 때, 다른 세션이 같은 블록을 shared로 읽으려 대기.</td></tr>
+    <tr><td>db file sequential read</td><td><b>single block</b> 물리 I/O — rowid scan(인덱스 → 단일 블록).</td></tr>
+    <tr><td>db file scattered read</td><td><b>multi block</b> 물리 I/O — table full scan / index fast full scan.</td></tr>
+    <tr><td>db file parallel read</td><td><b>prefetch</b>(다음 읽을 블록을 미리 함께) 수행 시. ※ 병렬처리 아님.</td></tr>
+    <tr><td>direct path read</td><td>버퍼 캐시를 거치지 않고 <b>PGA의 cursor로 직접</b> 읽기. 큰 테이블 full scan·CTAS 등. <code>10949</code> 이벤트로 끔. <code>_serial_direct_read=auto</code></td></tr>
+  </table>
+  <div class="tip"><b>Q. fetch란?</b> active set(결과 집합)을 user process에 전달하는 것. 실행계획의 <code class="inl">TABLE ACCESS BY INDEX ROWID BATCHED</code>·<code class="inl">INDEX RANGE SCAN</code>, 그리고 <b>dynamic sampling</b>은 "통계가 없어 오라클이 샘플로 수집했구나"까지 읽어야 함.</div>
+
+  <h3 class="blk"><span class="ix">3.8</span>buffer header lock(pin) — latch와 무엇이 다른가</h3>
+  <p>3.2에서 본 버퍼 헤더에 거는 잠금이 <b class="k">buffer header lock</b>, 흔히 <b class="k">buffer pin</b>이라 부른다(수업 노트의 "block lock"). 가장 많이 헷갈리는 게 <code class="inl">cache buffers chains latch</code>와의 차이인데, <b>보호 대상도 보유 기간도 다르다</b>.</p>
+  <ul class="tight">
+    <li><b class="k">chains latch</b> — 해시 체인에서 버퍼 헤더를 <b>찾는 순간</b>만 잡는 찰나의 잠금. <b>체인(자료구조)</b>을 보호.</li>
+    <li><b class="k">buffer header lock(pin)</b> — 찾아낸 버퍼의 내용을 <b>쓰는 동안</b> 잡는 잠금. <b>버퍼(블록 데이터)</b>를 보호.</li>
+  </ul>
+  <p>그래서 순서가 이렇다 (Part 5 트랜잭션 step 3의 "block lock 획득 후 chains latch 해제"가 이것): ① chains latch 획득 → 버퍼 헤더를 찾음 → ② 헤더에 <b>핀</b>을 건다(읽기 shared / 쓰기 exclusive) → ③ <b>chains latch 즉시 해제</b> → ④ 핀을 쥔 채 버퍼 내용 처리 → ⑤ 끝나면 핀 해제. latch는 찰나, 핀은 작업이 끝날 때까지 유지된다.</p>
+  <figure>
+  <svg viewBox="0 0 680 250" role="img" aria-label="latch vs buffer pin vs TX/TM lock 보호 대상과 기간">
+    <text class="svg-sub" x="20" y="28">보호 대상</text><text class="svg-sub" x="640" y="28" text-anchor="end">보유 기간 길어짐 →</text>
+    <rect class="n64" x="20" y="42" width="216" height="48" rx="8" stroke-width="1.2"/><text class="svg-lbl" x="128" y="62" text-anchor="middle">cache buffers chains latch</text><text class="svg-sub" x="128" y="79" text-anchor="middle">해시 체인(자료구조)</text>
+    <rect class="n64" x="246" y="42" width="115" height="48" rx="8" stroke-width="1.2"/><text class="svg-sub" x="303" y="67" text-anchor="middle" dominant-baseline="central">탐색 순간 (μs)</text>
+    <rect class="n63" x="20" y="100" width="216" height="48" rx="8" stroke-width="1.2"/><text class="svg-lbl" x="128" y="120" text-anchor="middle">buffer header lock (pin)</text><text class="svg-sub" x="128" y="137" text-anchor="middle">버퍼(블록) 내용</text>
+    <rect class="n63" x="246" y="100" width="250" height="48" rx="8" stroke-width="1.2"/><text class="svg-sub" x="371" y="125" text-anchor="middle" dominant-baseline="central">블록 작업 동안 (execute 단계)</text>
+    <rect class="n66" x="20" y="158" width="216" height="48" rx="8" stroke-width="1.2"/><text class="svg-lbl" x="128" y="178" text-anchor="middle">TX / TM lock (enqueue)</text><text class="svg-sub" x="128" y="195" text-anchor="middle">행 · 테이블(논리)</text>
+    <rect class="n66" x="246" y="158" width="394" height="48" rx="8" stroke-width="1.2"/><text class="svg-sub" x="443" y="183" text-anchor="middle" dominant-baseline="central">트랜잭션 종료(commit/rollback)까지</text>
+  </svg>
+  <figcaption>buffer header lock은 latch보다 길게, TX/TM lock보다 훨씬 짧게 — 딱 그 블록 작업(execute) 동안만.</figcaption>
+  </figure>
+  <div class="why"><span class="h">보충 · 보유 기간이 commit이 아니라 execute까지인 이유</span>
+  buffer pin은 <b>그 블록을 만지는 순간</b>에만 필요한 메모리 구조 보호다. 그래서 같은 <code class="inl">UPDATE</code> 한 줄이라도, 핀은 블록을 바꾸는 동안만 잡혔다 풀리고(Part 5 노트: "active set 만들기 전=execute 종료 전까지 버퍼 헤더 lock 해제 안 함"), <b>행을 보호하는 TX lock은 commit까지</b> 따로 남는다. "메모리 구조를 잠깐 지키는 핀"과 "논리적 데이터를 트랜잭션 내내 지키는 lock"은 완전히 다른 층위다.</div>
+  <h4 class="sub">어느 '헤더'에 거나 — 헷갈리는 3가지 헤더</h4>
+  <p>"헤더에 건다"가 헷갈리는 건 이름이 비슷한 헤더가 셋이기 때문이다. 핀이 걸리는 건 그중 <b class="k">버퍼 헤더</b> 하나뿐이다.</p>
+  <table>
+    <tr><th>이름</th><th>위치</th><th>무엇</th></tr>
+    <tr><td>buffer header</td><td>SGA (블록 바깥)</td><td>버퍼의 메타 구조(주소·상태·핀 상태·버퍼 위치 포인터). <b>핀/lock이 여기 기록</b> ← 잠그는 게 이것</td></tr>
+    <tr><td>block header</td><td>데이터 블록 안쪽</td><td>블록 내용의 머리(ITL·SCN). 7.5 data block format의 맨 위 영역</td></tr>
+    <tr><td>segment header (block)</td><td>세그먼트 첫 블록</td><td>extent map·HWM·freelist 보관. buffer busy waits가 자주 터지는 곳</td></tr>
+  </table>
+  <p>비유하면, 책(=버퍼=블록 내용)을 빌릴 때 대출 기록은 책 안이 아니라 <b class="k">대출 카드(=버퍼 헤더)</b>에 적힌다. "카드에 도장 = 그 책을 빌린 상태"이듯, 버퍼 헤더가 잠금이 기록되는 자리이고 그 잠금이 보호하는 대상이 버퍼다. 그래서 <b class="k">"헤더를 잡느냐 블록을 잡느냐"가 아니라, 헤더를 통해 블록을 잡는다.</b></p>
+  <figure>
+  <svg viewBox="0 0 680 320" role="img" aria-label="버퍼 헤더와 버퍼, 두 세션">
+    <defs><marker id="bh3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aab3c0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <rect class="nmut" x="130" y="34" width="170" height="46" rx="8" stroke-width="1.2"/><text class="svg-lbl" x="215" y="61" text-anchor="middle" dominant-baseline="central">Session A</text>
+    <rect class="nmut" x="380" y="34" width="170" height="46" rx="8" stroke-width="1.2"/><text class="svg-lbl" x="465" y="61" text-anchor="middle" dominant-baseline="central">Session B</text>
+    <line class="edge" x1="250" y1="80" x2="305" y2="124" marker-end="url(#bh3)"/>
+    <line class="edge" x1="430" y1="80" x2="375" y2="124" marker-end="url(#bh3)"/>
+    <text class="svg-mono" x="340" y="106" text-anchor="middle">둘 다 같은 헤더 1개에 핀</text>
+    <rect class="n63" x="200" y="126" width="280" height="60" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="340" y="148" text-anchor="middle">Buffer Header (1개)</text><text class="svg-sub" x="340" y="167" text-anchor="middle">핀(lock) 기록 · SGA 메타구조</text>
+    <line class="edge" x1="340" y1="186" x2="340" y2="222" marker-end="url(#bh3)"/><text class="svg-mono" x="352" y="208">포인터</text>
+    <rect class="ncor" x="160" y="224" width="360" height="64" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="340" y="247" text-anchor="middle">Buffer — 데이터 블록 8K 복사본</text><text class="svg-sub" x="340" y="266" text-anchor="middle">이 안에 block header(ITL·SCN)가 들어있음</text>
+    <text class="svg-sub" x="340" y="306" text-anchor="middle">shared+shared = 공존 · exclusive 포함 = buffer busy waits</text>
+  </svg>
+  <figcaption>버퍼 헤더는 블록마다 하나. 두 세션은 같은 헤더에 각자 핀을 건다.</figcaption>
+  </figure>
+  <p>버퍼 헤더는 <b class="k">블록마다 정확히 하나</b>다(캐시 복사본 1개 → 헤더 1개). 그래서 두 세션이 같은 블록을 원하면, 같은 해시 버킷을 거쳐 <b>똑같은 그 하나의 버퍼 헤더</b>를 찾아 각자 거기에 핀을 건다(호환되면 공존, 아니면 대기 — 모드는 아래 참고). 그리고 <span class="db d66">66</span>에서 본 ITL에 entry를 등록하는 트랜잭션 작업은 <b>block header(블록 내용)</b>를 바꾸는 것이라, 그 전에 먼저 <b>buffer header</b>에 exclusive 핀을 걸어야 한다 — 두 헤더가 이렇게 위아래로 맞물린다.</p>
+  <h4 class="sub">두 모드와 그 대기 이벤트</h4>
+  <ul class="tight">
+    <li><b class="k">shared pin</b> — 여러 세션이 같은 블록을 동시에 <b>읽을</b> 때. 서로 호환되어 공존.</li>
+    <li><b class="k">exclusive pin</b> — 블록을 <b>변경</b>하거나 <b>디스크에서 올리는 중</b>일 때. 독점.</li>
+    <li>그래서 <span class="we">read by other session</span>(누가 exclusive로 적재 중) · <span class="we">buffer busy waits</span>(인기 블록을 호환 안 되는 모드로 동시 요청 — Part 7 freelist 경합)는 모두 이 <b>핀을 못 잡아서</b> 생긴다.</li>
+  </ul>
+  <div class="tip"><b>세 층위로 묶어 외우기</b> — chains latch(체인, μs · 못 잡으면 <code class="inl">latch: cache buffers chains</code>) → buffer header pin(블록, execute까지 · <code class="inl">read by other session</code>/<code class="inl">buffer busy waits</code>) → TX/TM lock(행·테이블, commit까지 · <code class="inl">enq: TX</code>/<code class="inl">enq: TM</code>). 어떤 대기가 떴는지로 "어느 층에서 막혔는지"를 거꾸로 짚는다.</div>
+  <h3 class="blk"><span class="ix">3.9</span>순수 SELECT의 Execute — '준비'만 한다 <span class="db add">보충</span></h3>
+  <p>지금까지가 SELECT가 블록을 찾는 길이었다. 그런데 <b class="k">SELECT의 execute는 데이터를 "준비"하는 단계</b>일 뿐, 실제 읽기는 바로 다음 단계인 <b>fetch</b>(Part 4)에서 일어난다. DML과 결정적으로 다른 점이다.</p>
+  <ul class="tight">
+    <li>커서를 열고 실행계획에 맞춰 작업 영역(work area)을 준비한다.</li>
+    <li><b class="k">읽기 일관성의 기준점인 스냅샷 SCN을 확정</b>한다 — 이 시점 이후 남이 commit한 변경은 내 결과에 안 보인다.</li>
+    <li>이 단계에서는 블록을 바꾸지 않으므로 <b>redo·undo 생성도, TX/row lock도 없다</b>. (DML의 execute는 이 위에 '읽고 → 바꾸고 → 기록'을 얹는다 — Part 5)</li>
+  </ul>
+  <table>
+    <tr><th></th><th>순수 SELECT</th><th>DML (UPDATE 등)</th></tr>
+    <tr><td>execute에서 블록 변경</td><td>✗ (준비만)</td><td>✓ 실제 변경</td></tr>
+    <tr><td>redo / undo 생성</td><td>✗</td><td>✓</td></tr>
+    <tr><td>TX · row lock</td><td>✗</td><td>✓ (TX X)</td></tr>
+    <tr><td>실제 데이터 읽기 시점</td><td><b>fetch</b></td><td>execute에서 읽고 씀</td></tr>
+    <tr><td>읽기 일관성 기준</td><td>execute의 스냅샷 SCN</td><td>—</td></tr>
+  </table>
+  <div class="why"><span class="h">한 줄 정리</span>
+  DML의 execute는 "읽고 → 바꾸고 → 기록"이지만, <b>SELECT의 execute는 '판 깔기(스냅샷 SCN 확정)'</b>이고 실제 읽기는 fetch에서 일어난다. 그래서 SELECT는 redo도 undo 생성도 lock도 없다. 단, 읽는 중 남이 바꾼 블록은 <b>남이 만들어 둔 undo를 읽어 CR 블록</b>으로 되돌려 본다(읽기는 undo를 <i>쓰는</i> 게 아니라 <i>활용</i>). 자세한 CR 재구성은 Part 4 Fetch에서.</div>
+</section>
+
+<!-- ===================== PART 5 FETCH ===================== -->
+<section class="part" id="p5">
+  <div class="phead"><div class="pnum">PART 4</div><div><div class="ptitle">Fetch</div><div class="psub">결과 행을 user process로 돌려보낸다 — SELECT 처리의 마지막</div></div></div>
+  <p>SELECT는 execute만으로 행이 나오지 않는다. <b class="k">fetch</b>에서 active set을 실제로 꺼내 user process로 전달한다. 보통 가장 많은 블록 I/O가 여기서 일어난다.</p>
+  <ul class="tight">
+    <li><b class="k">Array fetch</b> <span class="db add">보충</span> — 한 행씩 주고받으면 비효율적이라 <code class="inl">arraysize</code>만큼 묶어 한 번에 전송. 클라이언트가 다음 묶음을 요청할 때마다 fetch가 반복된다.</li>
+    <li>행을 다 넘기는 사이 server process가 클라이언트의 다음 요청을 기다리는 것이 <code class="inl">SQL*Net message from client</code> 대기.</li>
+  </ul>
+  <h3 class="blk"><span class="ix">4.1</span>읽기 일관성 (Read Consistency)</h3>
+  <p>오라클의 핵심 강점 하나 — <b class="k">읽기는 쓰기를 막지 않고, 쓰기는 읽기를 막지 않는다.</b> fetch 도중 어떤 블록이 "내 쿼리 시작 이후 다른 트랜잭션이 바꾼" 상태여도, 내 결과는 흔들리지 않는다.</p>
+  <ul class="tight">
+    <li>기준은 <b class="k">스냅샷 SCN</b>(쿼리 시작 시점, §3.9). 읽으려는 블록의 SCN이 이보다 크면 "내 쿼리엔 너무 최신"이다.</li>
+    <li>그러면 그 블록의 ITL→undo를 따라가 <b>변경 전 모습으로 되돌린 CR 블록(Consistent Read)</b>을 메모리에 새로 만들어 읽는다. 원본(current)은 그대로 두고 사본만 만든다.</li>
+    <li>그래서 한 블록이 메모리에 <b>current 1개 + CR 사본 여러 개</b>로 공존할 수 있다. <b>SCN</b>은 변경의 시간 도장(단조 증가)으로 이 일관성의 기준점이다.</li>
+  </ul>
+  <div class="why"><span class="h">문장수준 vs 트랜잭션수준</span>
+  기본은 <b>문장수준 일관성</b> — 각 SQL이 "그 문장 시작 시점"으로 일관되게 본다. <code class="inl">SET TRANSACTION ISOLATION LEVEL SERIALIZABLE</code>이나 <code class="inl">READ ONLY</code>를 쓰면 <b>트랜잭션수준</b> — 트랜잭션 시작 시점으로 트랜잭션 내 모든 쿼리가 같은 스냅샷을 본다.</div>
+
+  <h3 class="blk"><span class="ix">4.2</span>ORA-01555 snapshot too old</h3>
+  <p>CR 블록을 만들려면 <b>변경 전 값(undo)</b>이 살아 있어야 한다. 그 undo가 이미 다른 트랜잭션에 의해 덮어써졌다면 옛 모습을 재구성할 수 없어 <code class="inl">ORA-01555: snapshot too old</code>가 발생한다.</p>
+  <ul class="tight">
+    <li><b class="k">전형</b> — 오래 도는 쿼리(예: 큰 테이블 full scan) 도중, 다른 세션들이 commit을 반복해 undo를 빠르게 재사용·덮어쓴 경우.</li>
+    <li><b class="k">악화 패턴</b> — "fetch across commit": 한 커서로 읽으면서 같은 데이터를 자주 commit하면 자기 undo를 스스로 날려 더 잘 터진다.</li>
+  </ul>
+  <table>
+    <tr><th>해결</th><th>방법</th></tr>
+    <tr><td>undo 더 오래 보관</td><td><code class="inl">undo_retention</code>↑, undo 테이블스페이스 크기↑</td></tr>
+    <tr><td>보관 보장</td><td>undo 테이블스페이스 <code class="inl">RETENTION GUARANTEE</code></td></tr>
+    <tr><td>쿼리 시간 단축</td><td>긴 쿼리 자체를 튜닝 (→ SQL 튜닝편)</td></tr>
+    <tr><td>패턴 교정</td><td>fetch 도중 잦은 commit(자기 undo 파괴) 피하기</td></tr>
+  </table>
+  <div class="tip"><b>연결</b> — undo는 Part 5(트랜잭션)에서 "변경 전 값을 적는 곳"으로 배운다. 그 undo가 rollback과 CR 양쪽에 쓰이고, <b>CR용으로 남겨둬야 할 undo가 모자라면 ORA-01555</b>가 난다. undo가 두 일을 겸한다는 걸 기억하면 자연스럽다.</div>
+</section>
+
+<!-- ===================== PART 5 EXECUTE WRITE / TX ===================== -->
+<section class="part" id="p4">
+  <div class="phead"><div class="pnum">PART 5</div><div><div class="ptitle">Execute — 트랜잭션(DML) <span class="db d64">64</span></div><div class="psub">읽기 위에 '변경'을 얹으면 — undo·redo·lock이 동시에 움직인다</div></div></div>
+
+  <p>SELECT는 블록을 읽기만 했지만, <code class="inl">UPDATE/DELETE/INSERT</code>는 블록을 <b class="k">변경</b>한다. 변경에는 세 가지가 함께 따라온다: 이전 값을 보관할 <b class="k">undo</b>, 복구를 위한 <b class="k">redo</b>, 동시성을 위한 <b class="k">lock</b>. 그 전에 "왜 이것들이 필요한가"부터.</p>
+
+  <div class="why"><span class="h">보충 · undo와 redo는 왜 존재하나</span>
+  <b>Undo(이전 값)</b> — ① <code class="inl">rollback</code> 시 되돌리기 ② <b>read consistency</b>: 내가 SELECT하는 도중 남이 그 행을 바꿔도, 나는 쿼리 시작 시점의 옛 값을 undo로 재구성해 본다(consistent read). 그래서 undo는 SELECT에도 쓰인다.<br>
+  <b>Redo(변경 기록)</b> — 장애로 메모리가 날아가도 redo log를 재생(roll forward)해 변경을 복구. redo는 <b>change vector</b>들의 묶음(redo entry)으로 만들어진다.</div>
+
+  <h3 class="blk"><span class="ix">4.1</span>블록 클래스 (v$waitstat) — 경합이 잡히는 단위</h3>
+  <p>해시 버킷을 결정하는 "블록 종류". 각 클래스마다 경합 통계가 따로 잡힌다 (<code class="inl">select class from v$waitstat;</code>).</p>
+  <div class="bgrid">
+    <span class="hot">data block</span><span>sort block</span><span>save undo block</span><span>segment header</span>
+    <span>save undo header</span><span class="note">free list → 화요일(테이블스페이스)</span><span>extent map</span>
+    <span>1st level bmb</span><span>2nd level bmb</span><span>3rd level bmb</span><span>bitmap block</span>
+    <span class="note">bitmap index block → 튜닝</span><span>file header block</span><span>unused</span>
+    <span>system undo header</span><span>system undo block</span><span>undo header</span><span>undo block</span>
+  </div>
+
+  <h3 class="blk"><span class="ix">4.2</span>Transaction 처리 순서 ★ — 핵심</h3>
+  <p><code class="inl">update hr.employees set salary=salary*1.1 where employee_id=100;</code> 한 줄이 어떻게 처리되는지. <code class="inl">v$transaction</code>(xidusn=undo 세그먼트 번호 등 트랜잭션 정보)으로 진행 중인 undo 사용을 확인할 수 있고, <code class="inl">rollback</code> 하면 사라진다.</p>
+  <div class="steps s64">
+    <div class="step"><div class="sttl">undo segment 할당</div><div class="sbody">온라인 undo 세그먼트 중 하나를 랜덤 선택. 사용 중이면 <b class="k">3회 재시도</b> → 오프라인 세그먼트 온라인화 → 새 세그먼트(10개) 생성 → 사용량 적은 것 공유, 순으로 시도. 못 받으면 <span class="we">enq: US - contention</span></div></div>
+    <div class="step"><div class="sttl">undo segment header에 transaction table slot 생성</div><div class="sbody">트랜잭션 정보를 저장하고 <b class="k">txid</b>(transaction id)를 만든다. <span class="muted">txid는 보통 USN.SLOT#.SEQ# 형태.</span></div></div>
+    <div class="step"><div class="sttl">대상 블록 확보 + ITL entry 등록</div><div class="sbody">실행계획으로 대상 블록을 찾고(<span class="muted">cache buffers chains latch</span>) → block header에 <b class="k">block lock</b>(select=shared / DML=exclusive) 획득 후 chains latch는 즉시 해제 → block header의 transaction layer에서 <b class="k">ITL</b>(Interested Transaction List)에 transaction entry를 등록. 빈 entry가 없고 블록에 늘릴 공간도 없으면 대기 <span class="we">enq: TX - allocate ITL entry</span></div></div>
+    <div class="step"><div class="sttl">row level lock 생성</div><div class="sbody">대상 행의 lock byte를 세워 행 잠금. 다른 세션이 같은 행을 이미 잠갔으면 대기 <span class="we">enq: TX - row lock contention</span></div></div>
+    <div class="step"><div class="sttl">change vector 생성 → redo log buffer 복사 <span class="db d65">65</span></div><div class="sbody">PGA에서 change vector 3개 생성 — ①undo segment header ②undo block ③대상 블록. 이를 redo log buffer에 <b class="k">redo entry</b>로 복사하며 redo copy → redo allocation latch를 순서대로 획득(부족 시 redo writing latch). 경합 시 <span class="we amber">latch: redo copy</span><span class="we amber">latch: redo allocation</span><span class="we amber">latch: redo writing</span> <span class="muted">— 세부는 Part 5.5 참고.</span></div></div>
+    <div class="step"><div class="sttl">undo 기록 + 블록 변경 → dirty <span class="db d65">65</span></div><div class="sbody">이전 값을 undo block에 쓰고, 데이터 블록을 새 값으로 변경 → 블록은 <b class="k">dirty</b> 상태. block lock 해제. <b class="k">[execute 단계 종료]</b> <span class="muted">단, dirty 블록이 디스크로 가기 전에 redo가 먼저 기록된다(WAL).</span></div></div>
+  </div>
+
+  <div class="why"><span class="h">보충 · ITL이 정확히 뭔가, 왜 2개?</span>
+  <b>ITL</b>은 블록 헤더 안의 작은 표로, "이 블록을 건드린 트랜잭션"마다 한 줄(entry)이 들어간다. 한 entry에는 txid, undo 위치(이전 값을 어디서 찾는지), 락 상태가 담긴다. 처음 만들 entry 수는 <code class="inl">INITRANS</code>(테이블 보통 1, 인덱스 2)로 정하고, 모자라면 블록 여유 공간에서 <code class="inl">MAXTRANS</code>까지 늘린다. 노트의 "테이블에 무조건 2개"는 환경에 따른 값이며, 핵심은 <b>"동시 트랜잭션 수만큼 ITL이 필요하고, 부족하면 enq: TX - allocate ITL entry로 줄 선다"</b>는 점.</div>
+
+  <div class="card">
+    <h4>락 유지 기간 — 시험·면접 단골</h4>
+    <ul class="tight">
+      <li><b class="k">buffer header lock</b>(block lock) — active set을 만들기 전, 즉 <b>execute 종료 전까지</b> 유지.</li>
+      <li><b class="k">row level lock</b>(transaction layer) — <b>commit/rollback(트랜잭션 종료)까지</b> 유지.</li>
+      <li>오라클이 동시성을 보장해도 "그 순간"은 직렬이다. DML은 block lock을 exclusive로 잡는다.</li>
+    </ul>
+  </div>
+
+  <div class="why"><span class="h">보충 · "q가 들어간 wait event는 enqueue"</span>
+  <code class="inl">enq:</code>로 시작하는 대기(US, SQ, TX, TM…)는 <b>enqueue</b> — 큐(FIFO) 알고리즘으로 순서를 지키며 기다리는 잠금이다. 반면 <code class="inl">latch</code>는 순서 보장이 없는 아주 짧은 스핀 잠금. 이 둘을 구분하면 대기 이벤트 절반이 정리된다.</div>
+
+  <div class="tip"><b>returning into</b> — DML과 SELECT를 <b>한 번의 블록 I/O</b>로 처리하는 절. 예: <code class="inl">update ... set ... returning salary into :v;</code> 변경과 동시에 결과를 받아 블록을 두 번 안 읽는다. 튜닝의 핵심.</div>
+</section>
+
+<!-- ===================== PART 4.5 REDO / LGWR ===================== -->
+<section class="part" id="p45">
+  <div class="phead"><div class="pnum">PART 5.5</div><div><div class="ptitle">Redo · LGWR · Commit <span class="db d65">65</span></div><div class="psub">변경 기록을 먼저 디스크에 남겨야 commit이 끝난다</div></div></div>
+
+  <p>블록을 바꾸면 그 변경의 기록(redo)을 <b class="k">먼저</b> 안전하게 디스크에 남기고, 그게 끝나야 commit이 완료된다. 이것이 Part 5 step 5·6의 속을 들여다본 내용이다.</p>
+
+  <figure>
+  <svg viewBox="0 0 680 360" role="img" aria-label="redo의 여정 - 변경부터 commit까지">
+    <defs><marker id="a45" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aab3c0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <rect class="nmut" x="180" y="30" width="320" height="54" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="340" y="51" text-anchor="middle">① PGA — change vector 3개</text><text class="svg-sub" x="340" y="69" text-anchor="middle">undo header · undo block · 데이터 블록</text>
+    <line class="edge" x1="340" y1="84" x2="340" y2="116" marker-end="url(#a45)"/><text class="svg-mono" x="350" y="104">redo copy latch</text>
+    <rect class="n64" x="180" y="118" width="320" height="54" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="340" y="139" text-anchor="middle">② Redo Log Buffer</text><text class="svg-sub" x="340" y="157" text-anchor="middle">redo entry로 복사 (redo allocation latch)</text>
+    <line class="edge" x1="340" y1="172" x2="340" y2="204" marker-end="url(#a45)"/><text class="svg-mono" x="350" y="192">LGWR 트리거 시</text>
+    <rect class="n65" x="180" y="206" width="320" height="54" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="340" y="227" text-anchor="middle">③ LGWR</text><text class="svg-sub" x="340" y="245" text-anchor="middle">redo entry를 디스크에 기록</text>
+    <line class="edge" x1="500" y1="233" x2="508" y2="233" marker-end="url(#a45)"/>
+    <rect class="nal" x="510" y="213" width="150" height="40" rx="8" stroke-width="1.2"/><text class="svg-lbl" x="585" y="230" text-anchor="middle" style="fill:var(--alert)">log file sync</text><text class="svg-sub" x="585" y="246" text-anchor="middle">서버는 대기</text>
+    <line class="edge" x1="340" y1="260" x2="340" y2="292" marker-end="url(#a45)"/>
+    <rect class="nmut" x="180" y="294" width="320" height="44" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="340" y="320" text-anchor="middle" dominant-baseline="central">④ Redo Log File (디스크)</text>
+  </svg>
+  <figcaption>change vector → redo log buffer → LGWR → redo log file. commit한 서버는 log file sync로 기다린다.</figcaption>
+  </figure>
+
+  <h3 class="blk"><span class="ix">4.5.1</span>redo의 목적과 발생 작업</h3>
+  <p>redo의 목적은 단 하나 — <b class="k">데이터베이스 복구</b>. DB에 적용된 모든 변경을 재구성·재실행할 정보가 redo entry다. 장애로 메모리가 날아가도 redo를 재생(roll forward)해 복구한다.</p>
+  <ul class="tight">
+    <li>redo 발생 작업: <b class="k">DML</b>(INSERT/UPDATE/DELETE) · <b class="k">DDL</b>(CREATE/ALTER/DROP) · <code class="inl">SELECT ... FOR UPDATE</code></li>
+    <li>대비 정리: <b class="k">undo의 목적</b> = rollback + read consistency / <b class="k">redo의 목적</b> = 복구 <span class="db add">면접 단골</span></li>
+  </ul>
+
+  <h3 class="blk"><span class="ix">4.5.2</span>redo entry를 만드는 latch 순서</h3>
+  <div class="steps s65">
+    <div class="step"><div class="sttl">redo copy latch 획득</div><div class="sbody">PGA의 change vector를 redo log buffer로 복사하는 <b>전 과정 동안</b> 보유. 경합 시 <span class="we amber">latch: redo copy</span></div></div>
+    <div class="step"><div class="sttl">redo allocation latch 획득 → 공간 확보</div><div class="sbody">redo log buffer에 redo entry를 넣을 공간을 확보. 경합 시 <span class="we amber">latch: redo allocation</span>. 공간이 부족하면 <b>redo writing latch</b>로 LGWR에 기록을 요청하고, free 공간이 날 때까지 <span class="we">log buffer space</span>. 로그 스위치 중이면 <span class="we">log file switch completion</span>. 확보되면 allocation latch 해제.</div></div>
+    <div class="step"><div class="sttl">redo entry 복사 완료 → redo copy latch 해제</div><div class="sbody">change vector를 redo entry로 복사 완료 후 copy latch를 놓는다.</div></div>
+  </div>
+
+  <h3 class="blk"><span class="ix">4.5.3</span>LGWR는 언제 작동하나 — 5가지 트리거</h3>
+  <ol class="tight">
+    <li><b class="k">commit / rollback</b> 시</li>
+    <li>redo log buffer가 <b class="k">1/3</b> 찼을 때</li>
+    <li>redo가 <b class="k">1MB</b> 쌓였을 때</li>
+    <li>마지막 LGWR 작동 후 <b class="k">3초</b> 지났을 때</li>
+    <li><b class="k">DBWR 작동 직전</b> (WAL 보장)</li>
+  </ol>
+
+  <div class="why"><span class="h">보충 · 두 가지 원칙 (Write Ahead Log · Log Force at Commit)</span>
+  <b>WAL</b> — dirty buffer를 데이터파일에 쓰기 <b>전에</b>, 그 변경의 redo entry를 redo log file에 <b>먼저</b> 기록한다. 그래서 LGWR가 DBWR보다 앞선다. <br>
+  <b>Log Force at Commit</b> — 트랜잭션과 관련된 모든 redo entry를 log file에 저장한 <b>후에야</b> commit이 완료된다. 이 둘이 "데이터는 잃어도 redo로 복구 가능"을 보장한다.</div>
+
+  <h3 class="blk"><span class="ix">4.5.4</span>log file sync — 가장 흔한 대기</h3>
+  <p>서버 프로세스가 commit/rollback 하면 LGWR가 redo를 log file에 기록(sync write, <code class="inl">redo synch writes</code> 증가)하는데, 서버는 그 write가 끝날 때까지 멈춰 기다린다. 이 대기가 <span class="we">log file sync</span>. sync write 자체가 짧아 보통은 문제가 안 된다.</p>
+  <h4 class="sub">log file sync가 문제 되는 경우</h4>
+  <ul class="tight">
+    <li>commit/rollback이 <b class="k">너무 잦을 때</b></li>
+    <li>redo log file의 <b class="k">디스크 I/O가 느릴 때</b> (LGWR의 <code class="inl">log file parallel write</code> 대기가 높으면 의심)</li>
+    <li>redo가 <b class="k">불필요하게 많이</b> 생길 때 (→ direct path + nologging 고려)</li>
+    <li>redo log buffer가 <b class="k">너무 클 때</b></li>
+  </ul>
+
+  <h3 class="blk"><span class="ix">4.5.5</span>redo latch 3종 + 수치</h3>
+  <table>
+    <tr><th>latch</th><th>역할</th><th>개수 (이 환경)</th></tr>
+    <tr><td><code>redo copy</code></td><td>change vector를 redo log buffer로 복사하는 동안 보유</td><td><code>_log_simultaneous_copies</code> = CPU_COUNT×2 (이 환경 2 CPU → 4)</td></tr>
+    <tr><td><code>redo allocation</code></td><td>redo log buffer에 공간 확보 (9i 이후 redo strand별)</td><td>count=53</td></tr>
+    <tr><td><code>redo writing</code></td><td>LGWR에 쓰기 요청할 때</td><td><b>1개만</b> (parent), gets 1,127,570</td></tr>
+  </table>
+
+  <h3 class="blk"><span class="ix">4.5.6</span>redo 줄이기 — 적재 방식 · logging · group commit</h3>
+  <table>
+    <tr><th>적재 방식</th><th>동작</th><th>redo</th></tr>
+    <tr><td>conventional path</td><td>버퍼 캐시 거쳐 데이터파일에 씀 (일반 insert)</td><td>많음 (~9,051 entries)</td></tr>
+    <tr><td>direct path (<code>/*+ append */</code>)</td><td>버퍼 캐시 우회, HWM 이후 직접 append, undo 최소(딕셔너리 undo만), TM lock exclusive</td><td>적음 (~2,168)</td></tr>
+    <tr><td>direct path + <code>nologging</code></td><td>위 + redo 생성까지 최소화</td><td>가장 적음</td></tr>
+  </table>
+  <div class="why" style="border-left-color:var(--alert);background:var(--alert-t);border-color:#f1c4c0"><span class="h" style="color:var(--alert)">주의 · nologging의 대가 (66일차에서 확인)</span>
+  <code class="inl">nologging</code> + direct path로 넣은 블록은 redo가 없다. 따라서 datafile을 백업에서 <b>restore·recover 해도 그 블록은 재구성되지 않아</b> <code class="inl">ORA-01578</code>(block corrupted) + <code class="inl">ORA-26040</code>(loaded with NOLOGGING)로 깨진 채 남는다. "redo를 아끼면 복구를 포기하는 것" — 자세한 복구 절차와 <code class="inl">dbms_repair</code> 대처는 별도의 <b>RMAN 복구 치트시트</b> 참고.</div>
+  <div class="tip"><b>Group Commit</b> — PL/SQL 블록에서 commit을 여러 번(예: 5번) 해도 LGWR는 묶어 한 번에 처리한다. 노트 테스트에서 <code class="inl">user commits</code>=5인데 <code class="inl">log file sync</code>는 2번. 잦은 commit이 곧 LGWR 폭증으로 직결되지 않는 이유다.</div>
+
+  <div class="why"><span class="h">보충 · Private Redo Strand (10gR2+, "zero copy latch")</span>
+  redo를 PGA의 change vector로 만들지 않고 shared pool의 <b>private redo strand</b> 영역에 바로 저장해, redo log buffer를 거치지 않고 log file에 기록하는 방식. 이러면 <code class="inl">redo copy</code>·<code class="inl">redo allocation</code> latch를 안 잡아도 되어 "zero copy latch"라 부른다. shared pool의 <code class="inl">_log_private_mul</code>(0.5%)만큼 사용하고 <code class="inl">v$sgastat</code>의 <code class="inl">private strands</code>(약 6.9MB)로 확인. <span class="db add">발전 과정</span> 8i 단일 allocation latch → 9i redo strand 분할(strand별 allocation latch, <code class="inl">log_parallelism</code> 기본1) → 10gR1 동적 관리(<code class="inl">_log_parallelism_dynamic</code>=true) → 10gR2 private redo strand.</div>
+
+  <h3 class="blk"><span class="ix">4.5.7</span>redo 통계 (v$sesstat) 읽는 법</h3>
+  <table class="we-tbl">
+    <tr><th>통계</th><th>의미</th></tr>
+    <tr><td style="color:var(--ink);font-family:var(--mono)">redo entries</td><td>redo entry가 redo log buffer에 기록된 수</td></tr>
+    <tr><td style="color:var(--ink);font-family:var(--mono)">redo size</td><td>생성된 redo 크기(byte) — redo 발생량 비교의 핵심 지표</td></tr>
+    <tr><td style="color:var(--ink);font-family:var(--mono)">redo synch writes</td><td>commit/rollback으로 LGWR가 sync write 수행한 수</td></tr>
+    <tr><td style="color:var(--ink);font-family:var(--mono)">redo log space requests</td><td>log file이 꽉 차 log switch가 발생한 횟수</td></tr>
+  </table>
+</section>
+
+
+<!-- ===================== PART 6 LOCK ===================== -->
+<section class="part" id="p6">
+  <div class="phead"><div class="pnum">PART 6</div><div><div class="ptitle">Lock & 동시성 <span class="db d66">66</span></div><div class="psub">여러 트랜잭션이 부딪힐 때 — Part 5의 TX가 충돌하면</div></div></div>
+
+  <p>Part 5–5.5가 <b>하나의 트랜잭션 안에서</b> undo·redo·lock이 생기는 과정이었다면, 여기는 <b>여러 트랜잭션이 같은 자원을 동시에 원할 때</b> 어떻게 충돌하고 진단·해소되는지다. LOCK은 동시 변경을 막아 객체를 보호하는 동기화 장치이고, <b class="k">enqueue</b>(대기 행렬)로 순서를 지킨다.</p>
+
+  <div class="why"><span class="h">먼저 — lock은 '쓰기'끼리의 문제다</span>
+  이 장의 충돌은 전부 <b class="k">쓰기-쓰기</b> 사이의 일이다. 오라클에서 <b>읽기는 lock을 잡지 않고, 쓰기도 읽기를 막지 않는다</b>(§4.1 읽기 일관성). 그래서 SELECT는 아무리 많아도 서로·DML과 줄 서지 않는다 — 남이 바꾼 블록은 undo로 옛 모습(CR)을 만들어 볼 뿐이다. 즉 <b>TX/TM lock으로 직렬화되는 건 변경(DML·DDL)뿐</b>이고, 읽기 동시성은 lock이 아니라 MVCC(다중 버전)로 해결한다. 아래의 모든 블로킹 시나리오를 "쓰기끼리의 경합"으로 읽으면 된다.</div>
+
+  <h3 class="blk"><span class="ix">6.1</span>두 종류 — TM(테이블) vs TX(행)</h3>
+  <table>
+    <tr><th>lock</th><th>대상</th><th>v$lock 식별</th><th>DML이 잡는 모드</th></tr>
+    <tr><td><b class="k">TM</b></td><td>테이블(객체) 레벨</td><td><code>ID1 = OBJECT_ID</code></td><td>RX(3) 자동</td></tr>
+    <tr><td><b class="k">TX</b></td><td>행(트랜잭션) 레벨</td><td><code>ID1 = usn×65536 + slot</code> · <code>ID2 = slot seq#</code></td><td>X(6)</td></tr>
+  </table>
+  <p>그래서 수업의 decode 쿼리가 <code class="inl">usn = trunc(id1/power(2,16))</code>, <code class="inl">slot = bitand(id1, to_number('ffff','xxxx'))</code> 인 것. DML 한 줄은 <b class="k">테이블에 TM RX(3) + 행에 TX X(6)</b>를 동시에 잡는다.</p>
+
+  <h3 class="blk"><span class="ix">6.2</span>Lock 모드 6단계 + 호환성</h3>
+  <table>
+    <tr><th>LMODE</th><th>모드</th><th>언제</th></tr>
+    <tr><td>0 / 1</td><td>none / Null</td><td>lock 없음 / 거의 안 씀</td></tr>
+    <tr><td>2</td><td>Row Share (RS/SS)</td><td><code>LOCK TABLE ... IN ROW SHARE MODE</code></td></tr>
+    <tr><td>3</td><td>Row eXclusive (RX/SX)</td><td><b>DML 자동 획득</b></td></tr>
+    <tr><td>4</td><td>Share (S)</td><td><b>일반 인덱스 생성</b>, PK/unique 충돌</td></tr>
+    <tr><td>5</td><td>Share Row eXclusive (SRX)</td><td>row cache lock(시퀀스 nocache)</td></tr>
+    <tr><td>6</td><td>eXclusive (X)</td><td><b>DDL</b>, 같은 행 동시 변경 방지</td></tr>
+  </table>
+  <h4 class="sub">호환성 매트릭스 (o=호환, x=충돌)</h4>
+  <table>
+    <tr><th>보유＼요청</th><th>N</th><th>RS</th><th>RX</th><th>S</th><th>SRX</th><th>X</th></tr>
+    <tr><td>N</td><td>o</td><td>o</td><td>o</td><td>o</td><td>o</td><td>o</td></tr>
+    <tr><td>RS</td><td>o</td><td>o</td><td>o</td><td>o</td><td>o</td><td>x</td></tr>
+    <tr><td>RX</td><td>o</td><td>o</td><td>o</td><td>x</td><td>x</td><td>x</td></tr>
+    <tr><td>S</td><td>o</td><td>o</td><td>x</td><td>o</td><td>x</td><td>x</td></tr>
+    <tr><td>SRX</td><td>o</td><td>o</td><td>x</td><td>x</td><td>x</td><td>x</td></tr>
+    <tr><td>X</td><td>o</td><td>x</td><td>x</td><td>x</td><td>x</td><td>x</td></tr>
+  </table>
+
+  <h3 class="blk"><span class="ix">6.3</span>v$lock 읽는 법 + blocking 진단</h3>
+  <ul class="tight">
+    <li><b class="k">LMODE &gt; 0</b> = lock 보유 중 · <b class="k">REQUEST &gt; 0</b> = lock 요청(대기) 중</li>
+    <li><b class="k">BLOCK = 1</b> = 이 lock이 남을 막고 있음 · <b class="k">CTIME</b> = 보유/요청 후 경과 초</li>
+  </ul>
+  <figure>
+  <svg viewBox="0 0 680 250" role="img" aria-label="TX 행 잠금 blocking 관계">
+    <defs><marker id="a6b" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aab3c0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <rect class="n63" x="50" y="50" width="260" height="130" rx="10" stroke-width="1.2"/><text class="svg-lbl" x="180" y="76" text-anchor="middle">Session A — 보유(holder)</text><text class="svg-sub" x="180" y="100" text-anchor="middle">UPDATE ... id=100</text><text class="svg-sub" x="180" y="122" text-anchor="middle">TX LMODE=6(X) · BLOCK=1</text><text class="svg-sub" x="180" y="150" text-anchor="middle">지금은 idle</text><text class="svg-sub" x="180" y="166" text-anchor="middle">SQL*Net message from client</text>
+    <rect class="nal" x="370" y="50" width="260" height="130" rx="10" stroke-width="1.2"/><text class="svg-lbl" x="500" y="76" text-anchor="middle">Session B — 대기(waiter)</text><text class="svg-sub" x="500" y="100" text-anchor="middle">DELETE ... id=100</text><text class="svg-sub" x="500" y="122" text-anchor="middle">TX REQUEST=6 · LMODE=0</text><text class="svg-sub" x="500" y="150" text-anchor="middle">enq: TX - row lock contention</text><text class="svg-sub" x="500" y="166" text-anchor="middle">blocking_session = A</text>
+    <line class="edge" x1="368" y1="115" x2="312" y2="115" marker-end="url(#a6b)"/><text class="svg-mono" x="340" y="106" text-anchor="middle">대기</text>
+    <text class="svg-sub" x="340" y="212" text-anchor="middle">테이블은 둘 다 TM RX(3)로 호환 · 충돌은 "같은 행"의 TX X(6)에서</text>
+  </svg>
+  <figcaption>v$session.blocking_session으로 막은 세션을 찾고, sql_id/prev_sql_id로 막힌·막은 SQL을 추적한다.</figcaption>
+  </figure>
+  <p>막은 세션(A)을 거슬러 올라가면 보통 <code class="inl">SQL*Net message from client</code> — <b class="k">commit을 안 하고 손 놓은 세션</b>이다. 막힌 행 위치는 <code class="inl">row_wait_obj#/file#/block#/row#</code>로, 실제 rowid는 <code class="inl">dbms_rowid</code>로 만든다.</p>
+  <div class="why"><span class="h">보충 · rowid 두 형식</span>
+  <b>restricted rowid</b>(6 byte) = <code class="inl">#block.#row.#file</code> (예 <code class="inl">0000015B.0000.0007</code>). <b>extended rowid</b>(10 byte) = <code class="inl">data object id(6) + file id(3) + block id(6) + row slot(3)</code> (예 <code class="inl">AAASqpAAHAAAAFbAAA</code>). <code class="inl">dbms_rowid.rowid_create(0|1, obj, file, block, row)</code>로 생성.</div>
+
+  <h3 class="blk"><span class="ix">6.4</span>특수 케이스 — 시험·면접 단골</h3>
+  <table>
+    <tr><th>상황</th><th>lock 동작</th><th>결과</th></tr>
+    <tr><td>같은 값 unique/PK insert</td><td>2번째가 1번째의 종료까지 TX 대기</td><td>1번 commit → <code>ORA-00001</code> / rollback → 성공</td></tr>
+    <tr><td><b>SELECT 중</b> drop</td><td>SELECT는 TM <b>null(0)</b> → drop이 TM <b>X(6)</b> 획득 가능</td><td>drop 성공, SELECT는 <code>ORA-08103</code></td></tr>
+    <tr><td><b>UPDATE/for update 중</b> drop</td><td>DML이 TM <b>RX(3)</b> 보유 → X(6)와 충돌</td><td>drop이 <code>ORA-00054</code> (busy)</td></tr>
+    <tr><td>일반 <code>create index</code> 중 DML</td><td>인덱스 생성이 테이블 <b>S(4)</b> → DML의 RX(3)와 충돌</td><td>DML이 <code>enq: TM - contention</code> 대기</td></tr>
+    <tr><td><code>create index ... online</code> 중 DML</td><td>DML 허용. 변경은 <b>SYS_JOURNAL</b> 임시 테이블에 저장 후 병합</td><td>둘 다 진행 (rebuild online 동일)</td></tr>
+    <tr><td><code>for update nowait</code></td><td>이미 잠겨 있으면 즉시 오류</td><td><code>ORA-00054</code></td></tr>
+    <tr><td><code>for update wait 3</code></td><td>3초 대기 후 안 풀리면 오류</td><td><code>ORA-30006</code></td></tr>
+  </table>
+  <div class="why"><span class="h">보충 · 왜 SELECT 중 drop은 되고 UPDATE 중 drop은 안 되나</span>
+  순수 SELECT는 테이블에 TM <b>null(0)</b> lock만 잡는다(호환성 표의 N 행은 X와도 o). 그래서 drop의 X(6)가 통과해 테이블이 사라지고, 읽던 세션은 <code class="inl">ORA-08103: object no longer exists</code>를 만난다. 반면 DML·for update는 TM <b>RX(3)</b>를 잡으므로 X(6)와 충돌해 drop이 <code class="inl">ORA-00054</code>로 막힌다.</div>
+
+  <h3 class="blk"><span class="ix">6.5</span>Deadlock (ORA-00060)</h3>
+  <figure>
+  <svg viewBox="0 0 680 360" role="img" aria-label="deadlock 교차 대기">
+    <defs><marker id="a6d" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aab3c0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <text class="svg-lbl" x="340" y="24" text-anchor="middle">두 세션이 서로의 행을 기다림</text>
+    <rect class="n66" x="70" y="44" width="210" height="58" rx="10" stroke-width="1.2"/><text class="svg-lbl" x="175" y="68" text-anchor="middle">Session 1</text><text class="svg-sub" x="175" y="88" text-anchor="middle">100 보유 → 200 요청</text>
+    <rect class="n66" x="400" y="44" width="210" height="58" rx="10" stroke-width="1.2"/><text class="svg-lbl" x="505" y="68" text-anchor="middle">Session 2</text><text class="svg-sub" x="505" y="88" text-anchor="middle">200 보유 → 100 요청</text>
+    <rect class="nmut" x="70" y="236" width="210" height="48" rx="10" stroke-width="1.2"/><text class="svg-lbl" x="175" y="263" text-anchor="middle" dominant-baseline="central">row id=100</text>
+    <rect class="nmut" x="400" y="236" width="210" height="48" rx="10" stroke-width="1.2"/><text class="svg-lbl" x="505" y="263" text-anchor="middle" dominant-baseline="central">row id=200</text>
+    <line class="edge" x1="150" y1="102" x2="150" y2="234" marker-end="url(#a6d)"/><text class="svg-mono" x="138" y="172" text-anchor="end">보유</text>
+    <line class="edge" x1="530" y1="102" x2="530" y2="234" marker-end="url(#a6d)"/><text class="svg-mono" x="542" y="172">보유</text>
+    <line x1="260" y1="102" x2="420" y2="234" stroke="#D6453D" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#a6d)"/>
+    <line x1="420" y1="102" x2="260" y2="234" stroke="#D6453D" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#a6d)"/>
+    <text class="svg-mono" x="340" y="150" text-anchor="middle" style="fill:var(--alert)">요청·대기 (교차)</text>
+  </svg>
+  <figcaption>서로가 잡은 행을 동시에 기다리면 영원히 안 풀린다.</figcaption>
+  </figure>
+  <div class="why" style="border-left-color:var(--alert);background:var(--alert-t);border-color:#f1c4c0"><span class="h" style="color:var(--alert)">핵심 · 오라클의 deadlock 처리</span>
+  오라클이 <b>자동 감지</b>하고 <code class="inl">ORA-00060</code>으로, <b>먼저 대기에 빠진 세션의 "마지막 DML 문장 하나만"</b> 취소한다(트랜잭션 전체가 아님). 그 세션의 앞선 DML과 lock은 살아있으니, 상대 세션은 여전히 대기 → <b>반드시 그 트랜잭션을 commit/rollback으로 끝내야</b> 완전히 풀린다.</div>
+</section>
+
+<!-- ===================== PART 7 STORAGE ===================== -->
+<section class="part" id="p7">
+  <div class="phead"><div class="pnum">PART 7</div><div><div class="ptitle">저장 구조 & 공간 관리 <span class="db d67">67</span></div><div class="psub">블록이 디스크에 어떻게 배치되고, 빈 공간을 어떻게 찾나</div></div></div>
+
+  <p>Part 0–6이 "한 블록을 읽고·바꾸고·잠그는" 이야기였다면, 여기는 그 블록들이 <b>디스크에 어떻게 담기고, 동시 insert가 빈 공간을 두고 어떻게 경합하나</b>다. <span class="db d64">64</span>에서 미뤄둔 block class(<code class="inl">segment header</code>·<code class="inl">free list</code>·<code class="inl">bmb</code>)와 <code class="inl">buffer busy waits</code>의 정체가 여기서 풀린다.</p>
+
+  <h3 class="blk"><span class="ix">7.1</span>저장 계층 — Block ⊂ Extent ⊂ Segment ⊂ Tablespace</h3>
+  <figure>
+  <svg viewBox="0 0 680 300" role="img" aria-label="오라클 저장 계층">
+    <rect x="30" y="46" width="620" height="224" rx="14" fill="none" stroke="#cbd2db" stroke-width="1" stroke-dasharray="5 5"/>
+    <text class="svg-lbl" x="46" y="68">Tablespace (논리적 단위)</text>
+    <text class="svg-sub" x="638" y="68" text-anchor="end">↔ Datafile(물리) 1개 이상으로 구성</text>
+    <rect x="56" y="84" width="568" height="172" rx="10" fill="#f1f3f6" stroke="#cbd2db" stroke-width="0.5"/>
+    <text class="svg-lbl" x="72" y="105">Segment — 테이블·인덱스 (여러 extent로 확장)</text>
+    <rect class="n67" x="82" y="118" width="300" height="128" rx="9" stroke-width="1.2"/>
+    <text class="svg-lbl" x="232" y="138" text-anchor="middle">Extent — 연속된 블록</text>
+    <rect class="nmut" x="98" y="150" width="50" height="56" rx="5" stroke-width="1"/><rect class="nmut" x="158" y="150" width="50" height="56" rx="5" stroke-width="1"/><rect class="nmut" x="218" y="150" width="50" height="56" rx="5" stroke-width="1"/><rect class="nmut" x="278" y="150" width="50" height="56" rx="5" stroke-width="1"/>
+    <text class="svg-sub" x="232" y="230" text-anchor="middle">Block — 최소 I/O 단위 (기본 8K)</text>
+    <rect class="n67" x="398" y="118" width="210" height="128" rx="9" stroke-width="1.2"/>
+    <text class="svg-lbl" x="503" y="138" text-anchor="middle">Extent</text>
+    <rect class="nmut" x="414" y="150" width="50" height="56" rx="5" stroke-width="1"/><rect class="nmut" x="474" y="150" width="50" height="56" rx="5" stroke-width="1"/>
+    <text class="svg-lbl" x="556" y="184" text-anchor="middle">…</text>
+    <text class="svg-sub" x="503" y="230" text-anchor="middle">데이터 증가 시 extent 추가 할당</text>
+  </svg>
+  </figure>
+  <ul class="tight">
+    <li><b class="k">Block</b> — 데이터 저장·최소 I/O 단위. 2K/4K/8K/16K/32K (<code class="inl">db_block_size</code>, 기본 8K). 오라클 블록 1개 = OS 블록 1개 이상.</li>
+    <li><b class="k">Extent</b> — 연속된 블록 집합. segment가 tablespace에서 쓰는 공간 영역. 할당: create·extend·alter / 해제: drop·alter·truncate.</li>
+    <li><b class="k">Segment</b> — 테이블·인덱스 등 하나의 객체. 1개 이상 extent로 구성, 데이터 증가 시 extent를 더 받아 확장.</li>
+    <li><b class="k">Tablespace</b> — 논리 단위. 1개 이상의 <b class="k">Datafile</b>(물리 파일)로 매핑.</li>
+  </ul>
+
+  <h3 class="blk"><span class="ix">7.2</span>Extent를 누가 관리하나 — DMT vs LMT</h3>
+  <table>
+    <tr><th>방식</th><th>관리 위치</th><th>특징 / 대기</th></tr>
+    <tr><td>Dictionary Managed (DMT)</td><td>데이터 딕셔너리 (<code>fet$</code>=free, <code>uet$</code>=used)</td><td>extent 할당·해제마다 딕셔너리 조회·갱신 → <span class="we">enq: ST - contention</span>. coalesce(병합) 필요. (옛 방식)</td></tr>
+    <tr><td>Locally Managed (LMT)</td><td>테이블스페이스 자체의 <b>비트맵</b></td><td>딕셔너리 경합·undo 최소화, 병합 불필요. <b>현재 표준</b></td></tr>
+  </table>
+  <p><code class="inl">extent management local uniform size 1m</code> 이 LMT 구문. <span class="db add">보충</span> extent 크기 정책은 <b class="k">uniform</b>(모든 extent 동일 크기, 예측 쉬움)과 <b class="k">autoallocate</b>(오라클이 64K→1M→8M… 자동 증가, 단편화 적음) 중 선택한다. coalesce는 인접한 free extent를 하나로 합치는 작업인데, LMT는 비트맵 관리라 이게 필요 없다.</p>
+  <div class="why"><span class="h">보충 · UNDO 테이블스페이스는 선택권이 없다 <span class="db d68">68</span></span>
+  undo는 트랜잭션 크기에 따라 수시로 늘고 줄어야 해서, 오라클이 공간을 직접 관리한다. 그래서 일반 테이블스페이스와 달리 ① <b>LMT만 가능</b>(DMT로 못 만듦) ② extent 크기를 <b>오라클이 자동 결정</b>(사용자가 <code class="inl">uniform size</code>로 못 정함). 결과적으로 <code class="inl">CREATE UNDO TABLESPACE</code>는 <b>datafile 절(DATAFILE·SIZE·AUTOEXTEND·MAXSIZE)까지만</b> 작성한다 — extent 절을 쓸 여지가 없다.</div>
+
+  <h3 class="blk"><span class="ix">7.3</span>블록 내 여유공간을 누가 관리하나 — FLM vs ASSM ★</h3>
+  <table>
+    <tr><th>방식</th><th>구문</th><th>관리</th></tr>
+    <tr><td><b class="k">FLM</b> (Free List Management)</td><td><code>segment space management manual</code></td><td><code>pctused</code> · <code>freelists</code> · freelist groups. freelist = insert 가능한 블록들의 연결 리스트</td></tr>
+    <tr><td><b class="k">ASSM</b> (Automatic SSM)</td><td><code>segment space management auto</code></td><td>각 블록 상태를 <b>비트맵(BMB)</b>으로 자동 관리. 튜닝 불필요</td></tr>
+  </table>
+  <p>FLM의 약점은 freelist 개수가 적으면 동시 insert 세션이 같은 freelist→같은 블록으로 몰린다는 것:</p>
+  <figure>
+  <svg viewBox="0 0 680 300" role="img" aria-label="freelist 경합 비교">
+    <defs><marker id="a7f" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aab3c0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <text class="svg-lbl" x="170" y="26" text-anchor="middle">freelists 1 — 경합</text>
+    <rect class="nmut" x="50" y="42" width="100" height="36" rx="7" stroke-width="1.2"/><text class="svg-lbl" x="100" y="60" text-anchor="middle" dominant-baseline="central">Sess A</text>
+    <rect class="nmut" x="190" y="42" width="100" height="36" rx="7" stroke-width="1.2"/><text class="svg-lbl" x="240" y="60" text-anchor="middle" dominant-baseline="central">Sess B</text>
+    <rect class="n64" x="115" y="110" width="110" height="34" rx="7" stroke-width="1.2"/><text class="svg-sub" x="170" y="127" text-anchor="middle" dominant-baseline="central">Freelist (1개)</text>
+    <rect class="nal" x="115" y="178" width="110" height="40" rx="7" stroke-width="1.2"/><text class="svg-lbl" x="170" y="198" text-anchor="middle" dominant-baseline="central">같은 블록</text>
+    <line class="edge" x1="100" y1="78" x2="155" y2="108" marker-end="url(#a7f)"/>
+    <line class="edge" x1="240" y1="78" x2="185" y2="108" marker-end="url(#a7f)"/>
+    <line class="edge" x1="170" y1="144" x2="170" y2="176" marker-end="url(#a7f)"/>
+    <text class="svg-lbl" x="170" y="245" text-anchor="middle" style="fill:var(--alert)">buffer busy waits ≈ 8,600</text>
+    <line x1="340" y1="20" x2="340" y2="270" stroke="#e4e8ee" stroke-width="1"/>
+    <text class="svg-lbl" x="510" y="26" text-anchor="middle">freelists 2 — 분산</text>
+    <rect class="nmut" x="380" y="42" width="100" height="36" rx="7" stroke-width="1.2"/><text class="svg-lbl" x="430" y="60" text-anchor="middle" dominant-baseline="central">Sess A</text>
+    <rect class="nmut" x="540" y="42" width="100" height="36" rx="7" stroke-width="1.2"/><text class="svg-lbl" x="590" y="60" text-anchor="middle" dominant-baseline="central">Sess B</text>
+    <rect class="n64" x="380" y="110" width="100" height="34" rx="7" stroke-width="1.2"/><text class="svg-sub" x="430" y="127" text-anchor="middle" dominant-baseline="central">Freelist 1</text>
+    <rect class="n64" x="540" y="110" width="100" height="34" rx="7" stroke-width="1.2"/><text class="svg-sub" x="590" y="127" text-anchor="middle" dominant-baseline="central">Freelist 2</text>
+    <rect class="n63" x="380" y="178" width="100" height="40" rx="7" stroke-width="1.2"/><text class="svg-lbl" x="430" y="198" text-anchor="middle" dominant-baseline="central">블록 X</text>
+    <rect class="n63" x="540" y="178" width="100" height="40" rx="7" stroke-width="1.2"/><text class="svg-lbl" x="590" y="198" text-anchor="middle" dominant-baseline="central">블록 Y</text>
+    <line class="edge" x1="430" y1="78" x2="430" y2="108" marker-end="url(#a7f)"/>
+    <line class="edge" x1="590" y1="78" x2="590" y2="108" marker-end="url(#a7f)"/>
+    <line class="edge" x1="430" y1="144" x2="430" y2="176" marker-end="url(#a7f)"/>
+    <line class="edge" x1="590" y1="144" x2="590" y2="176" marker-end="url(#a7f)"/>
+    <text class="svg-lbl" x="510" y="245" text-anchor="middle" style="fill:#0E9F8C">buffer busy waits ≈ 300</text>
+  </svg>
+  <figcaption>freelist가 적으면 같은 블록으로 몰려 buffer busy waits가 폭증한다.</figcaption>
+  </figure>
+  <p>수업 실측 (insert 10만 × 2세션):</p>
+  <table>
+    <tr><th>구성</th><th>buffer busy waits</th><th>enq: HW - contention</th></tr>
+    <tr><td>FLM <code>freelists 1</code></td><td>≈ 8,600 / 세션</td><td>≈ 1,400</td></tr>
+    <tr><td>FLM <code>freelists 2</code></td><td>≈ 300</td><td>≈ 580</td></tr>
+    <tr><td>ASSM (auto)</td><td>≈ 4,600</td><td>≈ 56</td></tr>
+  </table>
+  <p><code class="inl">freelists 1</code>은 두 세션이 한 블록에 몰려 경합 폭증, <code class="inl">freelists 2</code>로 세션 수에 맞추면 급감. ASSM은 그 중간이지만 <b class="k">사람이 freelist를 안 맞춰도 자동</b>이고 <code class="inl">enq: HW</code>까지 가장 낮다.</p>
+  <p><b class="k">ASSM 블록 여유공간 6단계:</b> ① full ② unformatted ③ 0~25% free ④ 25~50% ⑤ 50~75% ⑥ 75~100% free</p>
+  <div class="why"><span class="h">보충 · 왜 ASSM이 확장성 있나</span>
+  FLM의 freelist는 사실상 "하나의 줄"이라, 동시성이 높아지면 그 줄(과 segment header)에 직렬화 경합(buffer busy waits)이 생긴다. freelists 개수를 늘리면 완화되지만 "동시 세션 수에 맞춰 미리 수동 설정"해야 한다. ASSM은 블록별 비트맵을 여러 BMB(1st/2nd/3rd level)로 계층화해, 세션마다 다른 블록 후보를 자동으로 흩어주므로 수동 튜닝 없이 동시성에 따라 확장된다. <span class="db d64">64</span>에서 본 <code class="inl">1st/2nd/3rd level bmb</code>가 바로 이 계층 비트맵이다.</div>
+  <div class="why"><span class="h">Q. 혼자(단일 세션) 쓰면 ASSM은 괜한 손해 아닌가?</span>
+  ASSM의 간판 이득은 <b>동시성</b>이라, 한 세션만 쓰면 그 이득은 사실상 0이 맞다. 하지만 <b>손해도 0에 수렴</b>한다 — 비트맵 한 번 확인 vs freelist에서 블록 꺼내기는 둘 다 메모리 안의 가벼운 북키핑이라 차이가 마이크로초 수준이고 디스크 I/O·redo 시간에 묻힌다. 게다가 FLM이 이기려면 <code class="inl">freelists</code>를 미래 동시성에 정확히 맞춰 수동 설정해야만 한다(위 표에서 freelists 2가 ASSM을 이긴 건 세션이 정확히 2였기 때문). 측정도 안 되는 시간을 아끼려고 수동 관리 부담 + 나중에 세션이 늘면 세그먼트를 재생성할 리스크를 사는 <b>전형적인 조기 최적화(premature optimization)</b>다.</div>
+  <div class="why"><span class="h">Q. 그럼 ASSM만 있으면 되지 왜 FLM이 아직 있나?</span>
+  시간 순서 때문이다 — <b>FLM이 원래 방식이고 ASSM은 9i(2001)에 추가</b>됐다. ① <b>하위 호환</b>: 기존 DB엔 FLM 세그먼트가 가득해, 삭제하면 업그레이드 시 깨진다. ② <b>비상구</b>: 초기 ASSM이 일부 워크로드에서 느린 사례가 있어 되돌릴 수단으로 남겼다. ③ <b>학습 대조군</b>: freelists 1/2 vs ASSM을 비교해야 ASSM의 가치가 보인다(오늘 수업이 그 비교였다). 결국 FLM은 "구버전이라 못 지운 + 비상구 + 대조군"이고, 실무 기본·권장은 ASSM(<code class="inl">auto</code>). nologging·DMT처럼 더 나은 방식이 나와도 옛 방식이 호환성 때문에 남는 공통 패턴이다.</div>
+
+  <h3 class="blk"><span class="ix">7.4</span>블록 파라미터 — pctfree / pctused</h3>
+  <table>
+    <tr><th>파라미터</th><th>기본</th><th>의미</th></tr>
+    <tr><td><code>pctfree</code></td><td>10%</td><td>① update 증가분 여유(<b>row migration</b> 방지) ② <b>ITL 슬롯 만들 공간</b> 확보(maxtrans 보장)</td></tr>
+    <tr><td><code>pctused</code></td><td>40%</td><td>insert 재사용 판단. 사용률이 이 값 아래로 떨어지면 freelist에 다시 올림 (FLM 전용)</td></tr>
+    <tr><td><code>initrans</code></td><td>테이블 1 / 인덱스 2</td><td>block header에 <b>미리</b> 만들어두는 ITL 슬롯(transaction slot) 수 (고정)</td></tr>
+    <tr><td><code>maxtrans</code></td><td>255</td><td>그 블록의 ITL 슬롯 전체 한도. 현재 버전은 항상 255로 표시 — 사실상 블록 여유공간이 한계</td></tr>
+  </table>
+
+  <h4 class="sub">row migration — 실습으로 <span class="db d68">68</span></h4>
+  <p>update로 행이 커졌는데 블록에 <code class="inl">pctfree</code> 여유가 없으면, 행이 새 블록으로 이사하고 원래 자리엔 <b class="k">"새 주소 포인터"</b>만 남는다. 인덱스는 옛 rowid를 가리키므로, rowid scan이 포인터를 따라 한 번 더 점프한다.</p>
+  <figure>
+  <svg viewBox="0 0 680 230" role="img" aria-label="row migration 더블 홉">
+    <defs><marker id="rm2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aab3c0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <text class="svg-sub" x="340" y="26" text-anchor="middle">update로 행이 커짐 + Block A에 free 공간 없음 → 행이 Block B로 이사</text>
+    <rect class="n65" x="30" y="78" width="130" height="60" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="95" y="102" text-anchor="middle">Index</text><text class="svg-sub" x="95" y="121" text-anchor="middle">옛 rowid 보관</text>
+    <rect class="n64" x="250" y="78" width="160" height="60" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="330" y="102" text-anchor="middle">Block A</text><text class="svg-sub" x="330" y="121" text-anchor="middle">포인터만 남음</text>
+    <rect class="n63" x="510" y="78" width="150" height="60" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="585" y="102" text-anchor="middle">Block B</text><text class="svg-sub" x="585" y="121" text-anchor="middle">이사 간 실제 행</text>
+    <line class="edge" x1="160" y1="108" x2="248" y2="108" marker-end="url(#rm2)"/><text class="svg-mono" x="204" y="100" text-anchor="middle">rowid(원래)</text>
+    <line class="edge" x1="410" y1="108" x2="508" y2="108" marker-end="url(#rm2)"/><text class="svg-mono" x="459" y="100" text-anchor="middle">또 점프</text>
+    <text class="svg-sub" x="340" y="170" text-anchor="middle" style="fill:var(--alert)">rowid scan은 A→B 두 번 = table fetch continued row +1 (추가 I/O)</text>
+  </svg>
+  </figure>
+  <ul class="tight">
+    <li><b class="k">chain_cnt는 analyze로만 채워진다</b> — <code class="inl">dbms_stats.gather_table_stats</code>로는 0으로 남고, <code class="inl">analyze table ... compute statistics</code>를 써야 migration된 행 수(334)가 채워진다. (시험 함정)</li>
+    <li><b class="k">table fetch continued row</b>(v$sysstat) — migration·chaining으로 "행을 한 번 더 따라간" 횟수. 인덱스 스캔을 돌리면 정확히 migration 수(334)만큼 증가 → 추가 I/O의 증거.</li>
+    <li><b class="k">해결 = 테이블 재구성</b>: <code class="inl">alter table ... move</code>(행 재배치 → 단, <b>인덱스가 UNUSABLE</b>로 바뀜) → <code class="inl">alter index ... rebuild online</code>(VALID 복구).</li>
+  </ul>
+  <div class="why"><span class="h">보충 · row migration vs row chaining</span>
+  <b>row migration</b>은 위처럼 update로 커진 행이 이사하는 것(pctfree로 예방). <b>row chaining</b>은 행 자체가 블록 하나보다 커서 처음부터 여러 블록에 걸치는 것(긴 행·LOB) — 이건 pctfree로 못 막고 더 큰 블록 크기가 답.</div>
+
+  <h4 class="sub">ITL 슬롯 부족 — enq: TX - allocate ITL entry <span class="db d68">68</span></h4>
+  <p><span class="db d66">66</span>에서 이름만 본 그 대기를 만드는 조건이 <code class="inl">initrans</code>(슬롯 수) + <code class="inl">pctfree</code>(슬롯 늘릴 공간)다. <code class="inl">initrans 1 maxtrans 2 pctfree 0</code>으로 만든 테이블에서, 한 블록에 든 여러 행을 3개 세션이 동시에 update하면 슬롯이 모자라 마지막 세션이 대기한다.</p>
+  <figure>
+  <svg viewBox="0 0 680 300" role="img" aria-label="ITL slot 부족 경합">
+    <defs><marker id="it2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aab3c0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <rect class="n63" x="40" y="26" width="150" height="40" rx="7" stroke-width="1.2"/><text class="svg-sub" x="115" y="46" text-anchor="middle" dominant-baseline="central">Sess A · row1</text>
+    <rect class="nal" x="265" y="26" width="150" height="40" rx="7" stroke-width="1.2"/><text class="svg-sub" x="340" y="46" text-anchor="middle" dominant-baseline="central">Sess B · row2</text>
+    <rect class="nal" x="490" y="26" width="150" height="40" rx="7" stroke-width="1.2"/><text class="svg-sub" x="565" y="46" text-anchor="middle" dominant-baseline="central">Sess C · row3</text>
+    <text class="svg-lbl" x="340" y="100" text-anchor="middle">하나의 블록 (row1·row2·row3 같이 들어있음)</text>
+    <rect class="nmut" x="120" y="110" width="440" height="130" rx="10" stroke-width="1.2"/>
+    <rect class="n63" x="140" y="124" width="400" height="34" rx="6" stroke-width="1.2"/><text class="svg-sub" x="340" y="141" text-anchor="middle" dominant-baseline="central">ITL 슬롯: #1 [Sess A 사용중] — initrans 1 → 슬롯 1개뿐</text>
+    <rect class="nal" x="140" y="164" width="400" height="34" rx="6" stroke-width="1.2"/><text class="svg-sub" x="340" y="181" text-anchor="middle" dominant-baseline="central">free 공간 0 (pctfree 0) → 새 ITL 슬롯 만들 자리 없음</text>
+    <rect class="nmut" x="140" y="204" width="400" height="26" rx="6" stroke-width="1.2"/><text class="svg-sub" x="340" y="217" text-anchor="middle" dominant-baseline="central">row data</text>
+    <line class="edge" x1="115" y1="66" x2="240" y2="122" marker-end="url(#it2)"/>
+    <line x1="340" y1="66" x2="340" y2="160" stroke="#D6453D" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#it2)"/>
+    <line x1="565" y1="66" x2="440" y2="160" stroke="#D6453D" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#it2)"/>
+    <text class="svg-lbl" x="340" y="268" text-anchor="middle" style="fill:var(--alert)">슬롯 부족 + free 없음 → enq: TX - allocate ITL entry</text>
+    <text class="svg-sub" x="340" y="288" text-anchor="middle">v$lock에서 이 대기는 TX REQUEST=4(Share) — row lock(6)과 다름</text>
+  </svg>
+  </figure>
+  <ul class="tight">
+    <li><b class="k">진단</b> — <code class="inl">v$session.blocking_session</code>으로 막은 세션 추적(그 세션은 <code class="inl">SQL*Net message from client</code>=commit 안 함). 경합 객체는 <code class="inl">v$segment_statistics</code>의 <code class="inl">'ITL waits'</code>로.</li>
+    <li><b class="k">v$lock 포인트</b> — allocate ITL entry는 TX <b>REQUEST=4(Share)</b>로 요청한다. row lock contention의 X(6)과 다르다.</li>
+    <li><b class="k">해결</b> — <code class="inl">alter table ... initrans 2 pctfree 10</code>. 단 이건 <b>새 블록부터만</b> 적용 → 기존 블록에도 먹이려면 <code class="inl">alter table ... move</code>(data_object_id가 바뀜) + <code class="inl">rebuild online</code>. <b>row migration과 똑같은 처방(move+rebuild)</b>이다.</li>
+  </ul>
+
+  <h3 class="blk"><span class="ix">7.5</span>보충 · 데이터 블록 구조 (Figure 13-7)</h3>
+  <figure>
+  <svg viewBox="0 0 680 256" role="img" aria-label="데이터 블록 구조">
+    <rect class="n63" x="120" y="30" width="440" height="34" rx="7" stroke-width="1.2"/><text class="svg-lbl" x="340" y="47" text-anchor="middle" dominant-baseline="central">Block Header — 블록 주소·SCN·블록 종류</text>
+    <rect class="n63" x="120" y="70" width="440" height="34" rx="7" stroke-width="1.2"/><text class="svg-lbl" x="340" y="87" text-anchor="middle" dominant-baseline="central">Table Directory — 어떤 테이블의 행인가</text>
+    <rect class="n63" x="120" y="110" width="440" height="34" rx="7" stroke-width="1.2"/><text class="svg-lbl" x="340" y="127" text-anchor="middle" dominant-baseline="central">Row Directory — 각 행의 위치 포인터</text>
+    <rect class="n64" x="120" y="150" width="440" height="42" rx="7" stroke-width="1.2"/><text class="svg-lbl" x="340" y="167" text-anchor="middle">Free Space — pctfree 여유 (update 대비)</text><text class="svg-sub" x="340" y="184" text-anchor="middle">위(header)에서 아래로, 행은 아래에서 위로 채워짐</text>
+    <rect class="nmut" x="120" y="198" width="440" height="42" rx="7" stroke-width="1.2"/><text class="svg-lbl" x="340" y="223" text-anchor="middle" dominant-baseline="central">Row Data — 실제 행 데이터</text>
+  </svg>
+  <figcaption>헤더·디렉터리는 위에서, 행 데이터는 아래에서 차올라 가운데 free space에서 만난다.</figcaption>
+  </figure>
+
+  <h3 class="blk"><span class="ix">7.6</span>보충 · High Water Mark(HWM)와 enq: HW</h3>
+  <p>세그먼트에서 <b class="k">"여기까지 한 번이라도 데이터가 쓰였다"</b>는 경계선이 <b class="k">HWM</b>이다. full scan은 segment 시작부터 HWM까지를 읽고(그래서 <code class="inl">delete</code>로 행을 다 지워도 HWM은 안 내려가 full scan이 여전히 느림 → <code class="inl">truncate</code>는 HWM을 리셋), 대량 insert는 HWM을 위로 밀어 올린다. 여러 세션이 동시에 HWM을 밀어 올리려 하면 그 이동이 직렬화되며 <span class="we">enq: HW - contention</span>이 발생한다. ASSM이 이 경합을 크게 줄인다(위 표에서 56).</p>
+  <div class="tip"><b>→ SQL 튜닝으로 이어짐</b> — full table scan은 바로 이 HWM까지 multi-block로 읽는다. 액세스 경로 선택(full scan vs rowid scan)과 튜닝 기법은 별도 <b>SQL 튜닝 문서</b>에서 다룬다.</div>
+</section>
+
+<!-- ===================== WAITS ===================== -->
+<section class="part" id="waits">
+  <div class="phead"><div class="pnum">부록 A</div><div><div class="ptitle">Wait Event 총정리 (62–68)</div><div class="psub">처리 단계별로 어디서 터지는지</div></div></div>
+  <table class="we-tbl">
+    <tr><th>Wait Event</th><th>단계 · 원인</th><th>일자</th></tr>
+    <tr><td>library cache: mutex X</td><td>parse — 라이브러리 캐시 커서 보호 경합</td><td>62</td></tr>
+    <tr><td>row cache lock</td><td>parse — 딕셔너리 변경(nocache 시퀀스 등)</td><td>62</td></tr>
+    <tr><td>enq: SQ - contention</td><td>시퀀스 cache 묶음 채울 때</td><td>62</td></tr>
+    <tr><td>latch: cache buffers chains</td><td>execute — 버퍼 헤더 체인 탐색</td><td>63</td></tr>
+    <tr><td>latch: cache buffers lru chain</td><td>execute — free buffer 확보(working set)</td><td>63</td></tr>
+    <tr><td>free buffer waits</td><td>40% 스캔에도 free 없음 → DBWR 대기</td><td>63</td></tr>
+    <tr><td>read by other session</td><td>다른 세션이 같은 블록을 물리 I/O 적재 중(buffer pin)</td><td>64</td></tr>
+    <tr><td>db file sequential read</td><td>single block 물리 I/O (rowid scan)</td><td>64</td></tr>
+    <tr><td>db file scattered read</td><td>multi block 물리 I/O (full scan)</td><td>64</td></tr>
+    <tr><td>db file parallel read</td><td>prefetch 수행</td><td>64</td></tr>
+    <tr><td>direct path read</td><td>버퍼 캐시 우회, PGA로 직접 읽기</td><td>64</td></tr>
+    <tr><td>enq: US - contention</td><td>undo segment 할당 경합</td><td>64</td></tr>
+    <tr><td>enq: TX - allocate ITL entry</td><td>ITL 슬롯 부족(initrans 작음 + pctfree 0). REQUEST=4(Share)</td><td>64·68</td></tr>
+    <tr><td>enq: TX - row lock contention</td><td>같은 행을 다른 트랜잭션이 잠금 (unique/PK 충돌 포함)</td><td>64·66</td></tr>
+    <tr><td>enq: TM - contention</td><td>테이블 lock 충돌 (일반 인덱스 생성 S(4) 중 DML 등)</td><td>66</td></tr>
+    <tr><td>enq: ST - contention</td><td>DMT에서 extent 할당·해제 시 딕셔너리 경합 (LMT가 해결)</td><td>67</td></tr>
+    <tr><td>buffer busy waits</td><td>같은 블록(freelist 대상 블록·segment header)을 여러 세션이 동시에 원함</td><td>67</td></tr>
+    <tr><td>enq: HW - contention</td><td>대량 insert로 High Water Mark를 밀어 올릴 때 경합</td><td>67</td></tr>
+    <tr><td>latch: redo copy / allocation / writing</td><td>redo log buffer에 redo entry 복사·공간 확보</td><td>64·65</td></tr>
+    <tr><td>log file sync</td><td>commit/rollback 후 LGWR write 완료까지 서버 대기</td><td>65</td></tr>
+    <tr><td>log buffer space</td><td>redo log buffer 공간 부족 — free 확보 대기</td><td>65</td></tr>
+    <tr><td>log file switch completion</td><td>로그 스위치 진행 중이라 기록 대기</td><td>65</td></tr>
+    <tr><td>log file parallel write</td><td>LGWR가 redo log file에 실제로 쓰는 시간 (느리면 I/O 의심)</td><td>65</td></tr>
+  </table>
+</section>
+
+<!-- ===================== GLOSSARY ===================== -->
+<section class="part" id="gloss">
+  <div class="phead"><div class="pnum">부록 B</div><div><div class="ptitle">핵심 용어집</div><div class="psub">한 줄 정의로 빠르게 확인</div></div></div>
+  <dl class="gloss">
+    <dt>DBA (Data Block Address)</dt><dd>파일번호 + 블록번호. 블록의 물리적 주소이자 해시 입력값.</dd>
+    <dt>buffer header</dt><dd>버퍼의 메타정보 + 실제 버퍼 캐시 위치 포인터. 해시 체인에 매달린다.</dd>
+    <dt>latch</dt><dd>아주 짧게 잡는 직렬화(스핀) 잠금. 순서 보장 없음. 예: cache buffers chains/lru chain, redo copy.</dd>
+    <dt>enqueue (enq)</dt><dd>큐 알고리즘으로 순서를 지키는 잠금. 예: TX, US, SQ, TM.</dd>
+    <dt>buffer lock / pin</dt><dd>찾은 버퍼를 사용하는 동안 내용 보호(shared/exclusive). read by other session의 원인.</dd>
+    <dt>touch count</dt><dd>버퍼의 인기 점수. 3초 주기로 +1, ≥2면 hot 승격.</dd>
+    <dt>dirty buffer</dt><dd>변경됐지만 아직 디스크에 안 쓴 버퍼. LRUW가 관리, DBWR가 기록.</dd>
+    <dt>undo</dt><dd>변경 전 값. rollback과 read consistency(CR)에 사용.</dd>
+    <dt>redo / change vector</dt><dd>변경 내역 기록. change vector들이 모여 redo entry가 되고 복구에 쓰인다.</dd>
+    <dt>ITL (Interested Transaction List)</dt><dd>블록 헤더 안, 블록을 건드린 트랜잭션 목록. txid·undo 위치·락 상태 보관.</dd>
+    <dt>SCN (System Change Number)</dt><dd>변경의 단조 증가 시간 도장. 일관된 읽기의 기준점.</dd>
+    <dt>soft / hard parse</dt><dd>기존 커서 재사용(soft) vs 옵티마이저가 새 계획 생성(hard).</dd>
+    <dt>LGWR</dt><dd>redo log buffer의 redo entry를 redo log file에 기록하는 백그라운드 프로세스. commit/rollback·1/3·1MB·3초·DBWR 직전에 작동.</dd>
+    <dt>WAL (Write Ahead Log)</dt><dd>dirty buffer를 데이터파일에 쓰기 전에 redo를 log file에 먼저 기록하는 원칙. 그래서 LGWR가 DBWR보다 앞선다.</dd>
+    <dt>log force at commit</dt><dd>트랜잭션의 모든 redo entry를 log file에 저장한 후에야 commit이 완료되는 규칙.</dd>
+    <dt>log file sync</dt><dd>commit/rollback 후 서버 프로세스가 LGWR의 write 완료를 기다리는 대기 이벤트. 가장 흔함.</dd>
+    <dt>group commit</dt><dd>여러 commit을 LGWR가 묶어 한 번에 처리하는 것. 잦은 commit의 부담을 줄인다.</dd>
+    <dt>private redo strand</dt><dd>shared pool에 redo를 직접 쌓아 redo copy/allocation latch를 생략(zero copy latch)하는 10gR2+ 기능.</dd>
+    <dt>direct path / nologging</dt><dd>버퍼 캐시를 우회해 데이터파일에 직접 append(<code>/*+ append */</code>)하고, nologging으로 redo 생성을 최소화.</dd>
+    <dt>extent / segment / tablespace</dt><dd>연속 블록 집합(extent) → 객체 단위(segment) → 논리 저장 단위(tablespace, = 1+ datafile).</dd>
+    <dt>DMT / LMT</dt><dd>extent를 딕셔너리(fet$/uet$, enq: ST)로 vs 테이블스페이스 비트맵으로 관리. LMT가 표준.</dd>
+    <dt>FLM / ASSM</dt><dd>블록 여유공간을 freelist(수동)로 vs 비트맵(자동)으로 관리. ASSM이 buffer busy waits·enq: HW를 줄임.</dd>
+    <dt>pctfree / pctused</dt><dd>update 여유(10%, row migration 방지) / insert 재사용 기준(40%, FLM 전용).</dd>
+    <dt>HWM (High Water Mark)</dt><dd>세그먼트에서 데이터가 쓰인 경계선. full scan 범위를 정하며, 밀어 올릴 때 enq: HW 경합.</dd>
+    <dt>initrans / maxtrans</dt><dd>블록에 미리 만드는 ITL 슬롯 수 / 슬롯 전체 한도. 부족하면 enq: TX - allocate ITL entry.</dd>
+    <dt>table fetch continued row</dt><dd>row migration·chaining으로 행을 한 번 더 따라간 횟수(v$sysstat). chain_cnt는 analyze로만 수집.</dd>
+    <dt>full table scan / rowid scan</dt><dd>첫 블록~HWM를 multi-block로 통째 읽기 vs rowid로 한 행씩(by user / by index).</dd>
+    <dt>row migration / chaining</dt><dd>update로 커진 행이 이사(migration) / 행이 블록보다 커 여러 블록에 걸침(chaining).</dd>
+    <dt>TM lock</dt><dd>테이블(객체) 레벨 lock. DML 시 RX(3) 자동. v$lock의 ID1=OBJECT_ID.</dd>
+    <dt>TX lock</dt><dd>행(트랜잭션) 레벨 lock. 행을 잠그면 X(6). ID1=usn×65536+slot, ID2=slot seq#.</dd>
+    <dt>blocking_session</dt><dd>v$session에서 나를 막고 있는 세션의 SID. 거슬러 올라가면 보통 commit 안 한 세션.</dd>
+    <dt>deadlock</dt><dd>두 세션이 서로의 자원을 기다려 교착. 오라클이 자동 감지해 ORA-00060으로 한 문장만 취소.</dd>
+  </dl>
+</section>
+
+<!-- ===================== QUERIES ===================== -->
+<section class="part" id="queries">
+  <div class="phead"><div class="pnum">부록 C</div><div><div class="ptitle">핵심 쿼리 모음</div></div></div>
+  <pre class="term"><span class="cm">-- latch / bucket 개수</span>
+<span class="pr">&gt;</span> select count(*) from v$latch_children where name='cache buffers chains';   <span class="out">-- 1024</span>
+<span class="pr">&gt;</span> select count(*) from v$latch_children where name='cache buffers lru chain'; <span class="out">-- 36</span>
+
+<span class="cm">-- 히든 파라미터 조회 (ksppinm 값만 바꿔 재사용)</span>
+<span class="pr">&gt;</span> select a.ksppinm parameter, b.ksppstvl value from x$ksppi a, x$ksppcv b
+   where a.indx=b.indx and a.ksppinm='<span class="hl">_db_block_hash_latches</span>';
+   <span class="out">-- _db_block_hash_buckets · _db_block_lru_latches · _db_aging_touch_time</span>
+   <span class="out">-- _db_aging_hot_criteria · _db_block_max_scan_pct · _serial_direct_read</span>
+   <span class="out">-- _shared_pool_reserved_pct · _shared_pool_reserved_min_alloc</span>
+
+<span class="cm">-- 블록 클래스 / 버퍼 풀 / 실행계획</span>
+<span class="pr">&gt;</span> select class from v$waitstat;
+<span class="pr">&gt;</span> select name, block_size, buffers from v$buffer_pool;  <span class="out">-- DEFAULT 8192 37202</span>
+<span class="pr">&gt;</span> explain plan for select /*+ index(e emp_idx) */ * from hr.emp e where id&gt;=0;
+<span class="pr">&gt;</span> select * from table(dbms_xplan.display());
+<span class="pr">&gt;</span> select * from table(dbms_xplan.display_cursor('&lt;sql_id&gt;'));
+
+<span class="cm">-- 세션 대기 / 진행 중 트랜잭션</span>
+<span class="pr">&gt;</span> select sid, event, total_waits, time_waited from v$session_event
+   where sid in (select sid from v$session where username='HR');
+<span class="pr">&gt;</span> select s.username, t.xidusn, t.ubafil, t.ubablk, t.used_ublk
+   from v$session s, v$transaction t where s.saddr=t.ses_addr;
+
+<span class="cm">-- 테스트 초기화 / direct path read 끄기</span>
+<span class="pr">&gt;</span> alter system flush shared_pool;
+<span class="pr">&gt;</span> alter system flush buffer_cache;
+<span class="pr">&gt;</span> alter session set events '10949 trace name context forever, level 1';
+
+<span class="cm">-- redo 통계 / commit 관찰 (65)</span>
+<span class="pr">&gt;</span> select n.name, sum(s.value) from v$sesstat s, v$statname n
+   where n.name in ('redo entries','redo size','redo synch writes','user commits','user rollbacks')
+   and s.statistic#=n.statistic# and s.sid=(select sid from v$session where username='HR')
+   group by n.name;
+<span class="pr">&gt;</span> select event, total_waits, time_waited from v$session_event
+   where sid=(select sid from v$session where username='HR') and event='log file sync';
+
+<span class="cm">-- redo latch / private strand (65)</span>
+<span class="pr">&gt;</span> select name, gets from v$latch_children where name='redo copy';        <span class="out">-- _log_simultaneous_copies=4</span>
+<span class="pr">&gt;</span> select count(*) from v$latch_children where name='redo allocation';     <span class="out">-- 53</span>
+<span class="pr">&gt;</span> select name, gets from v$latch_parent where name='redo writing';         <span class="out">-- 1개</span>
+<span class="pr">&gt;</span> select * from v$sgastat where name='private strands';                    <span class="out">-- _log_private_mul=0.5%</span></pre>
+
+  <div class="card">
+    <h4>주말 체크리스트</h4>
+    <ul class="check">
+      <li>이슈되는 wait event를 구글링해 <b class="k">왜 발생하는지 설명</b> 연습 (위 부록 A 23종)</li>
+      <li>컨셉 매뉴얼 + 조나단 루이스 블로그 습관적으로 보기</li>
+      <li>스택·큐·링크드리스트·이진탐색 등 자료구조 복습 (해시·체인·ITL의 토대)</li>
+      <li>PL/SQL 복습 (returning into 포함)</li>
+      <li>성능 고도화 책에서 오늘까지의 아키텍처 찾아 읽기</li>
+      <li>면접 발표 준비 — 안 물어봐도 "발표해도 되냐" 여쭙고 발표하기</li>
+    </ul>
+  </div>
+</section>
+
+</div></main>
+
+<footer><div class="wrap">DBA 62–68일차 완전정복판(내부구조편) · 단일 SELECT 처리(Part 0–4) → 트랜잭션·Redo(Part 5–5.5) → 동시성·Lock(Part 6) → 저장구조·공간관리(Part 7). 백업·복구는 RMAN 치트시트, SQL 튜닝은 SQL 튜닝 문서로 분리.</div></footer>
+
+</body>
+</html>

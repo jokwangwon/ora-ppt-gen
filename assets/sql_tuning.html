@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL 튜닝편 · Oracle DBA</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.min.css">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F6F7F9; --panel:#FFFFFF; --ink:#161B22; --muted:#5A6472; --line:#E4E8EE;
+  --tune:#1C7E8C; --tune-t:#e1f1f3; --warn:#DB7B2B; --warn-t:#fbeedd; --alert:#D6453D; --alert-t:#fbe6e4; --add:#2D6FE0; --add-t:#e7f0fd; --hwm:#8C6A43;
+  --term:#10151E; --term-ink:#D6DEEA; --term-dim:#7E8BA0;
+  --mono:'JetBrains Mono',ui-monospace,monospace; --sans:'Pretendard',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.68;font-size:15px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:880px;margin:0 auto;padding:0 22px}
+header.top{padding:52px 0 28px;border-bottom:1px solid var(--line)}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+h1.title{font-size:clamp(28px,5vw,42px);font-weight:800;line-height:1.1;letter-spacing:-.02em;margin:12px 0 10px}
+h1.title b{color:var(--tune)}
+.lede{color:var(--muted);font-size:16px;max-width:64ch}
+.kicker{margin-top:16px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+.kicker a{color:var(--tune);text-decoration:none}
+nav.jump{position:sticky;top:0;z-index:20;background:rgba(246,247,249,.9);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+nav.jump .wrap{display:flex;gap:2px;flex-wrap:wrap;padding:9px 22px}
+nav.jump a{font-family:var(--mono);font-size:12px;color:var(--muted);text-decoration:none;padding:6px 9px;border-radius:8px}
+nav.jump a:hover{background:var(--panel);color:var(--ink)}
+section.part{padding:42px 0 10px;border-bottom:1px solid var(--line)}
+.phead{display:flex;align-items:flex-start;gap:16px;margin-bottom:6px}
+.pnum{font-family:var(--mono);font-weight:700;font-size:13px;color:var(--tune);border:1px solid #b6dde2;border-radius:8px;padding:6px 9px;white-space:nowrap;margin-top:4px}
+.ptitle{font-size:23px;font-weight:800;letter-spacing:-.015em;line-height:1.15}
+.psub{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin-top:4px}
+h3.blk{font-size:16.5px;font-weight:700;margin:28px 0 10px}
+p{margin:10px 0}
+ul.tight{margin:9px 0;padding-left:20px}ul.tight li{margin:5px 0}
+.muted{color:var(--muted)}
+b.k{font-weight:700}
+code.inl{font-family:var(--mono);font-size:.85em;background:#eef1f5;padding:1px 6px;border-radius:5px;color:#2a3340}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-size:12px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.04em}
+td code{font-family:var(--mono)}
+pre.term{background:var(--term);color:var(--term-ink);font-family:var(--mono);font-size:12.5px;line-height:1.55;border-radius:12px;padding:15px 16px;overflow-x:auto;margin:13px 0;border:1px solid #1f2733}
+pre.term .pr{color:#5fb0a3}pre.term .cm{color:var(--term-dim)}pre.term .out{color:#9fb0c6}pre.term .hl{color:#e0a45e}
+figure{margin:18px 0;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+figure svg{width:100%;height:auto;display:block}
+figcaption{font-size:12.5px;color:var(--muted);margin-top:8px;font-family:var(--mono)}
+.svg-lbl{font-family:var(--sans);font-size:13px;font-weight:700;fill:var(--ink)}
+.svg-sub{font-family:var(--sans);font-size:11px;fill:var(--muted)}
+.svg-mono{font-family:var(--mono);font-size:11px;fill:var(--muted)}
+.ntune{fill:var(--tune-t);stroke:var(--tune)}.nmut{fill:#f1f3f6;stroke:#cbd2db}.ncor{fill:#fdeee2;stroke:#e0892b}.nal{fill:var(--alert-t);stroke:var(--alert)}
+.edge{stroke:#aab3c0;stroke-width:1.4;fill:none}
+.we{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px;font-weight:500;background:var(--alert-t);color:var(--alert);border:1px solid #f1c4c0;border-radius:7px;padding:3px 9px;margin:2px 4px 2px 0}
+.we::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--alert)}
+.tip{background:var(--tune-t);border:1px solid #b6dde2;border-radius:12px;padding:13px 16px;margin:15px 0;font-size:14px}
+.tip b{color:var(--tune)}
+.why{background:var(--add-t);border:1px solid #cfe0fb;border-left:3px solid var(--add);border-radius:12px;padding:13px 16px;margin:15px 0;font-size:14px}
+.why .h{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--add);font-weight:700;text-transform:uppercase;display:block;margin-bottom:4px}
+.road{list-style:none;padding:0;margin:12px 0}
+.road li{padding:10px 14px;border:1px solid var(--line);border-radius:10px;margin:7px 0;background:var(--panel);font-size:14px}
+.road li .n{font-family:var(--mono);font-size:12px;color:var(--tune);font-weight:700;margin-right:8px}
+.road li.done{border-color:#b6dde2;background:var(--tune-t)}
+.road li .tag{font-family:var(--mono);font-size:11px;color:var(--muted);float:right}
+footer{padding:30px 0 50px;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+
+<header class="top"><div class="wrap">
+  <div class="eyebrow">Oracle DBA · 튜닝편</div>
+  <h1 class="title">SQL <b>Tuning</b></h1>
+  <p class="lede">구조를 이해했다면, 이제 그 구조를 활용해 같은 결과를 더 빠르게 얻는 일. 내부구조편(완전정복 가이드)이 "어떻게 동작하나"라면, 여기는 "어떻게 빠르게 하나"다. 액세스 경로부터 시작해 조인·힌트·실행계획으로 쌓아간다.</p>
+  <div class="kicker">짝 문서 · <a href="#">완전정복 가이드(내부구조편)</a> · <a href="#">RMAN 복구 치트시트(운영편)</a></div>
+</div></header>
+
+<nav class="jump"><div class="wrap">
+  <a href="#p1">1. SQL Tuning이란</a>
+  <a href="#plan">2. 실행계획 읽기</a>
+  <a href="#p2">3. 액세스 경로</a>
+  <a href="#p3">4. Full Table Scan</a>
+  <a href="#p5">5. 인덱스 & rowid</a>
+  <a href="#p6">6. 도구·통계·TRACE·10046·BCHR</a>
+  <a href="#join">7. 조인</a>
+  <a href="#road">로드맵</a>
+</div></nav>
+
+<main><div class="wrap">
+
+<section class="part" id="p1">
+  <div class="phead"><div class="pnum">01</div><div><div class="ptitle">SQL Tuning이란</div><div class="psub">시작은 SQL의 의미를 파악하는 것</div></div></div>
+  <p><b class="k">SQL Tuning</b>은 SQL문을 최적화하여 빠른 시간 안에 원하는 결과값을 얻기 위한 작업이다. 그 출발점은 도구나 힌트가 아니라 — <b class="k">SQL의 의미(작성 의도)를 제대로 파악하는 것</b>이다. "이 쿼리가 진짜 원하는 게 무엇인가, 얼마나 많은 데이터를 건드려야 하는가"를 알아야 올바른 처리 방법을 고를 수 있다.</p>
+  <div class="tip"><b>전제</b> — 튜닝은 내부구조편의 지식 위에서 동작한다. 블록·HWM·버퍼 캐시·인덱스 구조를 알아야 "왜 이 실행계획이 느린가"가 보인다. 여기서는 그 지식을 <b>활용</b>하는 쪽에 집중한다.</p></div>
+</section>
+
+<section class="part" id="plan">
+  <div class="phead"><div class="pnum">02</div><div><div class="ptitle">실행계획 읽기 — 모든 튜닝의 기반</div><div class="psub">계획을 뽑고, 순서대로 읽고, 느린 지점을 찾는다</div></div></div>
+  <p>튜닝의 첫 동작은 인덱스를 만드는 게 아니라 <b class="k">실행계획을 읽는 것</b>이다. "옵티마이저가 데이터를 어떤 경로로·어떤 순서로 가져오는가"를 못 읽으면 무엇을 고칠지 알 수 없다. 이 장이 안 되면 뒤의 모든 튜닝이 공허하다.</p>
+
+  <h3 class="blk"><span class="ix">2.1</span>실행계획 뽑는 3가지 방법</h3>
+  <table>
+    <tr><th>방법</th><th>명령</th><th>성격</th></tr>
+    <tr><td>autotrace</td><td><code>set autotrace traceonly explain</code></td><td>예상 계획만 (실행 안 함)</td></tr>
+    <tr><td>EXPLAIN PLAN</td><td><code>explain plan for …;</code> → <code>select * from table(dbms_xplan.display);</code></td><td>예상 계획 (실행 안 함)</td></tr>
+    <tr><td>display_cursor</td><td><code>/*+ gather_plan_statistics */</code> 실행 후 → <code>dbms_xplan.display_cursor(format=&gt;'ALLSTATS LAST')</code></td><td><b>실제 실행</b> 계획 + 실측치</td></tr>
+  </table>
+  <div class="why"><span class="h">예상 vs 실제 — 가장 중요한 구분</span>
+  <code class="inl">explain plan</code>·<code class="inl">autotrace explain</code>은 옵티마이저의 <b>예상(E-Rows)</b>만 보여준다. 반면 <code class="inl">display_cursor</code>는 실제로 돌린 뒤 <b>A-Rows(실제 행 수)</b>까지 보여준다. <b class="k">E-Rows와 A-Rows가 크게 차이 나면</b> 옵티마이저가 데이터를 잘못 추정한 것 — 잘못된 계획의 가장 흔한 원인이다. 그래서 진짜 튜닝은 display_cursor로 한다.</div>
+
+  <h3 class="blk"><span class="ix">2.2</span>읽는 순서 — 안쪽·위부터</h3>
+  <p>실행계획은 트리다. <b class="k">들여쓰기가 가장 깊은(안쪽) 라인부터, 같은 깊이면 위에서 아래로</b> 실행되고, 자식이 만든 결과를 부모에게 올린다.</p>
+  <figure>
+  <svg viewBox="0 0 680 300" role="img" aria-label="실행계획 읽는 순서">
+    <text class="svg-sub" x="30" y="26">실행계획 (들여쓰기 = 부모-자식)</text>
+    <text class="svg-mono" x="525" y="26" text-anchor="middle" style="fill:var(--tune)">실행 순서</text>
+    <g font-family="var(--mono)" font-size="12">
+    <rect class="ntune" x="30" y="38" width="440" height="30" rx="6" stroke-width="1.1"/><text x="42" y="58" style="fill:var(--ink)">0  SELECT STATEMENT</text>
+    <rect class="ntune" x="58" y="78" width="412" height="30" rx="6" stroke-width="1.1"/><text x="70" y="98" style="fill:var(--ink)">1   NESTED LOOPS</text>
+    <rect class="ntune" x="86" y="118" width="384" height="30" rx="6" stroke-width="1.1"/><text x="98" y="138" style="fill:var(--ink)">2    TABLE ACCESS BY ROWID  EMP</text>
+    <rect class="ntune" x="114" y="158" width="356" height="30" rx="6" stroke-width="1.1"/><text x="126" y="178" style="fill:var(--ink)">3     INDEX RANGE SCAN  EMP_IX</text>
+    <rect class="ntune" x="86" y="198" width="384" height="30" rx="6" stroke-width="1.1"/><text x="98" y="218" style="fill:var(--ink)">4    TABLE ACCESS BY ROWID  DEPT</text>
+    <rect class="ntune" x="114" y="238" width="356" height="30" rx="6" stroke-width="1.1"/><text x="126" y="258" style="fill:var(--ink)">5     INDEX UNIQUE SCAN  DEPT_PK</text>
+    </g>
+    <g font-family="var(--mono)" font-size="12" font-weight="700">
+    <circle cx="525" cy="53" r="13" fill="var(--tune)"/><text x="525" y="57" text-anchor="middle" fill="#fff">6</text>
+    <circle cx="525" cy="93" r="13" fill="var(--tune)"/><text x="525" y="97" text-anchor="middle" fill="#fff">5</text>
+    <circle cx="525" cy="133" r="13" fill="var(--tune)"/><text x="525" y="137" text-anchor="middle" fill="#fff">2</text>
+    <circle cx="525" cy="173" r="13" fill="var(--tune)"/><text x="525" y="177" text-anchor="middle" fill="#fff">1</text>
+    <circle cx="525" cy="213" r="13" fill="var(--tune)"/><text x="525" y="217" text-anchor="middle" fill="#fff">4</text>
+    <circle cx="525" cy="253" r="13" fill="var(--tune)"/><text x="525" y="257" text-anchor="middle" fill="#fff">3</text>
+    </g>
+    <text class="svg-sub" x="600" y="150" text-anchor="middle">결과를</text><text class="svg-sub" x="600" y="166" text-anchor="middle">부모로 ↑</text>
+  </svg>
+  <figcaption>가장 안쪽 ③ INDEX RANGE SCAN(①)부터 시작 → EMP 행(②) → 그 행마다 DEPT 인덱스(③)·DEPT 행(④) → NESTED LOOPS 조인(⑤) → 결과 반환(⑥).</figcaption>
+  </figure>
+
+  <h3 class="blk"><span class="ix">2.3</span>핵심 컬럼 읽는 법</h3>
+  <table>
+    <tr><th>컬럼</th><th>의미 · 볼 점</th></tr>
+    <tr><td>Id</td><td>단계 번호. <code>*</code>가 붙으면 아래 <b>Predicate Information</b>에 조건이 있다는 표시</td></tr>
+    <tr><td>Operation</td><td>무슨 작업인가 (FULL/INDEX/JOIN…). 들여쓰기로 부모-자식</td></tr>
+    <tr><td>Name</td><td>대상 객체(테이블·인덱스 이름)</td></tr>
+    <tr><td>Rows</td><td>옵티마이저가 <b>예상</b>한 행 수(카디널리티). 실제와 괴리가 크면 위험 신호</td></tr>
+    <tr><td>Cost (%CPU)</td><td>옵티마이저의 상대적 비용 추정. 절대 시간이 아니라 <b>비교용</b></td></tr>
+    <tr><td>Predicate (access/filter)</td><td><b>access</b>=인덱스로 범위를 좁힘(좋음) / <b>filter</b>=읽은 뒤 걸러냄(많이 읽었을 수)</td></tr>
+  </table>
+  <div class="tip"><b>access vs filter</b> — 같은 조건이라도 <code class="inl">access("ID"=100)</code>로 잡히면 인덱스로 바로 찾은 것이고, <code class="inl">filter("ID"=100)</code>로 잡히면 일단 많이 읽고 나서 버린 것이다. filter로만 처리되는 핵심 조건이 보이면 인덱스 기회다.</div>
+
+  <h3 class="blk"><span class="ix">2.4</span>자주 보는 Operation 사전</h3>
+  <table>
+    <tr><th>Operation</th><th>한마디로</th></tr>
+    <tr><td>TABLE ACCESS FULL</td><td>테이블 전체 스캔(첫 블록~HWM, scattered read)</td></tr>
+    <tr><td>TABLE ACCESS BY INDEX ROWID</td><td>인덱스가 준 rowid로 그 행만 읽기</td></tr>
+    <tr><td>INDEX UNIQUE SCAN</td><td>유일 인덱스로 정확히 1행</td></tr>
+    <tr><td>INDEX RANGE SCAN</td><td>범위 조건으로 인덱스 일부 스캔</td></tr>
+    <tr><td>INDEX FULL / FAST FULL SCAN</td><td>인덱스 전체(정렬 활용 / multi-block)</td></tr>
+    <tr><td>INDEX SKIP SCAN</td><td>선두 컬럼을 건너뛰고 결합 인덱스 활용</td></tr>
+    <tr><td>NESTED LOOPS</td><td>한쪽 행마다 다른 쪽을 반복 조회(소량 조인)</td></tr>
+    <tr><td>HASH JOIN</td><td>해시 테이블을 만들어 대량 조인</td></tr>
+    <tr><td>SORT (ORDER BY/GROUP BY/UNIQUE)</td><td>정렬·중복 제거</td></tr>
+    <tr><td>FILTER</td><td>조건·서브쿼리로 걸러내기</td></tr>
+  </table>
+
+  <h3 class="blk"><span class="ix">2.5</span>예제로 읽어보기</h3>
+  <p>2.2의 계획을 실제로 찍으면 이렇게 나온다. display_cursor로 <b class="k">E-Rows(예상)와 A-Rows(실제)</b>를 같이 보는 게 핵심이다.</p>
+  <pre class="term"><span class="pr">SYS@ora19c&gt;</span> select /*+ gather_plan_statistics */ e.last_name, d.department_name
+          from hr.employees e join hr.departments d using(department_id)
+          where e.department_id = 50;
+<span class="pr">SYS@ora19c&gt;</span> select * from table(dbms_xplan.display_cursor(format=&gt;'ALLSTATS LAST'));
+
+<span class="out">----------------------------------------------------------------------</span>
+<span class="out">| Id | Operation                     | Name        | E-Rows | A-Rows |</span>
+<span class="out">----------------------------------------------------------------------</span>
+<span class="out">|  0 | SELECT STATEMENT              |             |        |     45 |</span>
+<span class="out">|  1 |  NESTED LOOPS                 |             |     45 |     45 |</span>
+<span class="hl">|* 2 |   TABLE ACCESS BY INDEX ROWID | EMPLOYEES   |     45 |     45 |</span>
+<span class="hl">|* 3 |    INDEX RANGE SCAN           | EMP_DEPT_IX |     45 |     45 |</span>
+<span class="out">|  4 |   TABLE ACCESS BY INDEX ROWID | DEPARTMENTS |      1 |      1 |</span>
+<span class="hl">|* 5 |    INDEX UNIQUE SCAN          | DEPT_ID_PK  |      1 |      1 |</span>
+<span class="out">----------------------------------------------------------------------</span>
+Predicate Information:
+   3 - access("E"."DEPARTMENT_ID"=50)
+   5 - access("E"."DEPARTMENT_ID"="D"."DEPARTMENT_ID")</pre>
+  <ul class="tight">
+    <li><b class="k">E-Rows = A-Rows (45 = 45)</b> → 옵티마이저 추정이 정확하다. 괴리가 없으니 통계는 건강하다.</li>
+    <li>핵심 조건이 <code class="inl">access(... =50)</code> → 인덱스로 바로 범위를 좁혔다(좋음). filter가 아니다.</li>
+    <li>50번 부서 45명만 인덱스로 집어 각자 부서를 unique scan으로 붙였다 — 소량이라 <b>NESTED LOOPS</b>가 적합.</li>
+  </ul>
+  <div class="why"><span class="h">무엇을 의심하나 (체크 순서)</span>
+  ① 큰 테이블에 <code class="inl">TABLE ACCESS FULL</code>인데 소량만 찾나? → 인덱스 기회. ② 핵심 조건이 <code class="inl">filter</code>로만 처리되나? → 인덱스 기회. ③ <b>E-Rows ≪ A-Rows</b>로 추정이 크게 빗나갔나? → 통계 갱신·카디널리티 문제. ④ 소량인데 HASH JOIN, 대량인데 NESTED LOOPS? → 조인 방식 의심.</div>
+
+  <div class="tip"><b>홈랩에서 바로</b> — ora19c에서 <code class="inl">set autotrace on</code> 또는 위 <code class="inl">gather_plan_statistics</code> + <code class="inl">display_cursor</code>로 직접 찍어보세요. 자료를 읽는 것보다 내 쿼리의 계획을 눈으로 보는 게 훨씬 빨리 늡니다.</div>
+</section>
+
+<section class="part" id="p2">
+  <div class="phead"><div class="pnum">03</div><div><div class="ptitle">데이터 액세스 경로</div><div class="psub">무엇을 어떻게 읽을지 — 튜닝의 핵심 갈림길</div></div></div>
+  <p>옵티마이저가 데이터를 가져오는 방법은 크게 둘이다. 어느 쪽이 빠른지는 <b class="k">"얼마나 많은 행을 읽느냐"</b>에 달렸다.</p>
+  <table>
+    <tr><th>경로</th><th>설명</th><th>유리한 경우</th></tr>
+    <tr><td>full table scan</td><td>세그먼트 첫 블록부터 HWM까지 통째로 읽음</td><td>많은 데이터 검색</td></tr>
+    <tr><td>rowid scan · by user rowid</td><td>사용자가 rowid를 직접 지정해 한 행을 콕 집음</td><td>rowid를 이미 알 때</td></tr>
+    <tr><td>rowid scan · by index rowid</td><td>인덱스를 타고 rowid를 얻어 해당 블록의 행을 읽음</td><td>소량 검색</td></tr>
+  </table>
+  <div class="why"><span class="h">직관 · full scan vs index의 분기점</span>
+  전체의 작은 일부만 찾을 땐 인덱스(by index rowid)가 빠르다. 하지만 전체의 상당 비율을 읽어야 한다면, 인덱스를 타며 블록을 하나씩 random하게 읽는 것보다 <b>full scan으로 multi-block I/O</b>로 쓸어 담는 게 오히려 빠르다. "인덱스가 항상 빠르다"는 흔한 오해다 — 읽어야 할 양이 기준이다.</div>
+</section>
+
+<section class="part" id="p3">
+  <div class="phead"><div class="pnum">04</div><div><div class="ptitle">Full Table Scan</div><div class="psub">첫 블록부터 HWM까지, multi-block로</div></div></div>
+  <p>full table scan은 세그먼트의 <b class="k">첫 블록부터 HWM</b>(High Water Mark, 사용 블록과 미사용 블록의 경계)까지 읽는다. 핵심은 한 번의 I/O call에 <code class="inl">db_file_multiblock_read_count</code>(이 환경 =78)만큼의 블록을 묶어 읽는 <b class="k">Multi Block I/O</b>라는 점. 그래서 <span class="we">db file scattered read</span> 대기가 발생한다.</p>
+  <figure>
+  <svg viewBox="0 0 680 220" role="img" aria-label="full table scan과 HWM">
+    <text class="svg-sub" x="40" y="40">Segment (블록들)</text>
+    <text class="svg-mono" x="420" y="40" text-anchor="middle" style="fill:var(--hwm)">HWM</text>
+    <rect class="ntune" x="40" y="66" width="44" height="50" rx="4" stroke-width="1.2"/><rect class="ntune" x="88" y="66" width="44" height="50" rx="4" stroke-width="1.2"/><rect class="ntune" x="136" y="66" width="44" height="50" rx="4" stroke-width="1.2"/><rect class="ntune" x="184" y="66" width="44" height="50" rx="4" stroke-width="1.2"/><rect class="ntune" x="232" y="66" width="44" height="50" rx="4" stroke-width="1.2"/><rect class="ntune" x="280" y="66" width="44" height="50" rx="4" stroke-width="1.2"/><rect class="ntune" x="328" y="66" width="44" height="50" rx="4" stroke-width="1.2"/><rect class="ntune" x="376" y="66" width="44" height="50" rx="4" stroke-width="1.2"/>
+    <rect class="nmut" x="424" y="66" width="44" height="50" rx="4" stroke-width="1"/><rect class="nmut" x="472" y="66" width="44" height="50" rx="4" stroke-width="1"/><rect class="nmut" x="520" y="66" width="44" height="50" rx="4" stroke-width="1"/><rect class="nmut" x="568" y="66" width="44" height="50" rx="4" stroke-width="1"/>
+    <line x1="421" y1="58" x2="421" y2="124" stroke="var(--hwm)" stroke-width="2"/>
+    <rect x="36" y="62" width="152" height="58" rx="6" fill="none" stroke="var(--add)" stroke-width="1.4" stroke-dasharray="5 4"/>
+    <text class="svg-mono" x="112" y="138" text-anchor="middle" style="fill:var(--add)">multiblock I/O (78블록씩)</text>
+    <text class="svg-sub" x="520" y="96" text-anchor="middle">미사용</text>
+    <text class="svg-sub" x="230" y="178" text-anchor="middle">block 1 → HWM 까지 multi-block로 순차 읽기 → db file scattered read</text>
+  </svg>
+  <figcaption>HWM 너머 미사용 블록은 읽지 않는다. 그래서 delete로 비워도 HWM이 안 내려가면 full scan은 여전히 느리다(→ truncate가 HWM 리셋).</figcaption>
+  </figure>
+  <p>인덱스가 없으면 조건을 줘도 full scan이 된다. <code class="inl">hr.employees</code>를 복사한 <code class="inl">hr.emp</code>(인덱스 없음)에 PK 같은 조건을 줘도 옵티마이저가 다른 길이 없어 <code class="inl">TABLE ACCESS FULL</code>을 택한다.</p>
+  <pre class="term"><span class="pr">SYS@ora19c&gt;</span> create table hr.emp tablespace users as select * from hr.employees;
+<span class="pr">SYS@ora19c&gt;</span> set autot traceonly exp
+<span class="pr">SYS@ora19c&gt;</span> select * from hr.emp where employee_id = 100;
+
+<span class="out">--------------------------------------------------------------</span>
+<span class="out">| Id  | Operation         | Name | Rows | Bytes | Cost (%CPU)|</span>
+<span class="out">--------------------------------------------------------------</span>
+<span class="out">|   0 | SELECT STATEMENT  |      |    1 |    69 |     3   (0)|</span>
+<span class="hl">|*  1 |  TABLE ACCESS FULL| EMP  |    1 |    69 |     3   (0)|</span>
+<span class="out">--------------------------------------------------------------</span>
+   1 - filter("EMPLOYEE_ID"=100)</pre>
+  <div class="tip"><b>튜닝 포인트</b> — 단 한 행(<code class="inl">employee_id=100</code>)을 찾는데 테이블 전체를 HWM까지 읽고 있다. 여기에 <code class="inl">employee_id</code> 인덱스를 만들면 <b>by index rowid</b>로 한 행만 집어 비용이 급감한다. "한 행을 위해 full scan"이 바로 튜닝 대상의 전형이다.</div>
+</section>
+
+<section class="part" id="p5">
+  <div class="phead"><div class="pnum">05</div><div><div class="ptitle">rowid scan & 인덱스</div><div class="psub">소량을 콕 집는 길 — 그리고 인덱스를 못 타는 함정</div></div></div>
+
+  <h3 class="blk"><span class="ix">5.1</span>rowid scan — 주소로 한 행</h3>
+  <p><b class="k">rowid</b>는 행의 물리 주소다. rowid를 직접 주면 옵티마이저는 인덱스도 안 거치고 그 블록으로 직행한다 — <code class="inl">TABLE ACCESS BY USER ROWID</code>(Cost 1). 인덱스를 경유해 얻은 rowid로 읽으면 <code class="inl">TABLE ACCESS BY INDEX ROWID</code>다. 둘 다 <b>single block I/O</b>라 <span class="we">db file sequential read</span>가 발생한다.</p>
+  <table>
+    <tr><th>형식</th><th>구성</th></tr>
+    <tr><td>extended (v8, 18자)</td><td>데이터오브젝트(6) + 파일#(3) + 블록#(6) + 행#(3) · 예 <code>AAAS2nAAHAAAAD0AAD</code></td></tr>
+    <tr><td>restricted (v7)</td><td>블록#(8) . 행#(4) . 파일#(4) · 예 <code>000000F4.0003.0007</code></td></tr>
+  </table>
+  <p class="muted"><code class="inl">dbms_rowid.rowid_object/relative_fno/block_number/row_number</code>로 rowid를 분해해 "이 행이 몇 번 파일·블록·행에 있나"를 볼 수 있다.</p>
+
+  <h3 class="blk"><span class="ix">5.2</span>인덱스 스캔의 종류</h3>
+  <p>인덱스는 <b>root → branch → leaf</b> 트리다. range scan은 leaf에서 시작 값을 찾고, 옆 leaf로 이어가며 <b class="k">"하나 더 있나?"</b>를 확인하는 <b>one-plus-one</b> 방식으로 끝을 판단한다.</p>
+  <figure>
+  <svg viewBox="0 0 680 250" role="img" aria-label="index range scan 동작">
+    <defs><marker id="ix" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aab3c0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <rect class="ntune" x="280" y="20" width="120" height="34" rx="7" stroke-width="1.2"/><text class="svg-lbl" x="340" y="41" text-anchor="middle">root</text>
+    <rect class="ntune" x="150" y="84" width="120" height="34" rx="7" stroke-width="1.2"/><text class="svg-lbl" x="210" y="105" text-anchor="middle">branch</text>
+    <rect class="ntune" x="410" y="84" width="120" height="34" rx="7" stroke-width="1.2"/><text class="svg-lbl" x="470" y="105" text-anchor="middle">branch</text>
+    <rect class="ntune" x="60" y="150" width="110" height="34" rx="7" stroke-width="1.2"/><text class="svg-sub" x="115" y="171" text-anchor="middle">leaf</text>
+    <rect class="nmut" x="190" y="150" width="110" height="34" rx="7" stroke-width="1.2" style="stroke:var(--tune);stroke-width:2"/><text class="svg-lbl" x="245" y="171" text-anchor="middle">leaf ★</text>
+    <rect class="ntune" x="320" y="150" width="110" height="34" rx="7" stroke-width="1.2"/><text class="svg-sub" x="375" y="171" text-anchor="middle">leaf →</text>
+    <rect class="ncor" x="470" y="150" width="150" height="34" rx="7" stroke-width="1.2"/><text class="svg-sub" x="545" y="171" text-anchor="middle">테이블 블록(rowid)</text>
+    <line class="edge" x1="320" y1="54" x2="230" y2="82" marker-end="url(#ix)"/><line class="edge" x1="360" y1="54" x2="450" y2="82" marker-end="url(#ix)"/>
+    <line class="edge" x1="210" y1="118" x2="160" y2="148" marker-end="url(#ix)"/><line class="edge" x1="230" y1="118" x2="245" y2="148" marker-end="url(#ix)"/>
+    <line class="edge" x1="245" y1="184" x2="520" y2="184" stroke-dasharray="4 3" marker-end="url(#ix)"/>
+    <text class="svg-sub" x="383" y="200" text-anchor="middle">leaf의 rowid로 테이블 행 읽기</text>
+    <text class="svg-mono" x="245" y="225" text-anchor="middle" style="fill:var(--tune)">one-plus-one: 옆 leaf에 더 있나 확인</text>
+  </svg>
+  </figure>
+  <table>
+    <tr><th>스캔</th><th>언제</th></tr>
+    <tr><td>INDEX RANGE SCAN</td><td>범위·비유일. 같은 값이 더 있나 leaf를 이어 확인</td></tr>
+    <tr><td>INDEX UNIQUE SCAN</td><td>유일 인덱스 + <code>=</code>일 때만. 범위(<code>&lt;=</code>)면 RANGE로 떨어진다</td></tr>
+    <tr><td>INLIST ITERATOR</td><td><code>in (a,b,c)</code> — 값 수만큼 인덱스 탐색 반복</td></tr>
+    <tr><td>INDEX FULL SCAN</td><td>인덱스만으로 충당될 때(예: 인덱스 컬럼만 SELECT)</td></tr>
+    <tr><td>AND-EQUAL (index merge)</td><td>두 단일 인덱스의 rowid 결과를 교집합(<code>and_equal</code> 힌트)</td></tr>
+  </table>
+
+  <h3 class="blk"><span class="ix">5.3</span>★ 인덱스를 "안 타는" 경우</h3>
+  <p>인덱스가 있어도 옵티마이저가 버리는 패턴들. 면접·시험 단골이다.</p>
+  <table>
+    <tr><th>조건</th><th>계획</th><th>이유</th></tr>
+    <tr><td><code>to_number(employee_id)=100</code></td><td>TABLE ACCESS FULL</td><td><b>컬럼에 함수</b>를 씌우면 인덱스 값과 달라져 못 탄다 → 함수 기반 인덱스 또는 컬럼 가공 회피</td></tr>
+    <tr><td><code>employee_id is null</code></td><td>FULL</td><td>NULL은 일반 B-tree 인덱스에 저장되지 않는다</td></tr>
+    <tr><td><code>is not null</code> + 인덱스 컬럼만 SELECT</td><td>INDEX FULL SCAN</td><td>인덱스만으로 충당되면 탄다</td></tr>
+    <tr><td>결합 인덱스 없이 <code>last='King' and first='Steven'</code></td><td>access(last) + <b>filter(first)</b></td><td>인덱스는 last_name만, first_name은 테이블에서 거른다</td></tr>
+  </table>
+  <div class="why"><span class="h">핵심 원칙</span>
+  <b>인덱스 컬럼을 가공(함수·연산·형변환)하면 그 순간 인덱스는 죽는다.</b> 가공이 필요하면 컬럼이 아니라 <b>상수 쪽</b>을 바꾸거나, 함수 기반 인덱스를 따로 만든다. 그리고 <code class="inl">filter</code>로만 처리되는 핵심 조건이 보이면 인덱스(또는 결합 인덱스) 기회다.</div>
+
+  <h3 class="blk"><span class="ix">5.4</span>결합(조합) 인덱스 — 선두 컬럼이 전부</h3>
+  <p>자주 함께 쓰는 컬럼은 하나의 결합 인덱스로 묶는다. <code class="inl">(last_name, first_name)</code>를 만들면 두 조건이 한 번의 <code class="inl">access</code>로 처리된다(앞의 filter 문제 해소). 단 <b class="k">선두 컬럼</b> 선택이 성패를 가른다.</p>
+  <div class="tip"><b>왜 선두 컬럼이 중요한가 — 전화번호부</b> 결합 인덱스 <code class="inl">(last_name, first_name)</code>는 전화번호부처럼 <b>성(last)으로 먼저 정렬하고, 같은 성 안에서만 이름(first)으로 정렬</b>돼 있다. 그래서 성을 알면 한 구간으로 좁혀지지만, <b>성을 모르고 이름만</b> 알면 그 이름이 책 전체에 흩어져 있어 정렬이 무용지물이다.</div>
+  <figure>
+  <svg viewBox="0 0 680 235" role="img" aria-label="결합 인덱스가 선두 컬럼으로 먼저 정렬되어 있어 선두 조건 유무로 효율이 갈리는 모습">
+    <text class="svg-sub" x="160" y="22" text-anchor="middle">인덱스 정렬 순서 (last → first)</text>
+    <rect class="nmut" x="60" y="34" width="200" height="26" rx="5"/><text class="svg-mono" x="72" y="51">King · Adam</text>
+    <rect class="ntune" x="60" y="62" width="200" height="26" rx="5"/><text class="svg-mono" x="72" y="79" style="fill:var(--tune)">King · Steven</text>
+    <rect class="nmut" x="60" y="90" width="200" height="26" rx="5"/><text class="svg-mono" x="72" y="107">Lee · John</text>
+    <rect class="ntune" x="60" y="118" width="200" height="26" rx="5"/><text class="svg-mono" x="72" y="135" style="fill:var(--tune)">Lee · Steven</text>
+    <rect class="nmut" x="60" y="146" width="200" height="26" rx="5"/><text class="svg-mono" x="72" y="163">Park · Mina</text>
+    <rect class="ntune" x="60" y="174" width="200" height="26" rx="5"/><text class="svg-mono" x="72" y="191" style="fill:var(--tune)">Park · Steven</text>
+    <line x1="40" y1="34" x2="40" y2="88" stroke="#1F9D63" stroke-width="3"/><text class="svg-sub" x="36" y="76" text-anchor="end" style="fill:#1F9D63"> </text>
+    <text class="svg-lbl" x="300" y="58" style="fill:#1F9D63">✓ last='King'</text><text class="svg-sub" x="300" y="76">→ 한 구간에 모임 (RANGE SCAN)</text>
+    <text class="svg-lbl" x="300" y="128" style="fill:var(--tune)">✗ first='Steven'만</text><text class="svg-sub" x="300" y="146">→ King·Lee·Park에 흩어짐</text><text class="svg-sub" x="300" y="164">→ 선두가 없으면 못 좁힌다</text>
+    <text class="svg-sub" x="300" y="200" style="fill:var(--muted)">(그래서 SKIP SCAN 또는 FULL로 빠진다)</text>
+  </svg>
+  <figcaption>같은 인덱스라도 <b>선두(last)를 주면</b> 한 구간으로 좁혀 빠르고, <b>후행(first)만 주면</b> 흩어져 있어 효율이 사라진다. 이게 선두 컬럼이 성패를 가르는 이유다.</figcaption>
+  </figure>
+  <p><b class="k">그래서 선두 컬럼은</b> 이런 컬럼을 골라야 한다:</p>
+  <ul class="tight">
+    <li>혼자서도 <b>자주 쓰이는</b> 컬럼을 앞에 (선두가 조건에 없으면 위처럼 흩어져 못 좁힘)</li>
+    <li>범위를 많이 <b>줄여주는</b>(선택도 높은) 컬럼을 앞에</li>
+    <li><code>=</code> 비교로 쓰는 컬럼을 앞에 — <b>범위(<code class="inl">BETWEEN</code>·<code class="inl">&gt;</code>) 조건을 선두에 두면</b>, 그 구간 안에서 후행 컬럼은 연속 정렬이 아니라서 <b>뒤 컬럼으로 더 못 좁힌다</b></li>
+  </ul>
+  <div class="tip"><b>direct path read 보너스</b> — full scan을 parallel로 돌리면 버퍼 캐시를 우회해 PGA로 직접 읽는다(direct path read). 이때 대상 테이블의 dirty buffer를 먼저 데이터파일에 내려쓰는 <b>partial checkpoint</b>가 일어나며 <span class="we">enq: TC - contention</span>이 보일 수 있다 — 어제 배운 DBWR·checkpoint가 여기서 다시 등장한다.</div>
+
+  <h3 class="blk"><span class="ix">5.5</span>인덱스 스캔 종류 총정리 <span class="db add">70일차</span></h3>
+  <p>같은 인덱스라도 SQL 모양에 따라 스캔 방식이 갈린다. 실측으로 본 종류들을 정리한다.</p>
+  <table>
+    <tr><th>스캔</th><th>동작 · 언제</th></tr>
+    <tr><td><b>INDEX RANGE SCAN</b></td><td>leaf에서 시작값 찾고 옆으로 이어 읽기. 비유일·범위 조건</td></tr>
+    <tr><td><b>INDEX UNIQUE SCAN</b></td><td>유일 인덱스 + <code class="inl">=</code> → 정확히 1행</td></tr>
+    <tr><td><b>INDEX SKIP SCAN</b></td><td>결합 인덱스에서 <b>선두 컬럼 조건이 없을 때</b>, 선두값 종류마다 인덱스를 건너뛰며 탐색</td></tr>
+    <tr><td><b>INDEX FULL SCAN</b></td><td>root→leaf 수직 진입 후 leaf를 <b>순서대로 끝까지</b>. 정렬된 결과라 <code class="inl">ORDER BY</code>를 흡수(sort 생략)</td></tr>
+    <tr><td><b>INDEX FAST FULL SCAN</b></td><td>leaf 블록을 <b>multiblock</b>으로 싹 읽기. 더 빠르지만 <b>정렬 안 됨</b></td></tr>
+    <tr><td><b>INDEX FULL SCAN DESCENDING</b></td><td>뒤에서 앞으로 → <code class="inl">ORDER BY … DESC</code> 흡수 (<code class="inl">index_desc</code> 힌트)</td></tr>
+    <tr><td><b>INDEX FULL SCAN (MIN/MAX)</b></td><td><code class="inl">MIN()</code>/<code class="inl">MAX()</code>는 인덱스 한쪽 끝만 보면 끝</td></tr>
+    <tr><td><b>INLIST ITERATOR</b></td><td><code class="inl">IN (a,b,c)</code> — 값 수만큼 RANGE SCAN 반복</td></tr>
+  </table>
+
+  <p style="margin-top:18px"><b class="k">"이 SQL을 쓰면 → 이 plan이 나온다"</b>로 다시 보면 (EMP_NAME_IDX = <code class="inl">(last_name, first_name)</code> 결합, EMP_IDX = <code class="inl">employee_id</code> 유일 기준):</p>
+  <table>
+    <tr><th>SQL (조건/정렬)</th><th>나오는 plan</th><th>이유</th></tr>
+    <tr><td><code class="inl">where last_name='King'</code></td><td>INDEX RANGE SCAN</td><td>선두 컬럼을 <code class="inl">=</code>로 짚음 → 정석</td></tr>
+    <tr><td><code class="inl">where first_name='Steven'</code></td><td><b>INDEX SKIP SCAN</b></td><td>선두(last_name)가 없고 후행만 → 선두값마다 건너뛰며 탐색</td></tr>
+    <tr><td><code class="inl">where employee_id=100</code> (유일)</td><td>INDEX UNIQUE SCAN</td><td>유일 인덱스 + <code class="inl">=</code></td></tr>
+    <tr><td><code class="inl">select last_name, first_name from emp</code></td><td>INDEX FULL SCAN</td><td>읽을 컬럼이 전부 인덱스에 있음 → 테이블 안 감</td></tr>
+    <tr><td><code class="inl">… order by employee_id</code></td><td>INDEX FULL SCAN</td><td>인덱스가 이미 정렬돼 있어 sort 생략</td></tr>
+    <tr><td><code class="inl">… order by employee_id desc</code></td><td>INDEX FULL SCAN DESCENDING</td><td>인덱스를 뒤에서 앞으로</td></tr>
+    <tr><td><code class="inl">select min(employee_id)</code></td><td>INDEX FULL SCAN (MIN/MAX)</td><td>한쪽 끝 한 블록만</td></tr>
+    <tr><td><code class="inl">select min(x), max(x)</code> 함께</td><td>일반 INDEX FULL SCAN ⚠</td><td>한 스캔으로 양 끝을 못 집음 → 전체 읽음</td></tr>
+    <tr><td><code class="inl">where gender in ('f','m')</code></td><td>INLIST ITERATOR</td><td>값마다 RANGE SCAN 반복</td></tr>
+  </table>
+
+  <div class="why"><span class="h">SKIP SCAN이 유리한 조건</span>
+  결합 인덱스 <code class="inl">(gender, sal)</code>에서 <code class="inl">where sal between …</code>처럼 선두(gender) 조건이 없을 때, 옵티마이저는 <b>선두 컬럼의 고유값이 적고(예: gender = m/f 둘) 후행 컬럼의 고유값이 많을 때</b> SKIP SCAN을 택한다. 선두값(m, f)마다 서브 인덱스를 훑는 셈이라, 선두 고유값이 많으면 오히려 비효율이라 안 쓴다. 강제하려면 <code class="inl">index_ss</code> 힌트.</div>
+  <figure>
+  <svg viewBox="0 0 680 210" role="img" aria-label="SKIP SCAN이 선두값마다 서브 스캔으로 쪼개지는 모습">
+    <defs><marker id="ss" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aab3c0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <rect class="ntune" x="250" y="16" width="180" height="40" rx="8" stroke-width="1.2"/><text class="svg-lbl" x="340" y="34" text-anchor="middle">(gender, sal) 인덱스</text><text class="svg-sub" x="340" y="49" text-anchor="middle">where sal between 10 and 20</text>
+    <text class="svg-sub" x="340" y="78" text-anchor="middle" style="fill:var(--tune)">선두값(gender) 종류만큼 쪼개서</text>
+    <rect class="ncor" x="120" y="98" width="180" height="74" rx="8" stroke-width="1.2"/><text class="svg-lbl" x="210" y="120" text-anchor="middle">gender='f' 구간</text><text class="svg-mono" x="210" y="140" text-anchor="middle" style="fill:var(--muted)">→ sal 10~20 RANGE SCAN</text><text class="svg-sub" x="210" y="158" text-anchor="middle">서브 스캔 ①</text>
+    <rect class="ncor" x="380" y="98" width="180" height="74" rx="8" stroke-width="1.2"/><text class="svg-lbl" x="470" y="120" text-anchor="middle">gender='m' 구간</text><text class="svg-mono" x="470" y="140" text-anchor="middle" style="fill:var(--muted)">→ sal 10~20 RANGE SCAN</text><text class="svg-sub" x="470" y="158" text-anchor="middle">서브 스캔 ②</text>
+    <line class="edge" x1="310" y1="56" x2="210" y2="96" marker-end="url(#ss)"/>
+    <line class="edge" x1="370" y1="56" x2="470" y2="96" marker-end="url(#ss)"/>
+  </svg>
+  <figcaption>SKIP SCAN: 선두값(f, m)이 둘뿐이라, 사실상 "gender별 RANGE SCAN"을 2번 묶은 것. 선두 고유값이 적을수록 쪼개는 횟수가 적어 유리하다.</figcaption>
+  </figure>
+  <div class="tip"><b>MIN/MAX 함정</b> — <code class="inl">min(c)</code>나 <code class="inl">max(c)</code> 단독은 <code class="inl">INDEX FULL SCAN (MIN/MAX)</code>로 양 끝만 본다. 하지만 <code class="inl">select min(c), max(c)</code>처럼 <b>같이 쓰면</b> 한 번의 스캔으로 양 끝을 못 집어 일반 <code class="inl">INDEX FULL SCAN</code>으로 전체를 읽는다. <code class="inl">min … union all … max</code>로 쪼개면 각각 (MIN/MAX)가 적용돼 빨라진다.</div>
+
+  <h3 class="blk"><span class="ix">5.6</span>접근 경로 실전 — 같은 쿼리, 네 경로 <span class="db add">72일차</span></h3>
+  <p>같은 <code class="inl">where department_id=80 and salary=10000</code>을 힌트만 바꿔 네 번 돌리면 경로마다 <b class="k">Buffers</b>가 갈린다. 여기서 얻는 교훈 하나 — <b class="k">옵티마이저 기본이 늘 최선은 아니다.</b> 무엇이 최선인지는 추정이 아니라 실측 Buffers로 고른다.</p>
+  <table>
+    <tr><th>경로</th><th>힌트</th><th>Buffers</th></tr>
+    <tr><td>① 기본 (옵티마이저 선택)</td><td>EMP_SAL_IDX 단일</td><td><b>5</b></td></tr>
+    <tr><td>② dept 인덱스 강제</td><td><code class="inl">index(e emp_dept_idx)</code></td><td><b>4</b></td></tr>
+    <tr><td>③ and_equal</td><td><code class="inl">and_equal(e emp_dept_idx emp_sal_idx)</code></td><td><b style="color:var(--alert)">10</b> (최악)</td></tr>
+    <tr><td>④ index_combine</td><td><code class="inl">index_combine(e emp_dept_idx emp_sal_idx)</code></td><td><b>4</b></td></tr>
+  </table>
+  <p><b class="k">왜 ③ and_equal이 10이나 되나</b> — 실제 플랜을 펴 보면 숫자가 그대로 답한다.</p>
+  <pre class="term"><span class="pr">HR&gt;</span> select /*+ gather_plan_statistics <span class="hl">and_equal(e emp_dept_idx emp_sal_idx)</span> */ *
+        from hr.emp e where department_id = 80 and salary = 10000;
+<span class="out">------------------------------------------------------------------</span>
+<span class="out">| Id | Operation                        | Name         | Buffers |</span>
+<span class="out">------------------------------------------------------------------</span>
+<span class="hl">|* 1 |  TABLE ACCESS BY INDEX ROWID EMP |              |    10 |</span>
+<span class="out">|  2 |   AND-EQUAL                      |              |     8 |</span>
+<span class="hl">|* 3 |    INDEX RANGE SCAN              | EMP_SAL_IDX  |     5 |</span>
+<span class="hl">|* 4 |    INDEX RANGE SCAN              | EMP_DEPT_IDX |     3 |</span>
+<span class="out">------------------------------------------------------------------</span></pre>
+  <div class="why"><span class="h">두 인덱스를 각각 훑어 합친다</span>
+  and_equal은 EMP_SAL_IDX를 스캔해 <b>5</b>, EMP_DEPT_IDX를 스캔해 <b>3</b>, 이 둘이 준 rowid를 <code class="inl">AND-EQUAL</code>로 교집합(<b>8</b>)한 뒤 테이블 접근까지 더해 <b>10</b>이다. 인덱스 하나만 타면 4~5인데, 둘을 각각 훑어 합치니 오히려 더 많다. 같은 교집합을 index_combine(비트맵 변환)은 <b>4</b>로 더 싸게 처리한다. <b class="k">실측 없이 힌트를 믿으면 이렇게 손해</b>다 — §2.5의 "무엇을 의심하나" 체크를 여기서 그대로 쓴다.</div>
+
+  <h3 class="blk"><span class="ix">5.7</span>비트맵 인덱스 — DW용, 그리고 row lock 함정 <span class="db add">72일차</span></h3>
+  <p>B*tree와 bitmap은 <b class="k">정반대 상황</b>용이다. 헷갈리면 "값 종류(선택도)가 어떤가"로 가른다.</p>
+  <table>
+    <tr><th>기준</th><th>B*tree</th><th>bitmap</th></tr>
+    <tr><td>맞는 컬럼</td><td>유일·고선택도 (예: employee_id)</td><td>중복 많은 저선택도 (예: gender)</td></tr>
+    <tr><td>DML 비용</td><td>낮음 (행 단위 잠금)</td><td>높음 (여러 행을 함께 잠금)</td></tr>
+    <tr><td>연산자</td><td>OR에 비효율</td><td>AND·OR 모두 효율 (index_combine)</td></tr>
+    <tr><td>용도</td><td><b>OLTP</b></td><td><b>DW · DSS</b></td></tr>
+  </table>
+  <p><b class="k">비트맵이 뭐길래</b> — 값 하나마다 "그 값을 가진 행은 1, 아니면 0"인 <b>비트벡터</b>를 만든다. 값 종류가 적을수록(저선택도) 벡터가 몇 개 안 되고 압축이 잘 돼 작다.</p>
+  <figure>
+  <svg viewBox="0 0 680 200" role="img" aria-label="비트맵 인덱스: 값마다 비트벡터">
+    <text class="svg-sub" x="366" y="20" text-anchor="middle">gender 5행 — 값마다 비트벡터 하나 (1 = 그 값을 가진 행, 0 = 아님)</text>
+    <text class="svg-mono" x="190" y="50" text-anchor="middle" style="fill:var(--muted)">r1</text>
+    <text class="svg-mono" x="278" y="50" text-anchor="middle" style="fill:var(--muted)">r2</text>
+    <text class="svg-mono" x="366" y="50" text-anchor="middle" style="fill:var(--muted)">r3</text>
+    <text class="svg-mono" x="454" y="50" text-anchor="middle" style="fill:var(--muted)">r4</text>
+    <text class="svg-mono" x="542" y="50" text-anchor="middle" style="fill:var(--muted)">r5</text>
+    <text class="svg-lbl" x="60" y="86">'m'</text>
+    <rect class="ntune" x="150" y="64" width="80" height="32" rx="5" stroke-width="1.1"/><text class="svg-mono" x="190" y="85" text-anchor="middle" style="fill:var(--tune)">1</text>
+    <rect class="nmut" x="238" y="64" width="80" height="32" rx="5" stroke-width="1.1"/><text class="svg-mono" x="278" y="85" text-anchor="middle">0</text>
+    <rect class="ntune" x="326" y="64" width="80" height="32" rx="5" stroke-width="1.1"/><text class="svg-mono" x="366" y="85" text-anchor="middle" style="fill:var(--tune)">1</text>
+    <rect class="ntune" x="414" y="64" width="80" height="32" rx="5" stroke-width="1.1"/><text class="svg-mono" x="454" y="85" text-anchor="middle" style="fill:var(--tune)">1</text>
+    <rect class="nmut" x="502" y="64" width="80" height="32" rx="5" stroke-width="1.1"/><text class="svg-mono" x="542" y="85" text-anchor="middle">0</text>
+    <text class="svg-lbl" x="60" y="134">'f'</text>
+    <rect class="nmut" x="150" y="112" width="80" height="32" rx="5" stroke-width="1.1"/><text class="svg-mono" x="190" y="133" text-anchor="middle">0</text>
+    <rect class="ncor" x="238" y="112" width="80" height="32" rx="5" stroke-width="1.1"/><text class="svg-mono" x="278" y="133" text-anchor="middle" style="fill:#e0892b">1</text>
+    <rect class="nmut" x="326" y="112" width="80" height="32" rx="5" stroke-width="1.1"/><text class="svg-mono" x="366" y="133" text-anchor="middle">0</text>
+    <rect class="nmut" x="414" y="112" width="80" height="32" rx="5" stroke-width="1.1"/><text class="svg-mono" x="454" y="133" text-anchor="middle">0</text>
+    <rect class="ncor" x="502" y="112" width="80" height="32" rx="5" stroke-width="1.1"/><text class="svg-mono" x="542" y="133" text-anchor="middle" style="fill:#e0892b">1</text>
+    <text class="svg-mono" x="366" y="176" text-anchor="middle" style="fill:var(--tune)">'m'의 1들(r1·r3·r4)이 한 조각 — 이 조각을 잠그면 셋 다 대기</text>
+  </svg>
+  <figcaption>값(m/f)마다 행 전체를 훑는 비트벡터가 하나씩. AND/OR은 이 벡터들을 비트로 겹치면 끝이라 대량·저선택도에 빠르다. 대신 한 값이 여러 행(r1·r3·r4)을 한 덩어리로 묶는 게 OLTP 잠금 함정의 씨앗이다.</figcaption>
+  </figure>
+  <div class="why"><span class="h">AND/OR이 왜 싼가 — index_combine의 정체</span>
+  두 조건을 겹칠 때 bitmap은 <b>두 비트벡터를 bitwise AND/OR</b>만 하면 된다(<code class="inl">gender='m'</code> AND <code class="inl">dept=10</code> → 두 벡터에서 나란히 1인 자리만 남긴다). §5.6에서 index_combine이 and_equal(10)보다 싼 <b>4</b>였던 이유가 이것 — 옵티마이저가 B*tree의 rowid를 <b>비트맵으로 변환(BITMAP CONVERSION FROM ROWIDS)</b>해 비트 연산으로 교집합하기 때문이다. rowid를 하나씩 맞춰보는 AND-EQUAL보다 비트 겹치기가 싸다. <span class="db add">확인 권장</span></div>
+  <p><b class="k">그런데 bitmap을 OLTP에 쓰면 — 한 값이 여러 행을 함께 잠근다.</b> bitmap은 키 하나(<code class="inl">gender='m'</code>)가 그 값을 가진 <b>여러 행을 한 조각(비트맵 세그먼트)으로</b> 덮는다. 그래서 서로 <b>다른 행</b>을 넣어도 gender가 같으면 같은 조각을 두고 잠금이 부딪친다.</p>
+  <pre class="term"><span class="cm">-- 세션1: insert ... values(1,'m','y')    세션2: insert ... values(3,'m','y')</span>
+<span class="pr">SQL&gt;</span> select sid, blocking_session, event from v$session where event like '%TX%';
+<span class="out">  SID   BLOCKING_SESSION   EVENT</span>
+<span class="hl">  286   255                enq: TX - row lock contention</span></pre>
+  <div class="tip"><b>다른 행인데 왜 막혔나</b> — 286은 <code class="inl">(3,'m','y')</code>, 255는 <code class="inl">(1,'m','y')</code>. 행은 다르지만 <code class="inl">gender='m'</code>이 같아 <b>같은 bitmap 조각</b>을 두고 286이 255에 막혔다. B*tree라면 다른 행이라 안 부딪쳤을 경합이다. <b class="k">그래서 bitmap은 동시 DML이 잦은 OLTP엔 독</b>이고, 변경이 드문 DW·DSS에서 <span class="we">enq: TX - row lock contention</span> 걱정 없이 AND/OR을 싸게 처리하는 용도다.</div>
+  <div class="why"><span class="h">왜 '다른 행'인데 막히나 — 조각 단위 잠금</span>
+  bitmap은 공간을 아끼려 <b>연속된 여러 행의 비트를 한 조각(bitmap piece)으로 압축</b>해 둔다. 그래서 그 안의 <b>비트 하나</b>만 바꾸려 해도(=한 행이 그 값을 갖게 insert/update되면) 조각을 통째로 풀었다 다시 압축해야 하고, 그동안 <b>같은 조각이 덮는 다른 행들까지 함께 잠긴다</b>. B*tree는 행마다 인덱스 엔트리가 따로라 딱 한 행만 잠그지만, bitmap은 한 값의 여러 행이 한 조각이라 <b class="k">"다른 행인데 같은 값"이면 부딪친다</b>(위 286↔255). 동시 입력·수정이 몰릴수록 <span class="we">enq: TX - row lock contention</span>이 쌓인다. <span class="db add">확인 권장</span></div>
+</section>
+
+<section class="part" id="p6">
+  <div class="phead"><div class="pnum">06</div><div><div class="ptitle">실행계획 도구 & 통계 읽기 <span class="db add">70일차</span></div><div class="psub">무엇으로 뽑고, 결과의 숫자를 어떻게 읽나</div></div></div>
+
+  <h3 class="blk"><span class="ix">6.1</span>도구 심화 — autotrace 모드 & display 포맷</h3>
+  <p>도구 3종(<code class="inl">autotrace</code> · <code class="inl">EXPLAIN PLAN</code> · <code class="inl">display_cursor</code>)과 "예상 vs 실제(E-Rows/A-Rows)"는 <a href="#plan" style="color:var(--tune);font-weight:600">§2.1 실행계획 읽기</a>에서 다뤘다. 여기서는 70일차에 더 자세히 본 <b>모드·포맷 옵션</b>만 짚는다.</p>
+  <div class="why"><span class="h">autotrace 모드 (set autot …)</span>
+  <code class="inl">on</code>(계획+결과+통계) · <code class="inl">on exp</code>(결과+계획) · <code class="inl">on stat</code>(결과+통계) · <code class="inl">traceonly</code>(결과 숨김, 계획+통계) · <code class="inl">trace exp</code>(계획만) · <code class="inl">trace stat</code>(통계만) · <code class="inl">off</code>. "결과를 볼까 / 계획만 / 통계만"의 조합이다. (autotrace는 <code class="inl">PLUSTRACE</code> role이 있어야 통계까지 나온다.)</div>
+  <div class="tip"><b>display 포맷</b> — <code class="inl">dbms_xplan.display(...,'basic'|'typical'|'outline'|'advanced')</code>. <b>basic</b>은 Id·Operation·Name만, <b>typical</b>(기본)은 Rows·Cost·Predicate까지, <b>outline</b>은 옵티마이저가 쓴 힌트 묶음(계획 고정용), <b>advanced</b>는 Column Projection까지 전부 보여준다.</div>
+
+  <h3 class="blk"><span class="ix">6.2</span>Statistics 숫자 읽기</h3>
+  <p><b class="k">먼저 — 실행계획 표 자체의 컬럼</b>(<code class="inl">display_cursor … allstats last</code>)이 숫자의 1차 출처다.</p>
+  <table>
+    <tr><th>컬럼</th><th>의미</th></tr>
+    <tr><td><b>Starts</b></td><td>그 operation을 <b>몇 번 반복</b>했나 (NL 안쪽이면 바깥 행 수만큼)</td></tr>
+    <tr><td><b>E-Rows / A-Rows</b></td><td><b>예상</b> 행수 / <b>실제</b> 반환 행수. 둘이 벌어지면 통계 의심</td></tr>
+    <tr><td><b>A-Time</b></td><td>실제 수행 시간(누적)</td></tr>
+    <tr><td><b>Buffers</b></td><td>그 operation의 <b>논리 I/O</b> 블록 수(누적). 물리 포함. <b>튜닝 1차 지표</b></td></tr>
+    <tr><td><b>Reads</b></td><td><b>물리 I/O</b> 블록 수(누적) — 디스크에서 실제로 읽음</td></tr>
+  </table>
+  <p style="margin-top:14px"><b class="k">그리고 autotrace의</b> <code class="inl">Statistics</code> 블록:</p>
+  <table>
+    <tr><th>항목</th><th>의미</th></tr>
+    <tr><td><b>consistent gets</b></td><td>SELECT의 <b>논리 I/O</b>(읽기 일관성 모드 블록 읽기). 튜닝의 핵심 지표</td></tr>
+    <tr><td><b>db block gets</b></td><td>DML의 current 모드 블록 읽기(논리 I/O)</td></tr>
+    <tr><td><b>physical reads</b></td><td><b>물리 I/O</b> — 디스크에서 실제로 읽은 블록</td></tr>
+    <tr><td><b>recursive calls</b></td><td>오라클 내부 SQL 수. <b>hard parse 시 증가</b>(딕셔너리 조회 등)</td></tr>
+    <tr><td><b>redo size</b></td><td>DML이 만든 redo 바이트</td></tr>
+    <tr><td><b>sorts (memory/disk)</b></td><td>PGA에서 끝난 정렬 / temp로 흘러넘친 정렬. disk가 0이 아니면 PGA 부족 신호</td></tr>
+  </table>
+  <div class="tip"><b>두 출처는 같은 것을 다르게 부른다</b> — 실행계획 표의 <code class="inl">Buffers</code> ≈ Statistics의 <code class="inl">consistent gets</code>(+db block gets), <code class="inl">Reads</code> ≈ <code class="inl">physical reads</code>. 표는 <b>operation별</b>로, Statistics는 <b>문장 전체</b>로 본다는 차이.</div>
+  <div class="why"><span class="h">튜닝은 보통 consistent gets를 본다</span>
+  실행 시간은 캐시 상태·부하에 따라 출렁이지만 <b>논리 I/O(consistent gets)는 그 SQL이 한 일의 양</b>이라 안정적이다. 같은 결과를 더 적은 consistent gets로 내도록 바꾸는 게 튜닝의 본질. <code class="inl">latch: cache buffers chains</code> 경합도 결국 과도한 논리 I/O가 원인이라 같은 처방으로 줄어든다.</div>
+
+  <h3 class="blk"><span class="ix">6.3</span>버퍼 피닝 (Buffer Pinning)</h3>
+  <div class="tip"><b>한 줄 비유</b> — 책 45권을 꺼내는데, 여러 권이 <b>같은 책장</b>에 꽂혀 있다. 책장 하나를 꺼낼 때마다 제자리에 도로 꽂지 않고 <b>옆에 둔 채(=핀)</b> 계속 빼면, 책장까지 걸어가는 횟수가 확 준다. 여기서 "책장까지 걸어가기"가 <b>블록 읽기(논리 I/O)</b>다.</div>
+  <p>이 기법이 <b>왜 필요한지</b>를 <b class="k">문제 → 원인 → 해결</b> 순으로 보자.</p>
+  <figure>
+  <svg viewBox="0 0 680 165" role="img" aria-label="버퍼 피닝의 문제 원인 해결 흐름">
+    <defs><marker id="bf" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aab3c0" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <rect class="nal" x="14" y="40" width="196" height="86" rx="10" stroke-width="1.2"/><text class="svg-lbl" x="112" y="66" text-anchor="middle">① 문제</text><text class="svg-sub" x="112" y="88" text-anchor="middle">45행을 행마다 읽으면</text><text class="svg-sub" x="112" y="106" text-anchor="middle">≈ 46번 블록 읽기</text>
+    <rect class="ncor" x="242" y="40" width="196" height="86" rx="10" stroke-width="1.2"/><text class="svg-lbl" x="340" y="66" text-anchor="middle">② 알고보니</text><text class="svg-sub" x="340" y="88" text-anchor="middle">그 45행은 사실</text><text class="svg-sub" x="340" y="106" text-anchor="middle">5개 블록에 몰려 있다</text>
+    <rect class="ntune" x="470" y="40" width="196" height="86" rx="10" stroke-width="1.2"/><text class="svg-lbl" x="568" y="66" text-anchor="middle">③ 그래서 핀</text><text class="svg-sub" x="568" y="88" text-anchor="middle">읽은 블록을 붙들어</text><text class="svg-mono" x="568" y="106" text-anchor="middle" style="fill:var(--tune)">재사용 → 9번</text>
+    <line class="edge" x1="210" y1="83" x2="240" y2="83" marker-end="url(#bf)"/>
+    <line class="edge" x1="438" y1="83" x2="468" y2="83" marker-end="url(#bf)"/>
+  </svg>
+  <figcaption>큰 흐름: 많이 읽어야 하는 문제 → 행들이 몇 블록에 몰려 있다는 관찰 → 그 블록을 핀으로 재사용해 읽기를 줄임.</figcaption>
+  </figure>
+
+  <p style="margin-top:4px"><b class="k">① 문제 — 인덱스 읽기는 사실 '작은 NL 루프'</b></p>
+  <div class="why"><span class="h">Id 2 ↔ Id 1 의 반복</span>
+  실행계획의 두 줄이 이렇게 주고받는다.
+  <ol class="tight" style="margin:6px 0 0;padding-left:20px">
+    <li><b>Id 2 (INDEX RANGE SCAN)</b>: 인덱스 leaf에서 조건에 맞는 <b>rowid 하나</b>를 찾아 Id 1에 넘긴다.</li>
+    <li><b>Id 1 (TABLE ACCESS BY INDEX ROWID)</b>: 그 rowid의 <b>테이블 블록을 읽어</b> 결과 한 행을 만든다.</li>
+    <li>다시 Id 2가 <b>다음 rowid</b> → Id 1이 또 읽고 … 행 수(45)만큼 반복.</li>
+  </ol>
+  순진하게 보면 <b>행마다 테이블 블록을 한 번씩</b> 읽으니 45번 + 인덱스 ≈ 46번이다.</div>
+
+  <p style="margin-top:14px"><b class="k">② 알고보니 + ③ 그래서 핀 — 블록 단위로 보면</b></p>
+  <p>그런데 같은 부서원(department_id=50) 행들은 테이블에서 <b>몇 개의 블록에 몰려</b> 있다. Id 1이 한 번 읽은 블록을 <b>바로 풀지 않고 핀으로 붙들어 두면</b>, 다음 rowid가 같은 블록을 가리킬 때 다시 안 읽고 재사용한다.</p>
+  <figure>
+  <svg viewBox="0 0 680 250" role="img" aria-label="45개 행이 5개 테이블 블록에 몰려 핀으로 재사용되는 모습">
+    <text class="svg-sub" x="340" y="24" text-anchor="middle">45개 행의 rowid가 가리키는 테이블 블록은 사실 몇 개뿐 — 같은 블록은 1번만 읽는다</text>
+    <rect class="ntune" x="20" y="48" width="118" height="78" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="79" y="74" text-anchor="middle">블록 #1</text><text class="svg-sub" x="79" y="94" text-anchor="middle">≈ 9행</text><text class="svg-mono" x="79" y="114" text-anchor="middle" style="fill:var(--tune)">1회만 읽음</text>
+    <rect class="ntune" x="148" y="48" width="118" height="78" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="207" y="74" text-anchor="middle">블록 #2</text><text class="svg-sub" x="207" y="94" text-anchor="middle">≈ 9행</text><text class="svg-mono" x="207" y="114" text-anchor="middle" style="fill:var(--tune)">1회만 읽음</text>
+    <rect class="ntune" x="276" y="48" width="118" height="78" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="335" y="74" text-anchor="middle">블록 #3</text><text class="svg-sub" x="335" y="94" text-anchor="middle">≈ 9행</text><text class="svg-mono" x="335" y="114" text-anchor="middle" style="fill:var(--tune)">1회만 읽음</text>
+    <rect class="ntune" x="404" y="48" width="118" height="78" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="463" y="74" text-anchor="middle">블록 #4</text><text class="svg-sub" x="463" y="94" text-anchor="middle">≈ 9행</text><text class="svg-mono" x="463" y="114" text-anchor="middle" style="fill:var(--tune)">1회만 읽음</text>
+    <rect class="ntune" x="532" y="48" width="118" height="78" rx="9" stroke-width="1.2"/><text class="svg-lbl" x="591" y="74" text-anchor="middle">블록 #5</text><text class="svg-sub" x="591" y="94" text-anchor="middle">≈ 9행</text><text class="svg-mono" x="591" y="114" text-anchor="middle" style="fill:var(--tune)">1회만 읽음</text>
+    <text class="svg-sub" x="340" y="152" text-anchor="middle">한 블록 안의 여러 행은 핀으로 붙들어 둔 채 연속으로 꺼낸다 (다시 안 읽음)</text>
+    <rect class="ncor" x="120" y="172" width="440" height="56" rx="10" stroke-width="1.2"/>
+    <text class="svg-lbl" x="340" y="198" text-anchor="middle">인덱스 접근 4  +  테이블 블록 5  =  Buffers 9</text>
+    <text class="svg-sub" x="340" y="217" text-anchor="middle">핀이 없으면 45행을 따로 읽어 ≈ 46번 — 그게 9로 접힌 것</text>
+  </svg>
+  <figcaption>핵심은 "45행이 5블록에 몰려 있다"는 것. 블록을 핀으로 잡아두면 같은 블록의 행들은 읽기 1번으로 끝나, 45번이 5번으로 줄어든다.</figcaption>
+  </figure>
+
+  <p style="margin-top:6px"><b class="k">실측 (department_id=50, 45행)</b></p>
+  <pre class="term"><span class="pr">HR@ora19c&gt;</span> select /*+ gather_plan_statistics */ * from hr.emp where department_id = 50;
+<span class="out">-----------------------------------------------------------------------------</span>
+<span class="out">| Id | Operation                          | Name         | A-Rows | Buffers |</span>
+<span class="out">-----------------------------------------------------------------------------</span>
+<span class="out">|  0 | SELECT STATEMENT                   |              |     45 |       9 |</span>
+<span class="out">|  1 |  TABLE ACCESS BY INDEX ROWID BATCHED| EMP          |     45 |       9 |</span>
+<span class="hl">|* 2 |   INDEX RANGE SCAN                 | EMP_DEPT_IDX |     45 |       4 |  ← 핀으로 절약</span>
+<span class="out">-----------------------------------------------------------------------------</span></pre>
+  <div class="why"><span class="h">핀이 정확히 뭔가 — 무엇을·왜·언제 푸나</span>
+  <ul class="tight" style="margin:4px 0 0">
+    <li><b>무엇</b> — 핀(buffer pin)은 그 블록의 관리 카드(<b>buffer header</b>)에 꽂는 "지금 사용 중" 표시다. 데이터 본문이 아니라 블록마다 붙은 머리표에 기록된다.</li>
+    <li><b>왜 절약되나</b> — 핀이 살아 있으면 그 블록은 메모리에 그대로 있어, 다음에 같은 블록을 쓸 때 <b class="k">cache buffers chains latch를 잡고 해시 체인을 뒤지는 과정을 통째로 건너뛴다.</b> 즉 "주소로 다시 찾아가는" 게 아니라 "이미 손에 쥔" 것이다. 논리 I/O(Buffers)와 latch 점유가 함께 준다.</li>
+    <li><b>언제 풀리나</b> — <b>다른 블록으로 넘어갈 때</b>, 또는 그 operation/fetch 단위가 끝날 때 푼다. 그래서 같은 블록이 <b>연속</b>으로 와야 효과가 있고, 중간에 다른 블록이 끼면 풀려서 절약이 사라진다(= clustering이 나쁘면 효과 없음).</li>
+  </ul></div>
+  <div class="why"><span class="h">효과를 키우는 두 가지</span>
+  <ul class="tight" style="margin:4px 0 0">
+    <li><b>BATCHED</b> — rowid를 모아 <b>블록별로 묶어</b> 접근(<code class="inl">TABLE ACCESS BY INDEX ROWID BATCHED</code>). 같은 블록을 한 번에 처리해 피닝 효과를 키운다.</li>
+    <li><b>clustering factor</b> — 같은 키의 행들이 테이블에서 <b>가까이 모여 있을수록</b>(클러스터링 팩터가 좋을수록) 연속 rowid가 같은 블록에 떨어져 피닝 효과가 커진다. 흩어져 있으면 매 행이 다른 블록이라 절약이 사라진다.</li>
+  </ul>
+  39일차 Execute에서 본 <b>buffer pin</b>이 여기서 <b>튜닝 효과(논리 I/O 절감)</b>로 다시 등장한 셈이다.</div>
+
+  <h3 class="blk"><span class="ix">6.4</span>클러스터링 팩터 — 같은 테이블에서 24배 차이 <span class="db add">71일차</span></h3>
+  <p>버퍼 피닝이 잘 먹히려면 <b class="k">같은 키의 행들이 테이블에서 가까운 블록에 모여 있어야</b> 한다. 그 "모인 정도"를 수치로 나타낸 게 <b>clustering factor</b>다.</p>
+  <div class="why"><span class="h">어떻게 계산되나</span>
+  인덱스 leaf를 처음부터 끝까지 훑으면서, rowid가 가리키는 <b>테이블 블록 번호가 직전과 바뀔 때마다 +1</b>. 그래서 —
+  <ul class="tight" style="margin:6px 0 0">
+    <li>값이 <b>테이블 블록 수</b>에 가까움 → <b class="k">좋음</b> (행들이 블록별로 뭉쳐 있어 블록이 잘 안 바뀜)</li>
+    <li>값이 <b>테이블 행 수</b>에 가까움 → <b class="k">나쁨</b> (행마다 블록이 바뀜 = 흩어짐)</li>
+  </ul></div>
+  <p><b class="k">실측 — 같은 데이터, 같은 결과(71,332행)인데 인덱스만 다름</b> (테이블을 <code class="inl">object_id</code> 순으로 정렬해 생성):</p>
+  <table>
+    <tr><th>인덱스</th><th>컬럼</th><th>clustering factor</th><th>같은 쿼리 Buffers</th></tr>
+    <tr><td>C_TAB_IDX</td><td>object_id <span style="color:var(--tune)">(정렬된 순서 ✓)</span></td><td>1,389 <span class="muted">(블록수 1,421에 근접)</span></td><td><b>1,548</b></td></tr>
+    <tr><td>C_TAB_NAME_IDX</td><td>object_name <span style="color:#C0392B">(흩어짐 ✗)</span></td><td>36,060 <span class="muted">(행수 71,332 쪽)</span></td><td><b>36,516</b></td></tr>
+  </table>
+  <div class="tip"><b>약 24배 차이</b> — 똑같은 71,332행을 세는데, 좋은 인덱스는 <b>1,548</b>번, 나쁜 인덱스는 <b>36,516</b>번 블록을 읽는다. 나쁜 쪽은 행마다 다른 블록이라 핀이 매번 풀려 재사용이 안 된다. <b class="k">한 순서로만 정렬 가능</b>이라는 함정도 그대로다 — object_id로 정렬해 만들었으니 object_id 인덱스만 좋고, object_name 인덱스는 나쁘다. 그래서 <b>가장 자주·많이 범위 조회하는 컬럼 하나</b>를 기준으로 정렬해 둔다(CTAS ... ORDER BY, dbms_redefinition 등).</div>
+  <div class="why"><span class="h">latch와 연결</span>
+  clustering이 좋으면 같은 블록 연속 → 핀 재사용 → <code class="inl">cache buffers chains latch</code>를 잡는 횟수가 줄어든다. 즉 <b>clustering factor가 좋다 = 논리 I/O(Buffers)도, latch 점유도 함께 준다.</b></div>
+
+  <h3 class="blk"><span class="ix">6.5</span>SQL TRACE & tkprof <span class="db add">71일차</span></h3>
+  <p>display_cursor가 "한 SQL의 실행계획+실측"이라면, <b class="k">SQL TRACE</b>는 한 세션이 돌린 SQL들의 수행 통계를 <b>파일로</b> 남긴다. 그 파일을 사람이 읽기 좋게 포맷하는 도구가 <b>tkprof</b>다.</p>
+  <pre class="term"><span class="pr">HR&gt;</span> alter session set sql_trace = true;        <span class="cm">-- 추적 켜기</span>
+<span class="pr">HR&gt;</span> select * from hr.emp where employee_id = 100;  <span class="cm">-- 추적할 SQL 실행</span>
+<span class="pr">HR&gt;</span> alter session set sql_trace = false;       <span class="cm">-- 끄기</span>
+<span class="pr">$</span> tkprof ora19c_ora_xxxx.trc out.txt sys=no    <span class="cm">-- 포맷 (sys=no: 내부 SQL 제외)</span></pre>
+  <p>tkprof 결과는 SQL마다 <b>Parse · Execute · Fetch</b> 세 줄로 통계를 보여준다.</p>
+  <table>
+    <tr><th>call</th><th>무슨 통계</th></tr>
+    <tr><td><b>Parse</b></td><td>파싱·실행계획 생성</td></tr>
+    <tr><td><b>Execute</b></td><td>커서 실행 단계 — <b>DML은 여기를 본다</b></td></tr>
+    <tr><td><b>Fetch</b></td><td>행을 실제로 가져옴 — <b>SELECT는 여기를 본다</b></td></tr>
+  </table>
+  <table>
+    <tr><th>열</th><th>의미</th></tr>
+    <tr><td><b>disk</b></td><td>물리 블록 수 (= 디스크 읽기, pr)</td></tr>
+    <tr><td><b>query</b></td><td>일관성 읽기용 논리 블록 = <b>consistent gets</b> — <b class="k">SELECT면 이걸 본다</b></td></tr>
+    <tr><td><b>current</b></td><td>current 모드 논리 블록 = <b>db block gets</b> — <b class="k">DML이면 이걸 본다</b></td></tr>
+    <tr><td><b>rows</b></td><td>처리한 행 수</td></tr>
+  </table>
+  <div class="why"><span class="h">한 줄로 외우기</span>
+  <b>SELECT → Fetch 줄의 query(consistent gets)·disk</b>를 본다. <b>DML → Execute 줄의 current(db block gets)·disk</b>를 본다. (Row Source Operation 줄의 <code class="inl">cr</code>=논리 블록, <code class="inl">pr</code>=물리 블록, <code class="inl">pw</code>=쓰기도 같은 뜻.) display_cursor의 Buffers/Reads와 같은 것을 파일 관점에서 보는 셈이다.</div>
+
+  <h3 class="blk"><span class="ix">6.6</span>10046 이벤트 — bind 값과 wait까지 <span class="db add">72일차</span></h3>
+  <p><code class="inl">sql_trace=true</code>(§6.5)는 "무슨 SQL이 얼마나 걸렸나"까지다. 한 걸음 더 — <b class="k">어떤 값(bind)으로 돌렸고, 무엇을 기다렸나(wait)</b> — 까지 보려면 <b>10046 이벤트</b>를 건다. 느린 원인이 읽기량이 아니라 <b>기다림</b>일 때 필수다.</p>
+  <pre class="term"><span class="pr">HR&gt;</span> alter session set events '10046 trace name context forever, <span class="hl">level 12</span>';
+<span class="pr">HR&gt;</span> exec :b_id := 50;
+<span class="pr">HR&gt;</span> select * from hr.emp where department_id = :b_id;
+<span class="pr">HR&gt;</span> alter session set events '10046 trace name context off';
+<span class="cm">-- 추적파일에 찍히는 것:</span>
+<span class="out">  BINDS #..:  :b_id = 50                         </span><span class="cm">-- 무슨 값으로</span>
+<span class="out">  WAIT #..:  db file sequential read ...         </span><span class="cm">-- 무엇을 기다렸나</span>
+<span class="out">  WAIT #..:  db file scattered read ...          </span></pre>
+  <table>
+    <tr><th>level</th><th>추가로 찍히는 것</th></tr>
+    <tr><td>1</td><td>기본 — SQL·실행통계 (<code class="inl">sql_trace=true</code>와 동급)</td></tr>
+    <tr><td>4</td><td>+ <b>BINDS</b> (바인드 변수 값)</td></tr>
+    <tr><td>8</td><td>+ <b>WAITS</b> (대기 이벤트)</td></tr>
+    <tr><td>12</td><td><b class="k">4 + 8</b> — bind·wait 둘 다</td></tr>
+  </table>
+  <div class="why"><span class="h">레벨은 더한다 — 12 = 4 + 8</span>
+  1(기본) · 4(+bind) · 8(+wait)이고, <b>둘 다 원하면 더해서 12</b>다(비트마스크라 값을 합친다). tkprof로는 "얼마나 걸렸나"까지지만, level 12를 걸면 <b>무슨 값으로 돌렸고(bind)·무엇을 기다렸나(wait)</b>가 추적파일에 그대로 남는다. 대기가 <span class="we">db file sequential read</span>면 인덱스 단일 블록 읽기, <span class="we">db file scattered read</span>면 full scan multi-block 읽기다 — 어제 본 대기이벤트가 여기서 원인 진단으로 이어진다.</div>
+
+  <p style="margin-top:14px"><b class="k">켠 다음 — 그 추적파일은 어디 있나?</b> 파일명에 꼬리표를 달고 경로를 물어본다.</p>
+  <pre class="term"><span class="pr">HR&gt;</span> alter session set tracefile_identifier = 'my10046';   <span class="cm">-- 파일명 꼬리표</span>
+<span class="pr">HR&gt;</span> select value from v$diag_info where name = 'Default Trace File';
+<span class="out">.../diag/rdbms/ora19c/ora19c/trace/ora19c_ora_1234_my10046.trc</span></pre>
+  <div class="tip"><b>tkprof로 이어진다</b> — <code class="inl">sql_trace=true</code>(§6.5)가 사실 10046의 얕은 버전이다. 그래서 level 12로 뽑은 이 <code class="inl">.trc</code>도 <code class="inl">tkprof x.trc out.txt sys=no</code>로 포맷하면 통계 표 아래에 <b>대기 이벤트 요약</b>(Elapsed times include waiting on …)이 붙어 "어디서 기다렸나"가 정리된다. 즉 <b class="k">10046 level 12 = tkprof 통계 + bind 값 + wait 상세.</b> 현대식으로는 <code class="inl">dbms_monitor.session_trace_enable(waits=&gt;true, binds=&gt;true)</code>가 같은 level 12다. <span class="db add">확인 권장</span></div>
+  <div class="why"><span class="h">bind 값을 왜 봐야 하나 — bind peeking</span>
+  옵티마이저는 하드파싱 때 바인드 변수의 <b>실제 값을 엿보고(peeking)</b> 계획을 정한다. 그래서 <code class="inl">:b_id = 50</code>일 땐 빠른 계획이, 값이 편중된 다른 입력에선 같은 SQL·같은 커서인데 느릴 수 있다. tkprof는 "느렸다"까지만 알려주고, <b>어떤 값에서 느렸는지</b>는 level 12의 BINDS가 있어야 재현·진단된다. <span class="db add">확인 권장</span> — peeking 세부는 수업 노트 밖 표준 지식이니 홈랩에서 직접 확인해 보세요.</div>
+
+  <h3 class="blk"><span class="ix">6.7</span>버퍼 캐시 히트율(BCHR) — 높다고 좋은 게 아니다 <span class="db add">72일차</span></h3>
+  <p><b>BCHR</b>(Buffer Cache Hit Ratio)은 논리 읽기 중 <b>디스크로 안 간 비율</b>이다.</p>
+  <pre class="term"><span class="out">BCHR = ( 1 - disk / (query + current) ) * 100</span>
+<span class="cm">   query + current = 논리 읽기(블록),   disk = 물리 읽기(블록)</span></pre>
+  <div class="why"><span class="h">히트율이 높은데 느리다면 — 지표를 잘못 본 것</span>
+  "BCHR은 높을수록 좋다"고 배우지만, <b class="k">나쁜 실행계획이 오히려 BCHR을 100%에 가깝게 만든다.</b> 실행계획이 나빠 논리 읽기(query)가 폭증하면 분모가 커져 <code class="inl">disk/(query+current)</code>가 0에 수렴 — 디스크는 안 가고 <b>캐시에서만 잔뜩 읽어서</b> 히트율은 오히려 올라간다. 그래서 봐야 할 것은 히트율(비율)이 아니라 <b>논리 I/O(Buffers·consistent gets)의 절대량</b>이다. §6.2의 "튜닝은 보통 consistent gets를 본다"와 같은 결론이다.</div>
+  <p style="margin-top:14px"><b class="k">숫자로 보면 함정이 분명하다</b> — 같은 결과를 내는 두 계획 (이해용 예시 수치):</p>
+  <table>
+    <tr><th>지표</th><th>나쁜 계획</th><th>좋은 계획</th></tr>
+    <tr><td>query (논리 읽기)</td><td>100,000</td><td>200</td></tr>
+    <tr><td>disk (물리 읽기)</td><td>50</td><td>20</td></tr>
+    <tr><td><b>BCHR</b></td><td><b style="color:var(--alert)">99.95%</b></td><td>90.9%</td></tr>
+    <tr><td>실제 한 일(논리 I/O)</td><td>✗ 500배 많음</td><td>✓ 적음</td></tr>
+  </table>
+  <div class="tip"><b>히트율이 높은 쪽이 오히려 500배 느리다</b> — 나쁜 계획은 캐시에서 10만 블록을 헛읽고 디스크(50)는 거의 안 가니 <code class="inl">1-50/100000</code> ≈ <b>99.95%</b>. 좋은 계획은 200블록만 읽고 끝나지만 디스크 비중이 커 <code class="inl">1-20/220</code> ≈ <b>90.9%</b>. <b class="k">비율(BCHR)이 아니라 논리 I/O 절대량(query)</b>을 봐야 진짜 빠른 쪽을 고른다.</div>
+  <div class="why"><span class="h">BCHR은 어디서 나오나 · 대신 무엇을 보나</span>
+  시스템 전체 BCHR은 <code class="inl">v$sysstat</code>의 <code class="inl">consistent gets</code>·<code class="inl">db block gets</code>·<code class="inl">physical reads</code>로 계산된다 — 인스턴스 누적이라 SQL 하나의 문제를 더 뭉뚱그린다. 그래서 진단은 BCHR을 지나쳐 아래로 내려가 본다: <b>① SQL별 Buffers·consistent gets(§6.2)</b>, <b>② A-Time·대기(10046, §6.6)</b>, <b>③ E-Rows↔A-Rows 괴리(§2.5)</b>. <span class="db add">확인 권장</span> — BCHR 무용론은 널리 알려진 표준 논지이니 세부는 직접 확인 권장.</div>
+</section>
+
+<section class="part" id="join">
+  <div class="phead"><div class="pnum">07</div><div><div class="ptitle">조인 — 방법은 건수로, 순서는 힌트로 <span class="db add">72일차</span></div><div class="psub">NL·Sort Merge·Hash, 그리고 반복 횟수를 Starts로 읽는다</div></div></div>
+  <p>조인에는 <b class="k">두 축</b>이 있고 둘은 별개다 — <b class="k">방법</b>(어떻게 붙이나)과 <b class="k">순서</b>(누가 먼저 도나). 방법은 대체로 <b>건수</b>가, 순서는 <b>힌트</b>가 정한다.</p>
+  <table>
+    <tr><th>구분</th><th>언제 유리</th><th>힌트</th></tr>
+    <tr><td><b>NESTED LOOPS</b></td><td>조인 결과가 <b>소량</b> · 안쪽에 인덱스가 있을 때</td><td><code class="inl">use_nl</code></td></tr>
+    <tr><td><b>SORT MERGE</b></td><td>대량 · 양쪽을 정렬해 병합 (부등호 조인에도)</td><td><code class="inl">use_merge</code></td></tr>
+    <tr><td><b>HASH JOIN</b></td><td>대량 · 한쪽으로 해시 테이블을 만들 때 (<code class="inl">=</code> 조인)</td><td><code class="inl">use_hash</code></td></tr>
+    <tr><td>조인 <b>순서</b></td><td>from 순서대로 / 지정 순서로</td><td><code class="inl">ordered</code> / <code class="inl">leading</code></td></tr>
+  </table>
+  <div class="tip"><b>방법과 순서는 다른 축</b> — 바깥이 1행이면 순서를 바꿔도 Buffers는 같다. 하지만 <b>바깥이 여러 행</b>이면 누가 먼저(driving) 도느냐로 안쪽 반복 횟수가 확 달라진다. 그 반복을 실행계획의 <b class="k">Starts</b>로 본다(§6.2).</p></div>
+
+  <h3 class="blk"><span class="ix">7.1</span>NL은 바깥 각 행마다 안쪽을 반복한다</h3>
+  <p>Nested Loop은 <b>바깥(driving) 테이블의 각 행마다 안쪽을 인덱스로 조회</b>해 붙인다. 그래서 바깥이 작을수록 안쪽 반복이 적어 싸다. 반복 횟수는 실행계획의 <b class="k">Starts</b>에 그대로 찍힌다.</p>
+  <figure>
+  <svg viewBox="0 0 680 210" role="img" aria-label="NL 조인: 바깥 각 행마다 안쪽을 반복">
+    <defs><marker id="nl" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aab3c0" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <rect class="ntune" x="40" y="58" width="240" height="94" rx="10" stroke-width="1.2"/>
+    <text class="svg-lbl" x="160" y="88" text-anchor="middle">바깥 (driving)</text>
+    <text class="svg-sub" x="160" y="110" text-anchor="middle">조건이 먼저 거른 쪽</text>
+    <text class="svg-mono" x="160" y="132" text-anchor="middle" style="fill:var(--tune)">각 행마다 →</text>
+    <rect class="ncor" x="400" y="58" width="240" height="94" rx="10" stroke-width="1.2"/>
+    <text class="svg-lbl" x="520" y="88" text-anchor="middle">안쪽 (inner)</text>
+    <text class="svg-sub" x="520" y="110" text-anchor="middle">바깥 행의 키로 인덱스 조회</text>
+    <text class="svg-mono" x="520" y="132" text-anchor="middle" style="fill:#e0892b">Starts = 바깥 행 수</text>
+    <line class="edge" x1="280" y1="105" x2="398" y2="105" marker-end="url(#nl)"/>
+    <text class="svg-sub" x="339" y="96" text-anchor="middle">반복 (loop)</text>
+    <text class="svg-mono" x="340" y="184" text-anchor="middle" style="fill:var(--tune)">바깥이 작을수록 안쪽 반복이 적다 → NL이 싸다</text>
+  </svg>
+  <figcaption>NL의 비용은 바깥 행 수에 달렸다. 안쪽이 몇 번 돌았는지는 실행계획 <b>Starts</b>에 그대로 나온다.</figcaption>
+  </figure>
+  <div class="why"><span class="h">driving과 driven — 왜 그렇게 부르나</span>
+  이중 for문으로 보면 이름이 그대로 풀린다. <code class="inl">for each row in OUTER { probe INNER }</code> —
+  <ul class="tight" style="margin:6px 0 0">
+    <li><b>driving(=outer, 선행)</b>: 바깥 루프. 자기 행 수만큼 안쪽을 돌려 <b>반복을 민다</b>. 그 횟수가 곧 <b class="k">Starts</b>다. 그래서 옵티마이저는 <b>적게 걸러진 작은 쪽</b>을 driving으로 두려 한다.</li>
+    <li><b>driven(=inner, 후행)</b>: 안쪽 루프. 스스로 횟수를 못 정하고 driving이 주는 만큼 <b>끌려서 조회당한다</b>(수동태). 매 outer 행의 조인키로 lookup된다.</li>
+  </ul></div>
+  <div class="tip"><b>그래서 driven엔 인덱스가 필수</b> — driven은 outer 행마다 반복해 뒤져지므로, 조인 컬럼에 인덱스가 없으면 <code class="inl">Starts번 × full scan</code>으로 터진다. NL 튜닝의 정석은 <b class="k">① driving은 작은(많이 걸러진) 쪽, ② driven의 조인 컬럼엔 인덱스</b>. 아래 두 플랜에서 driven이 늘 인덱스(UNIQUE/RANGE SCAN)로 접근되는 이유다.</div>
+  <div class="tip"><b>헷갈리지 말 것 — outer 테이블 ≠ outer 조인</b> 여기서 <b>outer 테이블</b>은 NL 바깥 루프(=driving)를 말한다. 짝 없는 행을 NULL로 살리는 <b>outer join(외부 조인 · LEFT/RIGHT)</b>과는 이름만 같고 다른 개념이다.</div>
+
+  <h3 class="blk"><span class="ix">7.2</span>실측 ① 바깥이 1행 — employee_id=100</h3>
+  <p><code class="inl">employee_id=100</code>이면 바깥 EMPLOYEES가 딱 1행이라, 안쪽 DEPARTMENTS도 <b>한 번만</b> 조회한다. 모든 Starts가 1이다.</p>
+  <pre class="term"><span class="pr">HR&gt;</span> select /*+ gather_plan_statistics */ e.last_name, d.department_name
+        from hr.employees e join hr.departments d using(department_id)
+        where e.employee_id = 100;
+<span class="out">--------------------------------------------------------------------------</span>
+<span class="out">| Id | Operation                                | Buffers | Starts |</span>
+<span class="out">--------------------------------------------------------------------------</span>
+<span class="out">|  1 |  NESTED LOOPS                            |    4    |    1   |</span>
+<span class="hl">|  2 |   TABLE ACCESS BY INDEX ROWID EMPLOYEES  |    2    |    1   |  ← outer/driving</span>
+<span class="hl">|* 3 |    INDEX UNIQUE SCAN EMP_EMP_ID_PK       |         |    1   |</span>
+<span class="hl">|  4 |   TABLE ACCESS BY INDEX ROWID DEPARTMENTS|    2    |    1   |  ← inner/driven</span>
+<span class="hl">|* 5 |    INDEX UNIQUE SCAN DEPT_ID_PK          |         |    1   |</span>
+<span class="out">--------------------------------------------------------------------------</span>
+<span class="cm">Predicate Information (identified by operation id):</span>
+<span class="out">   3 - access("E"."EMPLOYEE_ID"=100)</span>
+<span class="out">   5 - access("E"."DEPARTMENT_ID"="D"."DEPARTMENT_ID")</span></pre>
+  <p>실행 순서는 안쪽·위부터라 <b class="k">3 → 2 → 5 → 4 → 1</b>, Buffers 4로 끝난다. 바깥이 1행이라 여기까진 단순하다.</p>
+  <div class="why"><span class="h">Id 옆의 <code class="inl">*</code>와 Predicate Information — 무엇을 알려주나</span>
+  <b><code class="inl">*</code>는 "이 단계에 조건(predicate)이 걸려 있으니 아래를 보라"는 포인터</b>다. 별표 있는 Id(<code class="inl">*3</code>·<code class="inl">*5</code>)만 아래 <b>Predicate Information</b>에 조건이 나오고, 없는 Id(0·1·2·4)는 순수 작업(조인·테이블 접근)일 뿐이다. 아래에서 읽는 것은 <b>어느 단계가 어떤 조건을</b>, 그리고 <b class="k">access(인덱스로 좁힘) 인지 filter(읽고 버림) 인지</b>다(§2.3).
+  <ul class="tight" style="margin:6px 0 0">
+    <li><b>Id 3</b> <code class="inl">access(EMPLOYEE_ID=100)</code> — WHERE 조건을 인덱스 유니크 스캔으로 <b>바로 집었다</b>(filter 아님 = 낭비 없음).</li>
+    <li><b>Id 5</b> <code class="inl">access(E.DEPARTMENT_ID = D.DEPARTMENT_ID)</code> — 이건 <b>조인 조건</b>이다. driven(DEPARTMENTS)을 outer 행의 <code class="inl">department_id</code>로 <b>인덱스 lookup</b>했다는 증거 — 앞의 "<b class="k">driven엔 인덱스</b>"가 여기서 access로 확인된다. 만약 여기가 <code class="inl">filter</code>였다면 조인키 인덱스가 없어 매 반복마다 훑었다는 뜻(터짐 신호).</li>
+  </ul>
+  실전에선 <b>핵심 조건이 <code class="inl">filter</code>로만</b> 잡히거나 <code class="inl">filter(TO_NUMBER("X")=100)</code>처럼 <b>함수가 씌워져</b> 나오면, 인덱스를 못 타는 원인이 여기서 그대로 드러난다.</div>
+
+  <h3 class="blk"><span class="ix">7.3</span>실측 ② 바깥이 여러 행 — location_id=1400</h3>
+  <p><b class="k">바깥은 고정이 아니다 — 쿼리 조건이 먼저 거르는 쪽이 driving이 된다.</b> <code class="inl">location_id=1400</code>은 부서를 먼저 1행(60번)으로 걸러 이번엔 <b>DEPARTMENTS가 바깥</b>이 되고, 그 부서에 사원이 5명이라 <b>EMPLOYEES가 안쪽으로 5번</b> 돈다.</p>
+  <pre class="term"><span class="cm">-- location 1400 → 부서 60 (1행) → 그 부서 사원 5명 → 바깥 5행</span>
+<span class="out">| Id | Operation                           | Buffers | Starts | A-Rows |</span>
+<span class="out">-----------------------------------------------------------------------</span>
+<span class="hl">|  3 |   DEPARTMENTS (BY INDEX ROWID)       |    2    |    1   |    1   |  ← 바깥</span>
+<span class="out">|  5 |   INDEX RANGE SCAN EMP_DEPARTMENT_IX |    2    |    1   |    5   |</span>
+<span class="hl">|  6 |  EMPLOYEES  (BY INDEX ROWID)         |    2    |    5   |    5   |  ← 안쪽·Starts=5</span>
+<span class="out">-----------------------------------------------------------------------</span></pre>
+  <div class="why"><span class="h">Starts=5가 곧 다섯 번 반복</span>
+  Id 6(사원 행 읽기)의 <b>Starts=5</b>는 안쪽을 다섯 번 실행했다는 뜻이다. 그래서 실행 순서가 ①처럼 3→2→5→4→1에서 끝나지 않고 <b>3 → 2 → 5 → 4 → 5 → 4 … → 1</b>로 안쪽을 5번 반복하며 길어진다. ①(emp_id=100)에선 사원이 바깥이었는데 여기선 뒤집혔다 — <b class="k">먼저 걸러지는 쪽이 driving이고, 그 건수가 안쪽 반복(Starts)을 정한다.</b> 실행 순서가 헷갈리면 순서를 세지 말고 <b>Starts부터 봐라</b> — 안쪽이 몇 번 돌았는지가 거기 다 있다.</div>
+</section>
+
+<section class="part" id="road">
+  <div class="phead"><div class="pnum">▶</div><div><div class="ptitle">앞으로 다룰 것 (로드맵)</div><div class="psub">수업이 진행되며 채워 나갈 목차</div></div></div>
+  <ul class="road">
+    <li class="done"><span class="n">01–06</span>개요 · 실행계획 읽기·도구·통계 · 액세스 경로 · 인덱스 · 버퍼 피닝 · <b>클러스터링 팩터 · SQL TRACE · 10046 · BCHR · 비트맵</b> <span class="tag">완료</span></li>
+    <li class="done"><span class="n">07</span><a href="#join" style="color:var(--tune);font-weight:600">조인 방식</a> — Nested Loop · Sort Merge · Hash, 순서와 Starts로 반복 읽기 <span class="tag">완료</span></li>
+    <li><span class="n">08</span>옵티마이저 & 통계 — CBO, 카디널리티 추정, 통계 최신화·히스토그램 <span class="tag">예정</span></li>
+    <li><span class="n">09</span>증상→원인→처방 안티패턴 + 자주 쓰는 힌트 <span class="tag">예정</span></li>
+  </ul>
+  <div class="why"><span class="h">메모</span>구조 지식(HWM·scattered read·버퍼 캐시·블록)은 <b>내부구조편 가이드</b>에, 그걸 활용하는 기법은 이 문서에 쌓는다. 새 수업이 오면 위 로드맵을 하나씩 완료로 바꿔 간다.</div>
+</section>
+
+</div></main>
+<footer><div class="wrap">SQL 튜닝편 · 68일차에서 시작 · 내부구조편(DBA 62–68 완전정복 가이드)·운영편(RMAN 치트시트)과 함께 보세요.</div></footer>
+</body>
+</html>

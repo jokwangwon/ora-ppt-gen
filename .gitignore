@@ -1,9 +1,30 @@
+# Node
+node_modules/
+
+# Python
 __pycache__/
 *.py[cod]
 .venv/
 venv/
-env/
-.env
+
+# 빌드/QA 산출물
+out/
 *.pptx
-examples/
+*.pdf
+slide-*.jpg
+slide-*.png
+
+# 자료실 공개 파일(files/)은 커밋해 GitHub Pages에서 바로 다운로드 제공
+!files/
+!files/*.pptx
+
+# OS
 .DS_Store
+
+# 참고 디자인 PPTX (대용량 바이너리 — 커밋하지 않음)
+ref/
+
+# 학습 문서·허브(assets/)와 일차 저작물(days/)은 리포에 커밋해
+# 새 세션에서 자동 복원되게 한다. 생성물(out/·*.pptx)만 제외.
+# assets/study_hub_full.html 은 재주입으로 갱신되는 파생물이지만,
+# 세션 간 지속을 위해 함께 추적한다.

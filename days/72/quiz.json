@@ -1,0 +1,136 @@
+{
+  "MCQ": [
+    {
+      "id": "m72a",
+      "d": 72,
+      "q": "10046 이벤트를 level 12로 걸었다. 추적파일에 추가로 남는 정보는?",
+      "o": [
+        "실행계획만 (sql_trace와 동일)",
+        "바인드 변수 값(BINDS)과 대기 이벤트(WAITS) 둘 다",
+        "바인드 변수 값(BINDS)만",
+        "대기 이벤트(WAITS)만"
+      ],
+      "a": 1,
+      "e": "레벨은 비트마스크라 더한다. 4(+bind) + 8(+wait) = 12 이므로 bind 값과 wait를 모두 남긴다. 1은 기본, 4만이면 bind만, 8만이면 wait만이다."
+    },
+    {
+      "id": "m72b",
+      "d": 72,
+      "q": "버퍼 캐시 히트율(BCHR)이 99%로 매우 높은데 쿼리가 느리다. 가장 그럴듯한 원인은?",
+      "o": [
+        "물리 I/O가 너무 많아서",
+        "나쁜 실행계획으로 논리 읽기(query)가 폭증해 오히려 히트율이 올라간 것",
+        "캐시가 부족해 자주 밀려나서",
+        "히트율이 높으면 항상 빠르므로 다른 원인이다"
+      ],
+      "a": 1,
+      "e": "BCHR = (1 - disk/(query+current))*100. 논리 읽기(query)가 폭증하면 분모가 커져 disk 비중이 0에 수렴 → 히트율은 오히려 100%에 근접한다. 봐야 할 것은 히트율이 아니라 논리 I/O(Buffers) 절대량이다."
+    },
+    {
+      "id": "m72c",
+      "d": 72,
+      "q": "같은 쿼리(dept=80 AND salary=10000)에서 and_equal 힌트가 Buffers 10으로 단일 인덱스(4~5)보다 오히려 나쁜 이유는?",
+      "o": [
+        "두 인덱스를 각각 스캔(5, 3)해 rowid를 AND-EQUAL로 교집합(8)한 뒤 테이블까지 접근해서",
+        "인덱스를 전혀 타지 못하고 full scan으로 빠져서",
+        "옵티마이저가 통계를 잘못 읽어서",
+        "bitmap 변환 비용이 추가돼서"
+      ],
+      "a": 0,
+      "e": "and_equal은 EMP_SAL_IDX(5)와 EMP_DEPT_IDX(3)를 따로 훑어 rowid를 교집합(AND-EQUAL 8)하고 테이블 접근까지 10이 된다. 인덱스 하나만 타면 4~5인데 둘을 합치니 더 많다. index_combine은 같은 교집합을 4로 더 싸게 처리한다."
+    },
+    {
+      "id": "m72d",
+      "d": 72,
+      "q": "bitmap 인덱스가 걸린 gender 컬럼에서, 세션1이 (1,'m'), 세션2가 (3,'m')을 insert하자 세션2가 enq: TX - row lock contention으로 막혔다. 이유는?",
+      "o": [
+        "같은 행을 동시에 수정해서",
+        "서로 다른 행이지만 gender='m'이 같아 같은 bitmap 조각을 두고 경합해서",
+        "bitmap 인덱스는 insert 자체가 금지돼서",
+        "테이블 전체가 잠기기 때문에"
+      ],
+      "a": 1,
+      "e": "bitmap은 한 값(gender='m')이 그 값을 가진 여러 행을 한 조각으로 덮는다. 행이 달라도 같은 값이면 같은 조각을 잠그므로 경합한다. B*tree라면 행 단위 잠금이라 안 부딪친다 — 그래서 bitmap은 동시 DML 잦은 OLTP엔 독이다."
+    },
+    {
+      "id": "m72e",
+      "d": 72,
+      "q": "NL 조인 실행계획에서 안쪽 테이블 접근 operation의 Starts가 5로 찍혔다. 무슨 뜻인가?",
+      "o": [
+        "그 operation이 5개 블록을 읽었다",
+        "바깥(driving)에서 나온 행이 5건이라 안쪽을 5번 반복 실행했다",
+        "5초가 걸렸다",
+        "A-Rows가 5라는 뜻과 무관하다"
+      ],
+      "a": 1,
+      "e": "Starts는 그 operation을 몇 번 반복했는지다. NL 안쪽이면 바깥 행 수만큼 반복한다. location_id=1400 → 부서 60 → 사원 5명이라 바깥이 5행, 그래서 안쪽 Starts=5. 실행순서가 길어지는 것도 이 반복 때문이다."
+    }
+  ],
+  "ESSAY": [
+    {
+      "id": "e72a",
+      "d": 72,
+      "q": "and_equal로 두 인덱스를 합쳤더니 Buffers가 단일 인덱스보다 커졌다. 실제 플랜의 숫자(5·3·8·10)를 근거로, 왜 합치는 게 손해가 될 수 있는지 설명하라.",
+      "a": "and_equal은 EMP_SAL_IDX를 스캔해 Buffers 5, EMP_DEPT_IDX를 스캔해 3을 쓴다. 두 인덱스가 각각 준 rowid 집합을 AND-EQUAL 단계에서 교집합하며 8, 최종적으로 그 rowid로 테이블에 접근해 총 10이 된다. 단일 인덱스로 한 컬럼만 좁혀도 4~5면 끝나는데, 두 인덱스를 따로 완주해 합치는 비용이 더해지므로 오히려 손해다. 즉 '인덱스를 더 쓰면 빠르다'가 아니라, 각 인덱스 스캔 비용의 합 + 교집합 비용이 단일 경로를 넘어서면 나빠진다. 그래서 힌트를 실측 없이 믿으면 안 되고, 같은 교집합도 index_combine(비트맵 변환)이 4로 더 싸게 처리할 수 있다.",
+      "k": ["EMP_SAL_IDX 5", "EMP_DEPT_IDX 3", "AND-EQUAL 8 교집합", "테이블 접근 10", "단일 인덱스 4~5", "실측/힌트 맹신 금지", "index_combine 4"]
+    },
+    {
+      "id": "e72b",
+      "d": 72,
+      "q": "NL 조인에서 '바깥(driving) 테이블은 고정이 아니다'라는 말의 뜻을, employee_id=100과 location_id=1400 두 경우의 Starts 차이로 설명하라.",
+      "a": "NL의 바깥은 쿼리 조건이 먼저 걸러내는 쪽이 된다. employee_id=100이면 사원이 딱 1행으로 걸러져 EMPLOYEES가 바깥이 되고, 안쪽 DEPARTMENTS도 한 번만 조회하므로 모든 Starts=1, 실행순서는 3→2→5→4→1로 단순하다. 반면 location_id=1400은 위치로 부서를 먼저 1행(60번)으로 걸러 DEPARTMENTS가 바깥이 되고, 그 부서에 사원이 5명이라 안쪽 EMPLOYEES를 5번 반복한다 — 안쪽 operation의 Starts=5로 찍힌다. 같은 두 테이블이라도 어느 쪽이 먼저 걸러지느냐로 driving이 뒤집히고, 그 걸러진 건수가 안쪽 반복(Starts)을 정한다. 그래서 실행순서가 길고 헷갈릴 땐 순서를 세지 말고 Starts부터 보면 안쪽이 몇 번 돌았는지 바로 안다.",
+      "k": ["driving=먼저 걸러지는 쪽", "emp_id=100 → 사원 바깥 Starts 1", "location 1400 → 부서 바깥", "사원 5명 → 안쪽 Starts 5", "driving 뒤집힘", "Starts로 반복 읽기"]
+    }
+  ],
+  "TERMS": [
+    {
+      "t": "10046 이벤트",
+      "e": "세션 SQL을 파일로 추적하는 진단 이벤트. 레벨로 상세도 조절.",
+      "d": "alter session set events '10046 ... level N'으로 켠다. 레벨은 비트마스크라 더한다 — 1(기본 SQL·통계), 4(+BINDS 바인드 값), 8(+WAITS 대기이벤트), 12=4+8(bind·wait 둘 다). tkprof가 '얼마나 걸렸나'라면 level 12는 '무슨 값으로·무엇을 기다렸나'까지 남겨, 느린 원인이 대기일 때 필수다."
+    },
+    {
+      "t": "BCHR (버퍼 캐시 히트율)",
+      "e": "논리 읽기 중 디스크로 안 간 비율. 높다고 좋은 게 아니다.",
+      "d": "BCHR = (1 - disk/(query+current))*100. 흔히 높을수록 좋다지만, 나쁜 실행계획으로 논리 읽기(query)가 폭증하면 분모가 커져 히트율이 오히려 100%에 근접한다(캐시에서만 잔뜩 읽어서). 지표는 히트율이 아니라 논리 I/O(Buffers·consistent gets)의 절대량으로 본다."
+    },
+    {
+      "t": "Starts",
+      "e": "실행계획에서 그 operation을 반복 실행한 횟수.",
+      "d": "display_cursor(allstats last)의 컬럼. NL 안쪽이면 바깥 행 수만큼 찍힌다. location_id=1400에서 바깥 부서 사원이 5명이면 안쪽 EMPLOYEES의 Starts=5. 실행순서가 길고 헷갈릴 때 Starts부터 보면 안쪽이 몇 번 돌았는지 바로 안다."
+    },
+    {
+      "t": "AND-EQUAL (index merge)",
+      "e": "두 단일 인덱스의 rowid 결과를 교집합하는 접근.",
+      "d": "and_equal 힌트. 두 인덱스를 각각 스캔(예: 5, 3)해 rowid를 교집합(8)한 뒤 테이블 접근(10)까지 간다. 단일 인덱스(4~5)보다 오히려 비쌀 수 있어, 실측 없이 쓰면 손해. 같은 교집합을 index_combine(비트맵 변환)이 더 싸게 처리하기도 한다."
+    },
+    {
+      "t": "bitmap 인덱스",
+      "e": "저선택도 컬럼용. AND/OR에 강하지만 OLTP엔 부적합.",
+      "d": "값 종류가 적은(중복 많은) 컬럼에 유리하며 AND/OR을 싸게 처리(index_combine)해 DW·DSS용이다. 단점: 키 하나가 여러 행을 한 조각으로 덮어, 다른 행이라도 같은 값을 넣으면 같은 조각을 두고 enq: TX - row lock contention이 난다. 동시 DML 잦은 OLTP엔 독."
+    },
+    {
+      "t": "driving 테이블",
+      "e": "NL 조인에서 먼저(바깥) 도는 테이블. 조건이 먼저 거르는 쪽.",
+      "d": "고정이 아니라 쿼리 조건이 먼저 걸러내는 쪽이 driving이 된다. 그 걸러진 건수가 안쪽 반복(Starts)을 정하므로, 바깥이 작을수록 NL이 싸다. 순서는 ordered/leading 힌트로 지정한다. (=outer, 바깥 루프)"
+    },
+    {
+      "t": "driven 테이블",
+      "e": "NL 조인에서 안쪽(inner)에서 반복 조회당하는 테이블.",
+      "d": "이중 for문의 안쪽 루프. driving이 주는 행 수만큼 끌려서 매번 조인키로 lookup된다(수동태 driven=몰린다). outer 행마다 반복되므로 조인 컬럼에 인덱스가 없으면 Starts번 × full scan으로 터진다 — 그래서 driven엔 인덱스가 필수. outer 테이블(=driving)과 outer join(외부 조인)은 이름만 같은 다른 개념이다."
+    }
+  ],
+  "PLANQ": [
+    {
+      "id": "pl72a",
+      "q": "and_equal 힌트로 dept=80 AND salary=10000을 돌린 아래 플랜에서, 최종 Buffers 10이 어떻게 나오는지 각 Id의 숫자로 설명하라.",
+      "plan": "| Id | Operation                        | Name         | Buffers |\n|* 1 |  TABLE ACCESS BY INDEX ROWID EMP |              |    10 |\n|  2 |   AND-EQUAL                      |              |     8 |\n|* 3 |    INDEX RANGE SCAN              | EMP_SAL_IDX  |     5 |\n|* 4 |    INDEX RANGE SCAN              | EMP_DEPT_IDX |     3 |",
+      "a": "Id 3에서 EMP_SAL_IDX를 스캔해 5, Id 4에서 EMP_DEPT_IDX를 스캔해 3을 쓴다. Id 2 AND-EQUAL이 이 두 rowid 집합을 교집합하며 누적 8, Id 1에서 그 rowid로 테이블 행을 읽어 최종 10이 된다. 인덱스 하나만 탔다면 4~5로 끝났을 것을, 두 인덱스를 각각 완주해 합쳤기에 더 커졌다."
+    },
+    {
+      "id": "pl72b",
+      "q": "location_id=1400 NL 조인의 아래 플랜에서 Id 6의 Starts=5가 의미하는 바와, 실행 순서가 길어지는 이유를 설명하라.",
+      "plan": "-- location 1400 → 부서 60 (1행) → 사원 5명\n| Id | Operation                           | Buffers | Starts | A-Rows |\n|  3 |   DEPARTMENTS (BY INDEX ROWID)       |    2    |    1   |    1   |\n|  5 |   INDEX RANGE SCAN EMP_DEPARTMENT_IX |    2    |    1   |    5   |\n|  6 |  EMPLOYEES  (BY INDEX ROWID)         |    2    |    5   |    5   |",
+      "a": "location_id=1400이 부서를 먼저 1행(60번)으로 걸러 DEPARTMENTS가 바깥(driving)이 된다. 그 부서에 사원이 5명(Id 5의 A-Rows=5)이므로 안쪽 EMPLOYEES 행 읽기(Id 6)를 5번 반복 → Starts=5. 그래서 실행 순서가 3→2→5→4에서 끝나지 않고 안쪽(5→4)을 5번 반복해 3→2→5→4→5→4…→1로 길어진다. 반복 횟수는 Starts 한 숫자로 드러난다."
+    }
+  ]
+}
