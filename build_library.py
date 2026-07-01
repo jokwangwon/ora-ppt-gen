@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """자료실 생성 — 문서·허브·발표 덱을 한 페이지(index.html)로 묶어 공유·다운로드.
 
-GitHub Pages(리포 루트)로 배포하면 누구나 URL로 접근한다:
+디자인은 블로그(Chirpy Jekyll 테마) 룩을 참고: 좌측 사이드바(아바타·사이트명·네비)
++ 라이트/다크 토글 + 둥근 카드 + 파란 액센트. index.html 은 자체완결(정적)이라
+GitHub Pages(리포 루트)로 그대로 배포된다.
+
   - 문서(assets/*.html)는 그 자리에서 보기
   - 발표 덱·대본은 files/ 로 복사해 바로 다운로드
 
@@ -44,10 +47,10 @@ DECK_LABELS = {
     "rman_recovery.pptx": "RMAN 복구 (문서 전체 덱)",
 }
 STATUS_BADGE = {
-    "reviewed": ("검토완료", "#16803d", "#dcfce7"),
-    "reviewing": ("검토중", "#b45309", "#fef3c7"),
-    "unreviewed": ("미검토", "#64748b", "#f1f5f9"),
-    "published": ("게시", "#1d4ed8", "#dbeafe"),
+    "reviewed": ("검토완료", "#1a7f37", "#dafbe1"),
+    "reviewing": ("검토중", "#9a6700", "#fff8c5"),
+    "unreviewed": ("미검토", "#636c76", "#eef1f4"),
+    "published": ("게시", "#0969da", "#ddf4ff"),
 }
 
 
@@ -71,25 +74,26 @@ def load_status() -> dict:
 
 
 def copy_artifacts() -> list[Path]:
-    """out/ 의 덱·대본을 files/ 로 복사(멱등). 복사된 파일 목록 반환."""
+    """out/ 의 덱(PPTX)만 files/ 로 복사(멱등). 발표 대본(.md)은 개인용이라 제외.
+    혹시 예전에 복사된 대본이 있으면 정리한다. 복사된 파일 목록 반환."""
     FILES.mkdir(exist_ok=True)
+    for stray in FILES.glob("*.notes.md"):  # 개인용 대본은 자료실에서 제거
+        stray.unlink()
     copied = []
-    for pat in ("*.pptx", "*.notes.md"):
-        for src in sorted(OUT.glob(pat)):
-            dst = FILES / src.name
-            if not dst.exists() or src.stat().st_mtime > dst.stat().st_mtime:
-                shutil.copy2(src, dst)
-            copied.append(dst)
+    for src in sorted(OUT.glob("*.pptx")):
+        dst = FILES / src.name
+        if not dst.exists() or src.stat().st_mtime > dst.stat().st_mtime:
+            shutil.copy2(src, dst)
+        copied.append(dst)
     return copied
 
 
-def badge(text: str, fg: str, bg: str) -> str:
-    return f'<span class="badge" style="color:{fg};background:{bg}">{escape(text)}</span>'
+def pill(text: str, fg: str, bg: str) -> str:
+    return f'<span class="pill" style="color:{fg};background:{bg}">{escape(text)}</span>'
 
 
 def render(status: dict) -> str:
     docs_status = status.get("docs", {})
-    days_status = status.get("days", {})
 
     # --- 문서 카드 ---
     doc_cards = []
@@ -103,107 +107,220 @@ def render(status: dict) -> str:
         acc_txt = ""
         if acc.get("checked"):
             iss = acc.get("issues", 0)
-            acc_txt = f'<span class="mini">정확성 검증 · {"이슈 " + str(iss) + "건 교정" if iss else "이슈 없음"}</span>'
+            acc_txt = f'<p class="meta">정확성 검증 · {"이슈 " + str(iss) + "건 교정" if iss else "이슈 없음"}</p>'
         doc_cards.append(f"""
-      <div class="card">
-        <div class="ctop"><span class="topic">{escape(topic)}</span>{badge(lab, fg, bg)}</div>
-        <div class="ctitle">{escape(title)}</div>
-        {acc_txt}
-        <div class="actions">
-          <a class="btn" href="assets/{fn}" target="_blank">문서 보기 →</a>
-          <a class="btn ghost" href="assets/{fn}" download>HTML 내려받기</a>
-        </div>
-      </div>""")
+        <article class="card">
+          <div class="tags"><span class="pill topic">{escape(topic)}</span>{pill(lab, fg, bg)}</div>
+          <h3 class="ctitle">{escape(title)}</h3>
+          {acc_txt}
+          <div class="acts">
+            <a class="btn" href="assets/{fn}" target="_blank">문서 보기</a>
+            <a class="btn ghost" href="assets/{fn}" download>HTML</a>
+          </div>
+        </article>""")
 
-    # --- 발표 덱 카드 (files/ 스캔) ---
-    deck_rows = []
+    # --- 발표 덱: 검토된 최신(day72)만 정식 노출, 나머지 미검토는 접어서 소형 ---
+    FEATURED = {"day72.pptx"}  # 검토 완료·최신 덱만 눈에 띄게
+    featured_cards, misc_rows = [], []
     if FILES.exists():
         for p in sorted(FILES.glob("*.pptx")):
             label = DECK_LABELS.get(p.name, p.stem)
-            notes = FILES / (p.stem + ".notes.md")
-            notes_link = (f'<a class="btn ghost" href="files/{notes.name}" download>대본(.md)</a>'
-                          if notes.exists() else "")
-            deck_rows.append(f"""
-      <div class="card">
-        <div class="ctop"><span class="topic dk">발표 덱</span><span class="mini">{fsize(p)} · {fdate(p)}</span></div>
-        <div class="ctitle">{escape(label)}</div>
-        <div class="actions">
-          <a class="btn" href="files/{p.name}" download>PPTX 내려받기 ↓</a>
-          {notes_link}
-        </div>
-      </div>""")
-    if not deck_rows:
-        deck_rows.append('<div class="empty">아직 게시된 덱이 없습니다. <code>python build_library.py</code> 로 out/ 덱을 올리세요.</div>')
+            if p.name in FEATURED:
+                featured_cards.append(f"""
+        <article class="card">
+          <div class="tags"><span class="pill topic dk">발표 덱</span>{pill("72일차 · 최신", "#9a6700", "#fff8c5")}<span class="meta">{fsize(p)} · {fdate(p)}</span></div>
+          <h3 class="ctitle">{escape(label)}</h3>
+          <div class="acts">
+            <a class="btn" href="files/{p.name}" download>PPTX 내려받기</a>
+          </div>
+        </article>""")
+            else:
+                misc_rows.append(f"""
+          <li class="mrow"><span class="mtitle">{escape(label)}</span>"""
+                                 f"""<span class="pill mini warn">미검토</span>"""
+                                 f"""<span class="meta">{fsize(p)} · {fdate(p)}</span>"""
+                                 f"""<a class="mdl" href="files/{p.name}" download>PPTX ↓</a></li>""")
+    featured_html = "".join(featured_cards) or '<div class="empty">아직 검토 완료된 덱이 없습니다.</div>'
+    misc_html = ""
+    if misc_rows:
+        misc_html = (f'<details class="misc"><summary>그 외 발표 덱 '
+                     f'<span class="pill mini warn">미검토 · 참고용</span> · {len(misc_rows)}개</summary>'
+                     f'<ul class="misc-list">{"".join(misc_rows)}</ul></details>')
 
     updated = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
     return f"""<!doctype html>
-<html lang="ko"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="ko" data-mode="light"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Oracle DBA 학습 자료실</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<script>
+// 다크/라이트 모드 — 깜빡임 방지 위해 head 에서 즉시 적용
+(function(){{try{{var m=localStorage.getItem('lib-mode');if(m)document.documentElement.setAttribute('data-mode',m);}}catch(e){{}}}})();
+</script>
 <style>
-:root{{--bg:#F6F7F9;--panel:#fff;--ink:#161B22;--muted:#5A6472;--line:#E4E8EE;--accent:#C74634;--accent2:#1C7E8C}}
+:root{{
+  --bg:#f6f8fa; --sidebar:#ffffff; --card:#ffffff; --border:#e7ebef;
+  --text:#34343c; --muted:#7c828a; --heading:#1b1b1f; --accent:#1d7dcc; --accent-soft:#e9f2fb;
+  --pill-bg:#eef1f4; --pill-fg:#5b636b; --shadow:0 4px 16px rgba(23,32,50,.06);
+  --shadow-hover:0 10px 26px rgba(23,32,50,.10);
+}}
+html[data-mode=dark]{{
+  --bg:#1b1b1e; --sidebar:#161618; --card:#212125; --border:#2c2d33;
+  --text:#bcc0c6; --muted:#828892; --heading:#e8eaed; --accent:#7cb2e0; --accent-soft:#1f2a35;
+  --pill-bg:#2a2b31; --pill-fg:#9aa2ac; --shadow:0 4px 16px rgba(0,0,0,.35);
+  --shadow-hover:0 10px 26px rgba(0,0,0,.5);
+}}
 *{{box-sizing:border-box}}
-body{{margin:0;background:var(--bg);color:var(--ink);font-family:'Pretendard',system-ui,-apple-system,sans-serif;line-height:1.6}}
-.wrap{{max-width:1000px;margin:0 auto;padding:0 20px}}
-header{{background:linear-gradient(135deg,#20303F,#2C3742);color:#fff;padding:44px 0 38px}}
-header .kick{{font-family:ui-monospace,monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#9fb0bf}}
-header h1{{margin:8px 0 6px;font-size:30px}}
-header p{{margin:0;color:#cdd6df;font-size:15px}}
-main{{padding:30px 0 60px}}
-h2.sec{{font-size:16px;margin:34px 0 4px;display:flex;align-items:center;gap:8px}}
-h2.sec .n{{font-family:ui-monospace,monospace;font-size:12px;color:var(--accent);border:1px solid #e7c3bd;border-radius:7px;padding:3px 8px}}
-.sub{{color:var(--muted);font-size:13.5px;margin:2px 0 14px}}
-.grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}}
-.card{{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 16px;display:flex;flex-direction:column;gap:8px}}
-.ctop{{display:flex;justify-content:space-between;align-items:center;gap:8px}}
-.topic{{font-family:ui-monospace,monospace;font-size:11px;font-weight:700;color:var(--accent2);background:#e1f1f3;border:1px solid #b6dde2;border-radius:7px;padding:3px 8px}}
-.topic.dk{{color:var(--accent);background:#fbe7de;border-color:#e7c3bd}}
-.badge{{font-family:ui-monospace,monospace;font-size:11px;font-weight:700;border-radius:7px;padding:3px 8px}}
-.ctitle{{font-size:14.5px;font-weight:700;line-height:1.4}}
-.mini{{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--muted)}}
-.actions{{display:flex;gap:7px;flex-wrap:wrap;margin-top:2px}}
-.btn{{font-size:12.5px;font-weight:700;text-decoration:none;color:#fff;background:var(--accent);border:1px solid var(--accent);border-radius:9px;padding:8px 12px}}
-.btn.ghost{{color:var(--ink);background:var(--panel);border-color:var(--line)}}
-.btn:hover{{opacity:.9}}
-.empty{{color:var(--muted);border:1px dashed var(--line);border-radius:12px;padding:22px;text-align:center;font-size:13.5px}}
-.big{{display:grid;grid-template-columns:1fr 1fr;gap:12px}}
+html,body{{margin:0}}
+body{{background:var(--bg);color:var(--text);
+  font-family:'Lato','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  line-height:1.65;-webkit-font-smoothing:antialiased;transition:background .2s,color .2s}}
+a{{color:var(--accent);text-decoration:none}}
+
+/* 좌측 사이드바 (Chirpy) */
+#sidebar{{position:fixed;top:0;left:0;bottom:0;width:280px;background:var(--sidebar);
+  border-right:1px solid var(--border);display:flex;flex-direction:column;padding:34px 24px 20px;z-index:10}}
+.avatar{{width:96px;height:96px;border-radius:50%;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#c74634,#8f2f22);color:#fff;font-weight:900;font-size:22px;letter-spacing:.04em;
+  box-shadow:0 6px 18px rgba(199,70,52,.35);border:3px solid var(--card)}}
+.site-title{{text-align:center;font-size:20px;font-weight:900;color:var(--heading);margin:0 0 4px;line-height:1.3}}
+.site-title a{{color:inherit}}
+.site-sub{{text-align:center;font-size:12.5px;color:var(--muted);margin:0 0 22px}}
+#sidebar nav{{margin-top:6px}}
+#sidebar nav a{{display:flex;align-items:center;gap:11px;padding:11px 14px;border-radius:10px;color:var(--text);
+  font-weight:700;font-size:14px;margin-bottom:3px}}
+#sidebar nav a:hover{{background:var(--accent-soft);color:var(--accent)}}
+#sidebar nav a .ic{{width:20px;text-align:center;font-size:15px}}
+.side-bottom{{margin-top:auto;padding-top:16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px}}
+.mode-btn{{background:var(--pill-bg);border:1px solid var(--border);color:var(--text);border-radius:9px;
+  padding:7px 11px;cursor:pointer;font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px}}
+.mode-btn:hover{{border-color:var(--accent);color:var(--accent)}}
+.side-copy{{font-size:11px;color:var(--muted)}}
+
+/* 본문 */
+#main{{margin-left:280px;min-height:100vh;display:flex;flex-direction:column}}
+.inner{{max-width:940px;width:100%;margin:0 auto;padding:40px 32px 30px}}
+.lead{{margin:0 0 6px;font-size:14px;color:var(--muted)}}
+h2.sec{{font-size:15px;letter-spacing:.02em;color:var(--heading);margin:34px 0 3px;display:flex;align-items:center;gap:9px}}
+h2.sec .n{{font-family:'Lato',monospace;font-size:11px;font-weight:900;color:var(--accent);
+  background:var(--accent-soft);border-radius:7px;padding:3px 8px}}
+.sub{{color:var(--muted);font-size:13px;margin:2px 0 14px}}
+.grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}}
+.big{{display:grid;grid-template-columns:1fr 1fr;gap:14px}}
+
+.card{{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 17px;
+  display:flex;flex-direction:column;gap:9px;box-shadow:var(--shadow);transition:transform .15s,box-shadow .15s}}
+.card:hover{{transform:translateY(-3px);box-shadow:var(--shadow-hover)}}
 .big .card{{flex-direction:row;align-items:center;justify-content:space-between}}
-footer{{color:var(--muted);font-size:12.5px;padding:24px 0 50px;text-align:center}}
-@media(max-width:640px){{.big{{grid-template-columns:1fr}}}}
+.tags{{display:flex;align-items:center;gap:7px;flex-wrap:wrap}}
+.ctitle{{font-size:15px;font-weight:700;color:var(--heading);line-height:1.4;margin:0}}
+.meta{{font-family:'Lato',monospace;font-size:11.5px;color:var(--muted);margin:0}}
+.pill{{font-size:11px;font-weight:700;border-radius:20px;padding:3px 11px;white-space:nowrap}}
+.pill.topic{{color:var(--accent);background:var(--accent-soft)}}
+.pill.topic.dk{{color:#c74634;background:#fbe7de}}
+html[data-mode=dark] .pill.topic.dk{{color:#e6917f;background:#3a201a}}
+.acts{{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}}
+.btn{{font-size:12.5px;font-weight:700;color:#fff;background:var(--accent);border:1px solid var(--accent);
+  border-radius:20px;padding:7px 15px}}
+.btn.ghost{{color:var(--text);background:transparent;border-color:var(--border)}}
+.btn.ghost:hover{{border-color:var(--accent);color:var(--accent)}}
+.btn:hover{{opacity:.9}}
+.empty{{color:var(--muted);border:1px dashed var(--border);border-radius:12px;padding:22px;text-align:center;font-size:13px;grid-column:1/-1}}
+
+/* 미검토 덱 — 접어서 소형·저강조 */
+.pill.mini{{font-size:10px;padding:2px 8px}}
+.pill.warn{{color:#9a6700;background:#fff8c5}}
+html[data-mode=dark] .pill.warn{{color:#d9b23a;background:#332b0a}}
+details.misc{{margin-top:12px;border:1px solid var(--border);border-radius:12px;background:var(--card)}}
+details.misc>summary{{cursor:pointer;padding:12px 15px;font-size:12.5px;font-weight:700;color:var(--muted);
+  list-style:none;display:flex;align-items:center;gap:8px}}
+details.misc>summary::-webkit-details-marker{{display:none}}
+details.misc>summary::before{{content:'▸';color:var(--muted);font-size:11px}}
+details.misc[open]>summary::before{{content:'▾'}}
+.misc-list{{list-style:none;margin:0;padding:2px 10px 8px}}
+.mrow{{display:flex;align-items:center;gap:10px;padding:9px 6px;border-top:1px solid var(--border);
+  font-size:12.5px;flex-wrap:wrap}}
+.mtitle{{color:var(--text);font-weight:600;flex:1;min-width:160px}}
+.mrow .meta{{color:var(--muted)}}
+.mdl{{font-weight:700;font-size:12px;color:var(--accent);white-space:nowrap}}
+
+footer{{margin-top:auto;border-top:1px solid var(--border);color:var(--muted);font-size:12px;padding:20px 32px 40px}}
+footer .inner{{padding:0;max-width:940px}}
+
+@media(max-width:820px){{
+  #sidebar{{position:static;width:auto;flex-direction:column;border-right:none;border-bottom:1px solid var(--border);padding:24px 20px}}
+  #sidebar nav{{display:flex;flex-wrap:wrap;gap:6px}}
+  #sidebar nav a{{margin:0}}
+  .avatar{{width:70px;height:70px;font-size:17px}}
+  #main{{margin-left:0}}
+  .big{{grid-template-columns:1fr}}
+  .inner{{padding:26px 20px}}
+}}
 </style></head>
 <body>
-<header><div class="wrap">
-  <div class="kick">Oracle DBA Bootcamp · 학습 자료실</div>
-  <h1>Oracle DBA 학습 자료실</h1>
-  <p>수업에서 만든 학습 문서 · 발표 덱 · 문제 허브를 한곳에서 보고 내려받습니다.</p>
-</div></header>
-<main class="wrap">
+<aside id="sidebar">
+  <div class="avatar">DBA</div>
+  <h1 class="site-title"><a href="./">Oracle DBA<br>학습 자료실</a></h1>
+  <p class="site-sub">수업에서 만든 문서 · 발표 덱 · 문제 허브</p>
+  <nav>
+    <a href="#hub"><span class="ic">📚</span>학습 허브</a>
+    <a href="#docs"><span class="ic">📄</span>학습 문서</a>
+    <a href="#decks"><span class="ic">🎞️</span>발표 자료</a>
+    <a href="assets/dashboard.html" target="_blank"><span class="ic">📊</span>대시보드</a>
+  </nav>
+  <div class="side-bottom">
+    <button class="mode-btn" onclick="toggleMode()"><span id="mode-ic">🌙</span><span id="mode-tx">다크</span></button>
+    <span class="side-copy">© DBA Bootcamp</span>
+  </div>
+</aside>
 
-  <h2 class="sec"><span class="n">01</span>학습 허브 & 관리</h2>
-  <div class="sub">문제 풀이 · 용어 검색 · 오답노트가 있는 허브와, 진행 상태 대시보드.</div>
-  <div class="big">
-    <div class="card">
-      <div><div class="ctitle">📚 학습 허브</div><div class="mini">객관식·서술형·실행계획·용어 검색·오답노트</div></div>
-      <a class="btn" href="assets/study_hub_full.html" target="_blank">열기 →</a>
+<main id="main">
+  <div class="inner">
+    <p class="lead">수업에서 만든 학습 문서 · 발표 덱 · 문제 허브를 한곳에서 보고 내려받습니다.</p>
+
+    <h2 class="sec" id="hub"><span class="n">01</span>학습 허브 &amp; 관리</h2>
+    <div class="sub">문제 풀이 · 용어 검색 · 오답노트가 있는 허브와, 진행 상태 대시보드.</div>
+    <div class="big">
+      <article class="card">
+        <div><h3 class="ctitle">📚 학습 허브</h3><p class="meta">객관식·서술형·실행계획·용어 검색·오답노트</p></div>
+        <a class="btn" href="assets/study_hub_full.html" target="_blank">열기</a>
+      </article>
+      <article class="card">
+        <div><h3 class="ctitle">📊 관리 대시보드</h3><p class="meta">검토·정확성·난이도·린트 상태</p></div>
+        <a class="btn ghost" href="assets/dashboard.html" target="_blank">열기</a>
+      </article>
     </div>
-    <div class="card">
-      <div><div class="ctitle">📊 관리 대시보드</div><div class="mini">검토·정확성·난이도·린트 상태</div></div>
-      <a class="btn ghost" href="assets/dashboard.html" target="_blank">열기 →</a>
+
+    <h2 class="sec" id="docs"><span class="n">02</span>학습 문서</h2>
+    <div class="sub">소스 오브 트루스 — 그 자리에서 보거나 HTML로 내려받으세요.</div>
+    <div class="grid">{''.join(doc_cards)}
     </div>
-  </div>
 
-  <h2 class="sec"><span class="n">02</span>학습 문서</h2>
-  <div class="sub">소스 오브 트루스 — 그 자리에서 보거나 HTML로 내려받으세요.</div>
-  <div class="grid">{''.join(doc_cards)}
+    <h2 class="sec" id="decks"><span class="n">03</span>발표 자료</h2>
+    <div class="sub">검토 완료된 최신 덱만 노출합니다. 나머지는 아래에서 펼쳐 참고용으로 받을 수 있어요.</div>
+    <div class="grid">{featured_html}
+    </div>
+    {misc_html}
   </div>
-
-  <h2 class="sec"><span class="n">03</span>발표 자료 (덱 · 대본)</h2>
-  <div class="sub">발표용 PPTX와 발표 대본(무료 PowerPoint에서 노트가 안 보일 때).</div>
-  <div class="grid">{''.join(deck_rows)}
-  </div>
-
+  <footer><div class="inner">자동 생성 · 최종 갱신 {updated} · <code>build_library.py</code> — 파일 추가 후 재실행하면 목록이 갱신됩니다.</div></footer>
 </main>
-<footer><div class="wrap">자동 생성 · 최종 갱신 {updated} · <code>build_library.py</code> — 파일 추가 후 재실행하면 목록이 갱신됩니다.</div></footer>
+
+<script>
+function toggleMode(){{
+  var h=document.documentElement, m=h.getAttribute('data-mode')==='dark'?'light':'dark';
+  h.setAttribute('data-mode',m);
+  try{{localStorage.setItem('lib-mode',m)}}catch(e){{}}
+  syncModeBtn();
+}}
+function syncModeBtn(){{
+  var dark=document.documentElement.getAttribute('data-mode')==='dark';
+  var ic=document.getElementById('mode-ic'), tx=document.getElementById('mode-tx');
+  if(ic) ic.textContent=dark?'☀️':'🌙';
+  if(tx) tx.textContent=dark?'라이트':'다크';
+}}
+syncModeBtn();
+</script>
 </body></html>
 """
 
