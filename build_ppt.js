@@ -1,0 +1,174 @@
+#!/usr/bin/env node
+/**
+ * 슬라이드 스펙(JSON) → PPTX 렌더. 파이프라인 2단계.
+ *
+ * 디자인은 참고 템플릿(Slate + Oracle Red, 맑은 고딕)을 따른다. 좌표 계획은
+ * layout.js가 담당(프리뷰 QA와 동일 기하). 이 파일은 "그리기"만 한다.
+ *
+ * 사용법: node build_ppt.js out/sql_tuning.slides.json -o out/sql_tuning.pptx
+ */
+
+const fs = require("fs");
+const path = require("path");
+const pptxgen = require("pptxgenjs");
+const L = require("./layout");
+const { W, H, M } = L;
+
+// ── 팔레트 (참고 슬라이드에서 추출) ───────────────────────────────
+const C = {
+  ink: "1E293B", accent: "C74634", white: "FFFFFF",
+  muted: "64748B", muted2: "94A3B8", dark: "0F172A",
+  card: "F1F5F9", line: "E2E8F0", tint: "FBE3DD", tint2: "E89B8C",
+  slate: "334155", codeFg: "E2E8F0", codeComment: "64748B",
+  dot1: "EF4444", dot2: "F59E0B", dot3: "22C55E",
+};
+const FONT = "맑은 고딕";
+const MONO = "Consolas";
+const shadow = () => ({ type: "outer", color: "000000", blur: 8, offset: 3, angle: 90, opacity: 0.10 });
+
+// ── 공통 요소 ────────────────────────────────────────────────────
+function brandMark(pres, s) {
+  s.addText("ORACLE", { x: 10.61, y: 0.72, w: 1.8, h: 0.3, fontFace: FONT, fontSize: 10, bold: true, color: C.accent, align: "right", valign: "middle", charSpacing: 2, margin: 0 });
+}
+function footer(s, sl) {
+  if (!sl.footer) return;
+  s.addText(sl.footer, { x: M, y: 6.95, w: 7, h: 0.3, fontFace: FONT, fontSize: 9, color: C.muted, align: "left", valign: "middle", margin: 0 });
+  if (sl.deckPage) s.addText(String(sl.deckPage).padStart(2, "0"), { x: W - M - 1, y: 6.95, w: 1, h: 0.3, fontFace: FONT, fontSize: 9, color: C.muted, align: "right", valign: "middle", margin: 0 });
+}
+
+// ── 슬라이드 종류 ────────────────────────────────────────────────
+function titleSlide(pres, s, sl) {
+  s.background = { color: C.dark };
+  s.addShape(pres.shapes.RECTANGLE, { x: 0, y: 0, w: W, h: 0.72, fill: { color: C.accent }, line: { color: C.accent } });
+  s.addText("ORACLE", { x: M, y: 0, w: 4, h: 0.72, fontFace: FONT, fontSize: 22, bold: true, color: C.white, align: "left", valign: "middle", charSpacing: 3, margin: 0 });
+  if (sl.source) s.addText(`Database 19c · ${sl.source}`, { x: 7.41, y: 0, w: 5, h: 0.72, fontFace: FONT, fontSize: 12, color: C.tint, align: "right", valign: "middle", margin: 0 });
+  if (sl.tag) s.addText(sl.tag, { x: M, y: 2.0, w: 11.49, h: 0.4, fontFace: FONT, fontSize: 13, color: C.tint2, align: "left", valign: "middle", margin: 0 });
+  s.addText(sl.title, { x: M, y: 2.7, w: 11.49, h: 1.4, fontFace: FONT, fontSize: 46, bold: true, color: C.white, align: "left", valign: "top", margin: 0 });
+  if (sl.subtitle) s.addText(sl.subtitle, { x: M, y: 4.25, w: 11.49, h: 0.6, fontFace: FONT, fontSize: 17, color: C.muted2, align: "left", valign: "top", margin: 0 });
+  s.addShape(pres.shapes.RECTANGLE, { x: M, y: 6.0, w: 3.2, h: 0.02, fill: { color: C.slate }, line: { color: C.slate } });
+  const who = sl.presenter ? sl.presenter : "Oracle DBA 부트캠프";
+  s.addText(who, { x: M, y: 6.15, w: 8, h: 0.5, fontFace: FONT, fontSize: 13, color: C.white, align: "left", valign: "top", margin: 0 });
+}
+
+function sectionSlide(pres, s, sl) {
+  s.background = { color: C.dark };
+  brandMark(pres, s);
+  if (sl.num) s.addText(sl.num, { x: M, y: 2.3, w: 3, h: 1.7, fontFace: FONT, fontSize: 90, bold: true, color: C.accent, align: "left", valign: "top", margin: 0 });
+  s.addShape(pres.shapes.RECTANGLE, { x: 0.94, y: 4.28, w: 0.16, h: 0.16, fill: { color: C.accent }, line: { color: C.accent } });
+  s.addText(sl.title, { x: M, y: 4.55, w: 11.49, h: 0.9, fontFace: FONT, fontSize: 40, bold: true, color: C.white, align: "left", valign: "top", margin: 0 });
+  if (sl.subtitle) s.addText(sl.subtitle, { x: M, y: 5.55, w: 11.49, h: 0.6, fontFace: FONT, fontSize: 16, color: C.muted2, align: "left", valign: "top", margin: 0 });
+}
+
+function contentHeader(pres, s, sl) {
+  s.addShape(pres.shapes.RECTANGLE, { x: M, y: 0.95, w: 0.14, h: 0.14, fill: { color: C.accent }, line: { color: C.accent } });
+  s.addText(sl.title, { x: 1.2, y: 0.72, w: 9.2, h: 0.7, fontFace: FONT, fontSize: 26, bold: true, color: C.ink, align: "left", valign: "middle", margin: 0 });
+  brandMark(pres, s);
+  if (sl.pages > 1) s.addText(`${sl.page} / ${sl.pages}`, { x: W - M - 2.9, y: 0.72, w: 1.6, h: 0.7, fontFace: FONT, fontSize: 11, color: C.muted2, align: "right", valign: "middle", margin: 0 });
+  footer(s, sl);
+}
+
+function roadmapSlide(pres, s, sl) {
+  s.background = { color: C.white };
+  s.addShape(pres.shapes.RECTANGLE, { x: M, y: 0.95, w: 0.14, h: 0.14, fill: { color: C.accent }, line: { color: C.accent } });
+  s.addText("발표 흐름", { x: 1.2, y: 0.72, w: 6, h: 0.7, fontFace: FONT, fontSize: 26, bold: true, color: C.ink, align: "left", valign: "middle", margin: 0 });
+  s.addText("ROADMAP", { x: 1.2, y: 1.45, w: 6, h: 0.3, fontFace: FONT, fontSize: 12, color: C.muted2, align: "left", charSpacing: 2, margin: 0 });
+  brandMark(pres, s);
+  footer(s, sl);
+  const items = sl.items;
+  const cols = items.length > 6 ? 2 : 1;
+  const perCol = Math.ceil(items.length / cols);
+  const colW = cols === 2 ? 5.55 : 11.49;
+  const rowH = Math.min(1.0, (L.CONTENT_H) / perCol);
+  items.forEach((it, i) => {
+    const col = Math.floor(i / perCol), row = i % perCol;
+    const x = M + col * (colW + 0.39);
+    const y = L.CONTENT_Y0 + row * rowH;
+    s.addText(it.num || String(i + 1).padStart(2, "0"), { x, y, w: 0.9, h: rowH - 0.15, fontFace: FONT, fontSize: 26, bold: true, color: C.accent, align: "left", valign: "top", margin: 0 });
+    s.addText(it.title, { x: x + 1.0, y: y + 0.02, w: colW - 1.0, h: 0.4, fontFace: FONT, fontSize: 17, bold: true, color: C.ink, align: "left", valign: "top", margin: 0 });
+    if (it.subtitle) s.addText(it.subtitle, { x: x + 1.0, y: y + 0.45, w: colW - 1.0, h: 0.4, fontFace: FONT, fontSize: 12, color: C.muted, align: "left", valign: "top", margin: 0 });
+  });
+}
+
+function closingSlide(pres, s, sl) {
+  s.background = { color: C.dark };
+  s.addShape(pres.shapes.RECTANGLE, { x: 0, y: 0, w: W, h: 0.72, fill: { color: C.accent }, line: { color: C.accent } });
+  s.addText("ORACLE", { x: M, y: 0, w: 4, h: 0.72, fontFace: FONT, fontSize: 22, bold: true, color: C.white, align: "left", valign: "middle", charSpacing: 3, margin: 0 });
+  s.addText(sl.title, { x: M, y: 3.0, w: 11.49, h: 1.1, fontFace: FONT, fontSize: 44, bold: true, color: C.white, align: "left", valign: "top", margin: 0 });
+  if (sl.subtitle) s.addText(sl.subtitle, { x: M, y: 4.3, w: 11.49, h: 0.6, fontFace: FONT, fontSize: 16, color: C.muted2, align: "left", valign: "top", margin: 0 });
+}
+
+// ── 블록 그리기 (좌표는 b.x/b.y/b.w/b.h 확정) ─────────────────────
+function drawBullets(pres, s, b) {
+  const runs = b.items.map((it) => ({ text: it, options: { bullet: { indent: 16 }, breakLine: true, color: C.ink, fontSize: 16, paraSpaceAfter: 8 } }));
+  s.addText(runs, { x: b.x, y: b.y, w: b.w, h: b.h, fontFace: FONT, valign: "top", margin: 0 });
+}
+function drawTable(pres, s, b) {
+  const rows = [];
+  if (b.headers.length) rows.push(b.headers.map((c) => ({ text: c, options: { fill: { color: C.ink }, color: C.white, bold: true, fontSize: 12 } })));
+  for (const r of b.rows) rows.push(r.map((c) => ({ text: c, options: { color: C.ink, fontSize: 12, fill: { color: C.white } } })));
+  s.addTable(rows, { x: b.x, y: b.y, w: b.w, h: b.h, fontFace: FONT, border: { pt: 0.5, color: C.line }, align: "left", valign: "middle", margin: [3, 6, 3, 6], autoPage: false });
+}
+function drawCallout(pres, s, b) {
+  const stripe = b.tone === "why" ? C.accent : C.slate;
+  const label = b.head || (b.tone === "why" ? "왜 중요한가" : "기억할 점");
+  s.addShape(pres.shapes.RECTANGLE, { x: b.x, y: b.y, w: b.w, h: b.h, fill: { color: C.card }, line: { color: C.card }, shadow: shadow() });
+  s.addShape(pres.shapes.RECTANGLE, { x: b.x, y: b.y, w: 0.07, h: b.h, fill: { color: stripe }, line: { color: stripe } });
+  s.addText(label, { x: b.x + 0.35, y: b.y + 0.22, w: b.w - 0.6, h: 0.4, fontFace: FONT, fontSize: 14, bold: true, color: stripe === C.accent ? C.accent : C.ink, align: "left", valign: "middle", margin: 0 });
+  s.addText(b.body, { x: b.x + 0.35, y: b.y + 0.72, w: b.w - 0.6, h: b.h - 0.9, fontFace: FONT, fontSize: 13, color: C.ink, align: "left", valign: "top", margin: 0 });
+}
+function drawCode(pres, s, b) {
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: b.x, y: b.y, w: b.w, h: b.h, fill: { color: C.dark }, line: { color: C.dark }, rectRadius: 0.06, shadow: shadow() });
+  [C.dot1, C.dot2, C.dot3].forEach((col, i) => s.addShape(pres.shapes.OVAL, { x: b.x + 0.35 + i * 0.25, y: b.y + 0.28, w: 0.13, h: 0.13, fill: { color: col }, line: { color: col } }));
+  const runs = b.lines.map((ln) => {
+    const t = (ln || " ");
+    const isComment = /^\s*(--|#)/.test(t);
+    return { text: t === "" ? " " : t, options: { breakLine: true, color: isComment ? C.codeComment : C.codeFg, fontSize: 12.5 } };
+  });
+  s.addText(runs, { x: b.x + 0.35, y: b.y + 0.72, w: b.w - 0.6, h: b.h - 0.9, fontFace: MONO, align: "left", valign: "top", margin: 0 });
+}
+function drawFigure(pres, s, b) {
+  s.addShape(pres.shapes.RECTANGLE, { x: b.x, y: b.y, w: b.w, h: b.h, fill: { color: C.card }, line: { color: C.card }, shadow: shadow() });
+  s.addShape(pres.shapes.RECTANGLE, { x: b.x, y: b.y, w: 0.07, h: b.h, fill: { color: C.accent }, line: { color: C.accent } });
+  const parts = [{ text: "다이어그램  ", options: { bold: true, color: C.accent, fontSize: 12 } }];
+  if (b.caption) parts.push({ text: b.caption, options: { bold: true, color: C.ink, fontSize: 13 } });
+  s.addText(parts, { x: b.x + 0.35, y: b.y + 0.2, w: b.w - 0.6, h: 0.55, fontFace: FONT, align: "left", valign: "top", margin: 0 });
+  if (b.summary) s.addText(b.summary, { x: b.x + 0.35, y: b.y + 0.78, w: b.w - 0.6, h: b.h - 0.95, fontFace: FONT, fontSize: 12, color: C.muted, italic: true, align: "left", valign: "top", margin: 0 });
+}
+function drawBlock(pres, s, b) {
+  ({ bullets: drawBullets, table: drawTable, callout: drawCallout, code: drawCode, figure: drawFigure }[b.kind] || (() => {}))(pres, s, b);
+}
+
+function contentSlide(pres, s, sl) {
+  s.background = { color: C.white };
+  contentHeader(pres, s, sl);
+  if (sl.layout === "split") { drawBlock(pres, s, sl.left); drawBlock(pres, s, sl.right); }
+  else for (const b of sl.blocks) drawBlock(pres, s, b);
+}
+
+// ── 엔트리 ───────────────────────────────────────────────────────
+async function main() {
+  const args = process.argv.slice(2);
+  const inPath = args[0];
+  const oIdx = args.indexOf("-o");
+  const outPath = oIdx >= 0 ? args[oIdx + 1] : inPath.replace(/\.slides\.json$|\.json$/, ".pptx");
+  if (!inPath) { console.error("사용법: node build_ppt.js <spec.json> -o <out.pptx>"); process.exit(1); }
+
+  const spec = JSON.parse(fs.readFileSync(inPath, "utf-8"));
+  const planned = L.planDeck(spec);
+  const bad = L.overflowReport(planned);
+  if (bad.length) console.warn("[build] ⚠ 오버플로 의심:", bad.map((b) => `${b.title}(${b.bottom}/${b.limit})`));
+
+  const pres = new pptxgen();
+  pres.layout = "LAYOUT_WIDE";
+  pres.author = "Oracle DBA Study";
+  pres.title = spec.title;
+
+  const draw = { title: titleSlide, section: sectionSlide, roadmap: roadmapSlide, closing: closingSlide, content: contentSlide };
+  for (const sl of planned) draw[sl.type](pres, pres.addSlide(), sl);
+
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
+  await pres.writeFile({ fileName: outPath });
+  console.log(`[build] ${planned.length} slides → ${outPath}`);
+}
+
+main().catch((e) => { console.error(e); process.exit(1); });

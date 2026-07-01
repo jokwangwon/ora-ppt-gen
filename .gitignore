@@ -16,3 +16,7 @@ slide-*.png
 
 # OS
 .DS_Store
+
+# 사용자 콘텐츠 / 참고 자료 (저장소에 커밋하지 않음)
+assets/
+ref/
