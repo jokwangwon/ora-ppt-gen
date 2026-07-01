@@ -1,7 +1,7 @@
 {
   "deck_id": "day72",
   "title": "실행계획 숫자를 읽어 SQL을 판정한다",
-  "subtitle": "72일차 — 플랜/tkprof 출력값 해석이 튜닝의 시작",
+  "subtitle": "72일차 — 실습 플랜을 직접 읽으며",
   "source": "72일차 노트 · sql_tuning 계열",
   "tag": "Oracle DBA · 72일차",
   "closing": "플랜의 숫자부터 읽어라 — Starts·E/A-Rows·Buffers가 답을 말한다.",
@@ -9,7 +9,7 @@
     {
       "type": "title",
       "title": "실행계획 숫자를 읽어 SQL을 판정한다",
-      "subtitle": "72일차 — 플랜/tkprof 출력값 해석이 튜닝의 시작"
+      "subtitle": "72일차 — 실습 플랜을 직접 읽으며"
     },
     {
       "type": "section",
@@ -30,10 +30,10 @@
           "kind": "callout",
           "tone": "tip",
           "head": "오늘 하루가 이 세 칸이다",
-          "body": "SQL을 돌리면 display_cursor나 tkprof가 숫자를 남긴다. 그 숫자 — Starts, E-Rows/A-Rows, Buffers — 를 읽으면 어디가 무거운지, 옵티마이저 추정이 맞았는지가 보인다. 오늘 배우는 추적·인덱스·조인은 전부 이 숫자로 판정하는 얘기다."
+          "body": "SQL을 돌리면 display_cursor나 tkprof가 숫자를 남긴다. 그 숫자 — Starts, E-Rows/A-Rows, Buffers — 를 읽으면 어디가 무거운지, 옵티마이저 추정이 맞았는지가 보인다. 오늘 추적·인덱스·조인은 전부 이 숫자로 판정한다."
         }
       ],
-      "notes": "자, 오늘 하루를 한 장으로 묶으면 이겁니다. SQL을 실행하면 실행계획이나 tkprof가 숫자를 잔뜩 남겨요. 우리가 할 일은 그 숫자를 읽는 겁니다. Starts, E-Rows랑 A-Rows, Buffers 이런 것들이요. 이걸 읽으면 이 쿼리가 어디서 힘을 쓰는지, 옵티마이저가 예측을 잘했는지가 다 보여요. 오늘 배울 tkprof, 10046, 인덱스 종류, 조인 — 전부 결국 이 숫자를 읽어서 '어느 쪽이 낫다'를 판정하는 겁니다. 그러니까 오늘의 진짜 주제는 '플랜 숫자 읽기'예요."
+      "notes": "자, 오늘을 한 장으로 묶으면 이겁니다. SQL을 실행하면 실행계획이나 tkprof가 숫자를 잔뜩 남겨요. 우리가 할 일은 그 숫자를 읽는 거예요. Starts, E-Rows와 A-Rows, Buffers. 이걸 읽으면 이 쿼리가 어디서 힘을 쓰는지, 옵티마이저가 예측을 잘했는지가 다 보입니다. 오늘 배우는 건 전부 이 숫자를 읽어서 '어느 쪽이 낫다'를 판정하는 거예요. 오늘은 개념만 보고 끝내지 않고, 실제로 돌린 플랜을 같이 읽어보겠습니다."
     },
     {
       "type": "content",
@@ -48,16 +48,59 @@
           "kind": "callout",
           "tone": "why",
           "head": "이전 수업과의 연결",
-          "body": "실행계획 Buffers·consistent gets 읽는 법은 70일차 autotrace, tkprof·CF는 71일차에서 배웠다. and_equal은 69일차, TX 잠금 진단은 68일차. 오늘 새로 얹는 건 10046·BCHR·bitmap·조인, 그리고 이 숫자들로 경로를 실제로 고르는 판정이다."
+          "body": "Buffers·consistent gets 읽는 법은 70일차 autotrace, tkprof·CF는 71일차. and_equal은 69일차, TX 잠금 진단은 68일차. 오늘 새로 얹는 건 10046·BCHR·bitmap·조인, 그리고 이 숫자들로 경로를 실제로 고르는 판정이다."
         }
       ],
-      "notes": "그 전에 짚을 게 있어요. 오늘이 갑자기 나온 게 아닙니다. 실행계획에서 Buffers, consistent gets 읽는 법은 70일차 autotrace에서 했고, tkprof랑 클러스터링 팩터는 어제 71일차에 봤죠. and_equal은 69일차, TX 잠금 진단은 68일차예요. 오늘 새로 배우는 건 10046, 버퍼 캐시 히트율, bitmap 인덱스, 조인 방법 — 그리고 이 숫자들을 가지고 실제로 '이 경로가 낫다'를 판정하는 연습입니다."
+      "notes": "그 전에, 오늘이 갑자기 나온 게 아니에요. 실행계획 Buffers 읽는 법은 70일차, tkprof랑 클러스터링 팩터는 어제 71일차에 했죠. and_equal은 69일차, TX 잠금 진단은 68일차. 오늘 새로 배우는 건 10046, 버퍼 캐시 히트율, bitmap, 조인 — 그리고 이 숫자로 실제 경로를 고르는 판정입니다."
     },
     {
       "type": "section",
       "num": "01",
       "title": "실행계획 숫자 읽기",
       "subtitle": "allstats last의 각 컬럼"
+    },
+    {
+      "type": "content",
+      "title": "먼저 개념 — 플랜의 네 숫자가 각각 무엇을 말하나",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": [
+            "컬럼",
+            "뜻",
+            "읽는 법"
+          ],
+          "rows": [
+            [
+              "Starts",
+              "operation 실행 횟수",
+              "1보다 크면 안쪽이 반복(NL)"
+            ],
+            [
+              "E-Rows / A-Rows",
+              "예상 / 실제 행 수",
+              "벌어지면 통계·카디널리티 의심"
+            ],
+            [
+              "Buffers",
+              "논리 I/O(누적)",
+              "튜닝 핵심 — 줄이는 게 목표"
+            ],
+            [
+              "Reads",
+              "물리 I/O",
+              "디스크에서 실제로 읽음"
+            ]
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "why",
+          "head": "access와 filter도 구분",
+          "body": "access는 인덱스로 바로 좁힌 조건, filter는 읽고 나서 버린 조건. 핵심 조건이 filter로만 잡히면 인덱스 기회를 놓친 것이다."
+        }
+      ],
+      "notes": "먼저 개념부터 잡고 실제로 읽어봅시다. display_cursor를 allstats last로 뽑으면 이 컬럼들이 나와요. Starts는 그 operation이 몇 번 실행됐나 — 1보다 크면 안쪽이 반복됐다는 뜻이고, 조인에서 진짜 중요해집니다. E-Rows와 A-Rows는 예상과 실제, 벌어지면 통계 문제. Buffers는 논리 I/O, 우리가 줄이려는 숫자. 그리고 access와 filter — access는 인덱스로 좁힌 거, filter는 읽고 버린 거. 이제 실제 플랜에서 이걸 읽어봅니다."
     },
     {
       "type": "content",
@@ -77,114 +120,82 @@
           "kind": "callout",
           "tone": "why",
           "head": "이 플랜에서 읽은 것",
-          "body": "Starts는 다 1(반복 없음). E-Rows 2 vs A-Rows 4 — 추정이 살짝 빗나갔다. Buffers 합 5가 논리 I/O. salary는 access(좁힘)인데 department_id는 filter(읽고 버림) → dept를 인덱스로 태우면 더 줄겠다는 판정이 여기서 나온다."
+          "body": "Starts 다 1(반복 없음). E-Rows 2 vs A-Rows 4 — 추정이 살짝 빗나감. Buffers 합 5가 논리 I/O. salary는 access인데 department_id는 filter → dept를 인덱스로 태우면 더 줄겠다는 판정이 여기서 나온다."
         }
       ],
-      "notes": "실제로 돌린 플랜을 같이 읽어봅시다. dept=80 그리고 salary=10000, display_cursor를 allstats last로 뽑은 거예요. 먼저 Starts, 다 1이죠? 반복이 없었다는 뜻입니다. 그다음 Id 2번 보면 E-Rows가 2인데 A-Rows가 4예요. 옵티마이저가 2행 예상했는데 실제 4행, 살짝 빗나갔죠. 통계가 완벽친 않다는 신호고요. Buffers는 맨 위 0번에 5, 이게 이 쿼리가 읽은 논리 블록 총량입니다. 그리고 아래 Predicate가 핵심이에요. salary는 access, 인덱스로 바로 좁혔다는 거고, department_id는 filter, 일단 읽고 나서 버렸다는 겁니다. 그럼 자연스럽게 이런 판정이 나와요 — department_id를 filter가 아니라 access로, 그러니까 dept 인덱스를 태우면 더 줄지 않을까? 바로 그걸 다음에 확인합니다."
+      "notes": "이제 실제 플랜입니다. dept=80 그리고 salary=10000을 돌린 거예요. Starts 보면 다 1이죠, 반복 없음. Id 2번 E-Rows 2인데 A-Rows 4 — 옵티마이저가 2행 예상했는데 실제 4행, 살짝 빗나갔어요. Buffers는 맨 위 5, 이 쿼리의 논리 I/O 총량입니다. 그리고 아래가 핵심이에요. salary는 access, 인덱스로 좁힌 거고 department_id는 filter, 읽고 버린 거예요. 그럼 자연스럽게 판정이 나오죠 — department_id를 filter 말고 access로, dept 인덱스를 태우면 더 줄지 않을까? 바로 다음에 확인합니다."
     },
     {
       "type": "section",
       "num": "02",
       "title": "추적 도구",
-      "subtitle": "숫자를 어떻게 남기나 — tkprof·10046"
+      "subtitle": "tkprof·10046·BCHR"
     },
     {
       "type": "content",
-      "title": "tkprof는 SELECT면 Fetch 줄의 query(논리)·disk(물리)를 본다",
+      "title": "tkprof — SELECT는 Fetch 줄의 query(논리)·disk(물리)를 본다",
       "blocks": [
         {
-          "kind": "table",
-          "headers": [
-            "열",
-            "뜻",
-            "무엇을 보나"
-          ],
-          "rows": [
-            [
-              "query",
-              "consistent gets(논리 읽기)",
-              "SELECT의 논리 I/O — 핵심 지표"
-            ],
-            [
-              "current",
-              "db block gets",
-              "DML이 보는 논리 I/O"
-            ],
-            [
-              "disk",
-              "physical reads",
-              "디스크에서 실제로 읽음"
-            ]
+          "kind": "code",
+          "lines": [
+            "select * from hr.emp where employee_id = 100",
+            "call     count   disk   query  current  rows",
+            "Fetch        2      9       2       0      1",
+            "Row Source: TABLE ACCESS BY INDEX ROWID EMP (cr=2 pr=9)",
+            "              INDEX UNIQUE SCAN EMP_IDX      (cr=1 pr=1)"
           ]
         },
         {
           "kind": "callout",
           "tone": "why",
-          "head": "규칙 하나 (71일차에서 이어짐)",
-          "body": "SELECT는 Fetch 줄의 query·disk, DML은 Execute 줄의 current·disk를 본다. employee_id=100 예제는 Fetch에서 query=2 — 인덱스로 2블록만 읽었다. Row Source의 cr·pr도 같은 값을 operation별로 준다."
+          "head": "실제로 읽은 것",
+          "body": "Fetch 줄만 본다. query=2가 논리 I/O(consistent gets), disk=9는 물리(캐시 flush 후 첫 read라 큼). Row Source의 cr=2가 그 query와 같은 값 — operation별로 쪼갠 것."
         }
       ],
-      "notes": "숫자를 어떻게 얻느냐 — 첫 번째 도구가 tkprof입니다. 결과를 열면 SQL마다 Parse, Execute, Fetch 세 줄이 나와요. 볼 열은 query, current, disk 셋입니다. query가 논리 읽기, consistent gets고요. disk가 물리 읽기예요. 규칙 하나만 외우세요. SELECT면 Fetch 줄의 query랑 disk를, DML이면 Execute 줄의 current랑 disk를 봅니다. employee_id=100 예제 보면 Fetch의 query가 2죠? 인덱스로 딱 2블록만 읽었다는 뜻이에요. 71일차에 배운 그대로입니다."
+      "notes": "숫자를 어떻게 얻느냐, 첫 도구 tkprof입니다. employee_id=100을 돌린 실제 결과예요. SELECT니까 Fetch 줄을 봅니다. query가 2, 논리 읽기죠. disk가 9인데 이건 물리 읽기예요 — 아까 버퍼 캐시를 flush하고 처음 읽어서 물리가 크게 나온 겁니다. 튜닝에서 보는 건 query 2고요. 아래 Row Source의 cr=2가 바로 그 query랑 같은 값인데, operation별로 쪼개서 보여주는 거예요."
     },
     {
       "type": "content",
-      "title": "10046은 sql_trace에 없는 bind 값과 wait 이벤트까지 남긴다",
+      "title": "10046 — level 12로 돌리면 bind 값과 wait까지 실제로 찍힌다",
       "blocks": [
         {
-          "kind": "table",
-          "headers": [
-            "레벨",
-            "무엇을 추가로 남기나"
-          ],
-          "rows": [
-            [
-              "1",
-              "기본 (sql_trace=true와 동일)"
-            ],
-            [
-              "4",
-              "level 1 + bind 변수 값"
-            ],
-            [
-              "8",
-              "level 1 + wait event"
-            ],
-            [
-              "12",
-              "level 4 + 8 (bind + wait 모두)"
-            ]
+          "kind": "code",
+          "lines": [
+            "alter session set events '10046 trace name context forever, level 12';",
+            "exec :b_id := 50;   select * from hr.emp where department_id = :b_id;",
+            "  BINDS:  :b_id = 50",
+            "  WAITS:  db file sequential read / db file scattered read",
+            "  Fetch:  query=10  disk=9  rows=45"
           ]
         },
         {
           "kind": "callout",
           "tone": "tip",
-          "head": "느린 게 '기다림'일 때 필요하다",
-          "body": "sql_trace는 얼마나 읽었는지만 준다. 무엇을 기다렸는지는 level 8·12의 wait로, 어떤 값으로 실행했는지는 level 4의 bind로 봐야 보인다. 켜기: events '10046 … level 12'. 예제에선 :b_id=50과 db file scattered read가 찍혔다."
+          "head": "레벨 요약",
+          "body": "1 기본 · 4 +bind · 8 +wait · 12 둘 다. sql_trace는 못 주는 '무슨 값으로·무엇을 기다렸나'가 여기서 보인다. 느린 게 기다림일 때 필수."
         }
       ],
-      "notes": "그런데 tkprof, 그러니까 sql_trace만으론 부족할 때가 있어요. 얼마나 읽었는지는 알려주는데, 어떤 값으로 실행했는지랑 뭘 기다렸는지는 안 알려주거든요. 그때 10046 이벤트를 씁니다. 레벨이 있어요. 1은 기본, 4는 바인드 변수 값이 붙고, 8은 대기 이벤트가 붙습니다. 둘 다 보려면 12를 줘요. 예제에서 b_id에 50이 들어간 거랑, db file scattered read 기다린 게 다 찍혔죠. 느린 원인이 '읽기'가 아니라 '기다림'일 때 이게 꼭 필요합니다."
+      "notes": "sql_trace만으론 부족할 때 10046을 씁니다. level 12로 돌린 실제 예예요. bind 변수 b_id에 50이 들어간 게 찍혔고, 기다린 이벤트로 db file sequential read랑 scattered read가 나왔죠. 이건 sql_trace로는 안 보이는 정보예요. 레벨은 1이 기본, 4가 bind 추가, 8이 wait 추가, 12가 둘 다입니다. 느린 원인이 읽기가 아니라 '기다림'일 때 이게 꼭 필요해요."
     },
     {
       "type": "content",
-      "title": "버퍼 캐시 히트율은 높다고 좋은 게 아니다 — 논리 읽기가 폭발해도 올라간다",
+      "title": "버퍼 캐시 히트율은 높다고 좋은 게 아니다",
       "blocks": [
         {
           "kind": "code",
           "lines": [
             "BCHR = (1 - disk / (query + current)) * 100",
-            "",
-            "  query+current = 논리 읽기,  disk = 물리 읽기",
-            "  → 캐시에서 많이 찾을수록 높아짐"
+            "  query+current = 논리 읽기,  disk = 물리 읽기"
           ]
         },
         {
           "kind": "callout",
           "tone": "tip",
-          "head": "히트율은 높은데 느리다면",
-          "body": "실행계획이 나빠 논리 읽기가 폭증하면 BCHR은 오히려 100%에 가까워진다 — 디스크는 안 가고 캐시에서만 잔뜩 읽어서다. 그래서 지표는 히트율이 아니라 논리 I/O(Buffers) 절대량이다. 70·71일차에서 consistent gets를 본 이유다."
+          "head": "히트율이 높은데 느리다면",
+          "body": "실행계획이 나빠 논리 읽기가 폭증하면 BCHR은 오히려 100%에 가까워진다 — 디스크는 안 가고 캐시에서만 잔뜩 읽어서다. 지표는 히트율이 아니라 논리 I/O(Buffers) 절대량이다."
         }
       ],
-      "notes": "세 번째, 버퍼 캐시 히트율 BCHR입니다. 공식은 화면 그대로예요, 논리 읽기 중에 디스크 안 가고 캐시에서 찾은 비율. 근데 함정이 있어요. 실행계획이 나빠서 논리 읽기가 폭발하면, 오히려 BCHR이 100%에 가까워집니다. 디스크는 안 가고 캐시에서만 잔뜩 읽으니까요. 그래서 '히트율은 높은데 느리다' 싶으면 이 경우를 의심해야 해요. 진짜 볼 지표는 히트율이 아니라 논리 I/O 절대량, Buffers입니다."
+      "notes": "세 번째, 버퍼 캐시 히트율입니다. 공식은 논리 읽기 중 디스크 안 가고 캐시에서 찾은 비율이에요. 함정이 있어요. 실행계획이 나빠서 논리 읽기가 폭발하면 오히려 히트율이 100%에 가까워집니다. 디스크는 안 가고 캐시에서만 잔뜩 읽으니까요. 그래서 히트율 높은데 느리면 이 경우를 의심하세요. 진짜 지표는 히트율이 아니라 Buffers 절대량입니다."
     },
     {
       "type": "section",
@@ -194,7 +205,7 @@
     },
     {
       "type": "content",
-      "title": "같은 쿼리라도 경로마다 Buffers가 갈린다 — 옵티마이저 기본이 최선은 아니다",
+      "title": "같은 쿼리라도 경로마다 Buffers가 갈린다 — 한눈에",
       "blocks": [
         {
           "kind": "svg",
@@ -204,11 +215,34 @@
         {
           "kind": "callout",
           "tone": "why",
-          "head": "숫자로 고른 결과",
-          "body": "dept=80 AND salary=10000을 네 경로로. 옵티마이저 기본(EMP_SAL_IDX)은 Buffers 5, dept 인덱스 강제는 4. and_equal(69일차)은 둘을 합치느라 10으로 최악, index_combine은 4. 머리로 정하지 말고 Buffers를 찍어 고른다."
+          "head": "네 경로의 Buffers",
+          "body": "기본(EMP_SAL_IDX) 5, dept 인덱스 강제 4, and_equal 10(최악), index_combine 4. 옵티마이저 기본이 최선이 아니다 — 숫자로 고른다. 왜 and_equal이 10인지는 다음 장 실제 플랜에서."
         }
       ],
-      "notes": "이제 그 숫자로 실제 판정을 해봅니다. 똑같은 쿼리 하나, department_id=80 그리고 salary=10000을 네 경로로 돌려서 Buffers를 비교해요. 옵티마이저가 알아서 고르면 EMP_SAL_IDX로 가서 5블록을 읽습니다. 근데 우리가 dept 인덱스를 강제하면 4로 줄어요. 옵티마이저 기본이 최선이 아니었던 거죠. and_equal로 두 인덱스를 합치게 하면 오히려 10, 제일 나쁩니다. bitmap combine은 다시 4로 좋고요. 핵심은 — 어느 게 빠른지 머리로 정하지 말고 이렇게 Buffers를 찍어서 고르라는 겁니다. 참고로 이 플랜들 E-Rows랑 A-Rows도 좀 벌어져 있어요, 통계가 완벽친 않다는 신호죠."
+      "notes": "그 숫자로 실제 판정을 해봅니다. 똑같은 쿼리를 네 경로로 돌려 Buffers를 비교한 거예요. 기본이 5, dept 인덱스 강제가 4, and_equal이 10으로 최악, index_combine이 4. 옵티마이저 기본이 최선이 아니었죠. 근데 and_equal이 왜 10이나 나오는지, 다음 장에서 실제 플랜으로 봅시다."
+    },
+    {
+      "type": "content",
+      "title": "왜 and_equal이 최악인가 — 실제 플랜을 보면 안다",
+      "blocks": [
+        {
+          "kind": "code",
+          "lines": [
+            "/*+ and_equal(e emp_dept_idx emp_sal_idx) */   ...   Buffers 10",
+            "|* 1 |  TABLE ACCESS BY INDEX ROWID EMP           |    10 |",
+            "|  2 |   AND-EQUAL                                |     8 |",
+            "|* 3 |    INDEX RANGE SCAN  EMP_SAL_IDX           |     5 |",
+            "|* 4 |    INDEX RANGE SCAN  EMP_DEPT_IDX          |     3 |"
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "why",
+          "head": "두 인덱스를 각각 훑어 합친다",
+          "body": "and_equal은 EMP_SAL_IDX(5)와 EMP_DEPT_IDX(3)를 따로 스캔해 rowid를 교집합(AND-EQUAL 8)한 뒤 테이블 접근. 그래서 단일 인덱스(4~5)보다 오히려 많다. 실측 없이 힌트를 믿으면 이렇게 손해."
+        }
+      ],
+      "notes": "and_equal이 왜 10인지 실제 플랜을 보면 딱 나와요. Id 3에서 EMP_SAL_IDX를 스캔해 Buffers 5, Id 4에서 EMP_DEPT_IDX를 스캔해 3, 이 둘의 rowid를 Id 2 AND-EQUAL에서 교집합하느라 8, 그리고 테이블 접근까지 10이에요. 인덱스 하나만 타면 4~5인데, 두 개를 각각 훑어 합치니까 오히려 더 많은 거죠. 그래서 힌트를 실측 없이 믿으면 안 됩니다 — 숫자가 말해줘요."
     },
     {
       "type": "section",
@@ -218,7 +252,7 @@
     },
     {
       "type": "content",
-      "title": "B*tree는 OLTP, bitmap은 DW — 정반대 상황을 위한 도구다",
+      "title": "B*tree는 OLTP, bitmap은 DW — 정반대 상황용이다",
       "blocks": [
         {
           "kind": "table",
@@ -231,7 +265,7 @@
             [
               "컬럼",
               "유일·고선택도",
-              "중복 많은 저선택도(성별 등)"
+              "중복 많은 저선택도"
             ],
             [
               "DML 비용",
@@ -254,14 +288,14 @@
           "kind": "callout",
           "tone": "tip",
           "head": "고르는 기준",
-          "body": "값 종류가 적고 대량 조회·집계가 많은 DW면 bitmap이 AND/OR을 싸게 처리한다(앞의 index_combine=4). 반대로 동시 DML이 잦은 OLTP엔 독 — 다음 장의 동시성 함정 때문이다."
+          "body": "값 종류가 적고 대량 조회하는 DW면 bitmap이 AND/OR을 싸게 처리한다(앞 index_combine=4). 동시 DML 잦은 OLTP엔 독 — 다음 장에서 실제로 본다."
         }
       ],
-      "notes": "인덱스 종류로 넘어가죠. B*tree랑 bitmap은 정반대 상황용 도구예요. B*tree는 값이 고유하거나 종류가 많은 컬럼, 동시 수정 많은 OLTP에 맞습니다. bitmap은 반대로 성별처럼 값 종류가 몇 개 없는 컬럼, 대량 조회하는 DW에 맞아요. bitmap은 AND, OR을 아주 싸게 처리하고 — 아까 index_combine이 4였죠 — NULL도 인덱싱합니다. 근데 DML 비용이 커요. 그게 왜 문제인지는 바로 다음 장에서 봅니다."
+      "notes": "인덱스 종류입니다. B*tree랑 bitmap은 정반대 도구예요. B*tree는 유일하거나 종류 많은 컬럼, 동시 수정 많은 OLTP. bitmap은 성별처럼 값 몇 개 없는 컬럼, 대량 조회 DW. bitmap은 AND OR을 싸게 처리하지만 DML 비용이 커요. 그게 왜 문제인지 다음 장에서 실제 잠금을 봅니다."
     },
     {
       "type": "content",
-      "title": "bitmap은 한 값이 여러 행을 잠가 DML 동시성을 죽인다",
+      "title": "bitmap은 한 값이 여러 행을 잠근다 — 구조부터",
       "blocks": [
         {
           "kind": "svg",
@@ -271,11 +305,33 @@
         {
           "kind": "callout",
           "tone": "why",
-          "head": "68일차 TX 잠금과 같은 계열",
-          "body": "bitmap은 키 하나가 여러 행을 한 조각으로 덮는다. A가 gender=m을 넣어 그 조각을 잠그면, 같은 m을 넣는 C는 다른 행인데도 대기한다 — enq: TX - row lock contention. 진단은 68일차대로 blocking_session·v$lock. 그래서 bitmap은 OLTP엔 쓰지 않는다."
+          "head": "한 조각이 범위를 덮는다",
+          "body": "bitmap은 키 하나(gender=m)가 그 값을 가진 여러 행을 한 조각으로 덮는다. A가 그 조각을 잠그면 같은 m을 넣는 C는 다른 행이어도 대기."
         }
       ],
-      "notes": "bitmap의 가장 큰 함정입니다. bitmap은 키 하나가 여러 행을 한 덩어리로 덮어요. 그림 보시면, A 세션이 gender=m을 넣으면서 그 m 덩어리를 잠급니다. 그런데 C 세션도 m을 넣으려고 하면, 둘이 완전히 다른 행인데도 C가 기다려야 해요. 같은 덩어리를 건드리니까요. 이게 enq: TX - row lock contention입니다. 진단은 68일차에 배운 blocking_session이랑 v$lock 그대로예요. 결론은 간단합니다. 동시 수정 많은 OLTP에서 bitmap은 쓰지 마세요. 읽기 위주 DW에서만."
+      "notes": "bitmap의 최대 함정, 구조부터 봅시다. bitmap은 키 하나가 여러 행을 한 덩어리로 덮어요. A가 gender=m을 넣으면서 그 m 덩어리를 잠그면, C가 다른 행이지만 역시 m을 넣으려 하면 같은 덩어리라 기다려야 합니다. 이제 실제 세션에서 이게 어떻게 보이는지 봅시다."
+    },
+    {
+      "type": "content",
+      "title": "실제로 세션이 막힌다 — enq: TX - row lock contention",
+      "blocks": [
+        {
+          "kind": "code",
+          "lines": [
+            "-- 세션1: insert ...values(1,'m','y')   세션2: insert ...values(3,'m','y')",
+            "SQL> select sid, blocking_session, event from v$session where event like '%TX%';",
+            " SID  BLOCKING_SESSION  EVENT",
+            " 286  255               enq: TX - row lock contention"
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "why",
+          "head": "다른 행인데 막혔다",
+          "body": "286은 (3,'m','y'), 255는 (1,'m','y') — 행은 다르지만 gender='m'이 같다. 같은 bitmap 조각을 두고 286이 255에 막혔다. B*tree라면 안 막혔을 경합이다. 그래서 bitmap은 OLTP 금지."
+        }
+      ],
+      "notes": "실제로 세션이 막히는 걸 봅시다. 세션1이 gender m인 1번 행을 넣고 커밋 안 한 상태에서, 세션2가 역시 m인 3번 행을 넣으려 해요. v$session을 보면 286번 세션이 255번한테 막혀서 enq: TX - row lock contention으로 대기 중이죠. 1번 행이랑 3번 행은 완전히 다른 행인데, gender가 둘 다 m이라 같은 bitmap 조각을 건드려서 막힌 거예요. B*tree였으면 안 막혔을 경합입니다. 그래서 bitmap은 동시 수정 많은 OLTP엔 절대 안 씁니다. 진단은 68일차에 배운 blocking_session 그대로고요."
     },
     {
       "type": "section",
@@ -297,12 +353,12 @@
           "rows": [
             [
               "NESTED LOOP",
-              "건수 적을 때·인덱스 액세스",
+              "건수 적을 때·인덱스",
               "use_nl"
             ],
             [
               "SORT MERGE",
-              "건수 많을 때·정렬 비용 주의",
+              "건수 많을 때·정렬 주의",
               "use_merge"
             ],
             [
@@ -321,14 +377,14 @@
           "kind": "callout",
           "tone": "tip",
           "head": "방법과 순서는 다른 축",
-          "body": "employee_id=100처럼 바깥이 1행이면 순서를 ordered·leading으로 바꿔도 Buffers는 그대로 4다. 하지만 location_id=1400처럼 바깥이 여러 행이면 누가 driving이 되느냐로 반복 횟수가 달라진다."
+          "body": "바깥이 1행이면 순서를 바꿔도 Buffers는 같다. 바깥이 여러 행이면 누가 driving이냐로 반복 횟수가 달라진다 — 곧 Starts로 본다."
         }
       ],
-      "notes": "조인입니다. 방법은 세 가지예요. Nested Loop는 건수가 적고 인덱스로 콕콕 찍을 때, use_nl. Sort Merge랑 Hash는 건수 많을 때 쓰는데 각각 use_merge, use_hash고요. 그리고 조인 방법이랑 순서는 다른 얘기입니다. 순서는 ordered나 leading으로 정해요. 재밌는 게, employee_id=100처럼 바깥이 딱 1행이면 순서를 바꿔도 Buffers가 그대로 4예요. 근데 location_id=1400처럼 바깥이 여러 행이면 누가 먼저 도느냐로 반복 횟수가 확 달라집니다. 그걸 다음 장에서 Starts로 봅니다."
+      "notes": "조인입니다. 방법은 셋 — 건수 적으면 Nested Loop(use_nl), 많으면 Sort Merge나 Hash. 그리고 방법과 순서는 다른 얘기예요. 순서는 ordered나 leading으로 정합니다. 바깥이 1행이면 순서 바꿔도 Buffers가 같은데, 바깥이 여러 행이면 누가 먼저 도느냐로 반복이 확 달라져요. 그걸 Starts로 봅니다."
     },
     {
       "type": "content",
-      "title": "NL 조인은 바깥 각 행마다 안쪽을 반복한다 — Starts가 그 반복을 드러낸다",
+      "title": "NL은 바깥 각 행마다 안쪽을 반복한다 — 구조",
       "blocks": [
         {
           "kind": "svg",
@@ -338,11 +394,57 @@
         {
           "kind": "callout",
           "tone": "why",
-          "head": "Starts로 반복을 읽는다",
-          "body": "바깥(driving)이 1행이면 3→2→5→4→1로 한 번. 하지만 바깥이 5행이면 안쪽(5→4)이 다섯 번 반복돼 3→2→5→4→5→4…→1이 된다. 이때 안쪽 operation의 Starts가 5로 찍힌다. 그래서 NL은 바깥 집합이 작아야 싸다 — 70·71일차 인덱스 rowid 접근의 반복과 같은 구조다."
+          "head": "바깥(driving)이 반복을 정한다",
+          "body": "바깥 EMPLOYEES의 각 행마다 안쪽 DEPARTMENTS를 인덱스로 조회해 붙인다. 바깥이 작을수록 안쪽 반복이 적어 NL이 싸다. 실제 플랜 두 개로 확인한다."
         }
       ],
-      "notes": "마지막으로 NL이 실제로 어떻게 도는지 봅시다. 바깥 테이블, 여기선 EMPLOYEES가 driving이에요. 이 바깥 각 행마다 안쪽 DEPARTMENTS를 반복 조회합니다. 바깥이 1행이면 3번에서 사원 찾고, 2번에서 그 행 읽고, 5번에서 부서 인덱스, 4번에서 부서 행, 1번에서 붙여서 3-2-5-4-1 한 번으로 끝나요. 그런데 — 학생분이 어렵다고 표시한 그 부분이 여기입니다 — 바깥이 5행이면 안쪽 5-4가 다섯 번 반복돼서 3-2-5-4-5-4 이렇게 이어집니다. 이때 안쪽 operation의 Starts가 5로 찍혀요. 그래서 Starts만 봐도 '아, 안쪽이 다섯 번 돌았구나'가 보입니다. 그래서 NL은 바깥이 작아야 싼 거예요. 70, 71일차에 본 인덱스로 rowid 찾고 테이블 읽는 그 반복이랑 똑같은 구조고요."
+      "notes": "NL이 실제로 어떻게 도는지, 구조부터요. 바깥 테이블이 driving이고, 그 각 행마다 안쪽을 반복 조회합니다. 바깥이 작을수록 안쪽이 덜 돌아서 싸요. 이제 실제 플랜 두 개로 확인합니다 — 바깥이 1행일 때랑 여러 행일 때."
+    },
+    {
+      "type": "content",
+      "title": "실제 ① 바깥이 1행 — employee_id=100",
+      "blocks": [
+        {
+          "kind": "code",
+          "lines": [
+            "|  1 |  NESTED LOOPS                               |    4 |  Starts",
+            "|  2 |   TABLE ACCESS BY INDEX ROWID EMPLOYEES     |    2 |    1   << 바깥",
+            "|  3 |    INDEX UNIQUE SCAN EMP_EMP_ID_PK          |      |    1",
+            "|  4 |   TABLE ACCESS BY INDEX ROWID DEPARTMENTS   |    2 |    1   << 안쪽",
+            "|  5 |    INDEX UNIQUE SCAN DEPT_ID_PK             |      |    1"
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "why",
+          "head": "한 번씩만 돈다",
+          "body": "바깥 EMPLOYEES가 employee_id=100 딱 1행이라 안쪽 DEPARTMENTS도 1번만. 모든 Starts=1, 순서는 3→2→5→4→1, Buffers 4로 끝. 여기까진 쉽다."
+        }
+      ],
+      "notes": "첫 번째, 바깥이 1행인 경우. employee_id=100이니까 바깥 EMPLOYEES가 딱 한 행이에요. 그러니 안쪽 DEPARTMENTS도 한 번만 조회합니다. 오른쪽 Starts 보면 다 1이죠. 실행 순서는 3에서 사원 인덱스, 2에서 사원 행, 5에서 부서 인덱스, 4에서 부서 행, 1에서 붙여서 3-2-5-4-1. Buffers 4로 끝나요. 여기까진 쉽습니다."
+    },
+    {
+      "type": "content",
+      "title": "실제 ② 바깥이 여러 행 — location_id=1400에서 Starts가 반복을 드러낸다",
+      "blocks": [
+        {
+          "kind": "code",
+          "lines": [
+            "-- location 1400 → 부서 60 → 사원 5명",
+            "| Id | Operation                          | Buffers | Starts | A-Rows |",
+            "|  3 |   DEPARTMENTS (BY INDEX ROWID)      |     2   |    1   |    1   |",
+            "|  5 |   INDEX RANGE SCAN EMP_DEPARTMENT_IX|     2   |    1   |    5   |",
+            "|  6 |  EMPLOYEES  (BY INDEX ROWID)        |     2   |    5   |    5   |  << Starts=5"
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "why",
+          "head": "Starts=5가 곧 다섯 번 반복",
+          "body": "location 1400은 부서 60, 그 부서 사원이 5명. 그래서 Id 6(사원 행 읽기)이 5번 실행 = Starts 5. 실행순서가 3→2→5→4→5→4…→1로 길어지는 건 바로 이 반복 때문이다. Starts만 봐도 안쪽이 몇 번 돌았는지 안다."
+        }
+      ],
+      "notes": "두 번째가 학생분이 어렵다고 표시한 그 부분입니다. 천천히 갈게요. 이번엔 location_id=1400으로 조회해요. 1400 위치엔 부서가 60번 하나 있고, 그 60번 부서에 사원이 5명 있습니다. 그러니까 바깥이 5행인 거예요. 플랜에서 Id 6, 사원 행을 읽는 operation의 Starts를 보세요. 5로 찍혀 있죠. 바깥 부서에서 나온 사원이 5명이라 사원 행 읽기를 5번 반복했다는 뜻이에요. 그래서 실행 순서가 3-2-5-4에서 끝나지 않고 5-4-5-4 이렇게 다섯 번 반복돼서 3-2-5-4-5-4...-1로 길어지는 겁니다. 어렵게 느껴졌던 그 긴 순서가, 사실은 Starts 5, 다섯 번 반복이라는 한 숫자로 설명돼요. 그러니까 실행 순서가 헷갈리면 Starts부터 보세요. 안쪽이 몇 번 돌았는지가 거기 다 있습니다."
     },
     {
       "type": "section",
@@ -357,14 +459,14 @@
         {
           "kind": "bullets",
           "items": [
-            "옵티마이저가 5를 골랐는데 dept 힌트가 4였다 → 통계·카디널리티 추정이 어긋났을 가능성 (E-Rows≪A-Rows가 근거, 확인 권장)",
-            "and_equal은 사실상 옛 방식 → 요즘 옵티마이저는 거의 안 쓴다 (index_combine이 대체)",
-            "location_id=1400에서 optimizer_features_enable로 옛 버전을 흉내내면 plan이 바뀐다 → 버전별 NL prefetch 차이 (범위 밖, 참고만)",
-            "NL 실행순서 3→2→5→4…→1은 반복 때문에 길어진다 → Starts 컬럼으로 반복 횟수를 늘 확인"
+            "옵티마이저가 5를 골랐는데 dept 힌트가 4였다 → E-Rows≪A-Rows가 근거, 통계 추정 어긋남 의심 (확인 권장)",
+            "and_equal은 옛 방식 → 요즘 옵티마이저는 거의 안 쓰고 index_combine이 대체",
+            "location_id=1400을 optimizer_features 옛 버전으로 돌리면 plan이 바뀐다 → 버전별 NL prefetch 차이 (참고만)",
+            "실행순서가 길고 헷갈리면 항상 Starts부터 → 안쪽 반복 횟수가 거기 있다"
           ]
         }
       ],
-      "notes": "여기까지 하고, 넘어가기 전에 질문 몇 개 남겨둘게요. 첫째, 옵티마이저가 5를 골랐는데 우리가 강제한 4가 더 좋았죠? E-Rows랑 A-Rows가 벌어진 걸 보면 통계 추정이 어긋난 것 같아요, 확인해볼 만합니다. 둘째, and_equal은 사실상 옛날 방식이라 요즘 옵티마이저는 거의 안 쓰고 index_combine이 대체합니다. 셋째, location_id=1400 케이스에서 optimizer_features로 옛 버전을 흉내내면 플랜이 바뀌는데, 이건 버전별 차이라 오늘은 참고만 하세요. 넷째, NL 실행순서가 길어지는 건 반복 때문이니 항상 Starts 컬럼으로 몇 번 돌았는지 확인하는 습관을 들이면 됩니다. 노트에 없는 건 확인 권장이라고 표시해뒀어요."
+      "notes": "마지막으로 질문 몇 개. 첫째, 옵티마이저가 5를 골랐는데 우리가 강제한 4가 나았죠? E-Rows와 A-Rows가 벌어진 걸 보면 통계 추정이 어긋난 것 같아요, 확인해볼 만합니다. 둘째, and_equal은 옛 방식이라 요즘은 index_combine이 대체해요. 셋째, location_id=1400을 옛 옵티마이저 버전으로 돌리면 plan이 바뀌는데 버전 차이라 참고만 하세요. 넷째, 실행순서가 길고 헷갈리면 항상 Starts부터 보세요 — 안쪽이 몇 번 돌았는지가 거기 다 있습니다. 노트 밖 얘기는 확인 권장으로 표시해뒀어요."
     }
   ]
 }
