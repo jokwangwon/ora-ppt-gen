@@ -111,7 +111,12 @@
     {
       "t": "driving 테이블",
       "e": "NL 조인에서 먼저(바깥) 도는 테이블. 조건이 먼저 거르는 쪽.",
-      "d": "고정이 아니라 쿼리 조건이 먼저 걸러내는 쪽이 driving이 된다. 그 걸러진 건수가 안쪽 반복(Starts)을 정하므로, 바깥이 작을수록 NL이 싸다. 순서는 ordered/leading 힌트로 지정한다."
+      "d": "고정이 아니라 쿼리 조건이 먼저 걸러내는 쪽이 driving이 된다. 그 걸러진 건수가 안쪽 반복(Starts)을 정하므로, 바깥이 작을수록 NL이 싸다. 순서는 ordered/leading 힌트로 지정한다. (=outer, 바깥 루프)"
+    },
+    {
+      "t": "driven 테이블",
+      "e": "NL 조인에서 안쪽(inner)에서 반복 조회당하는 테이블.",
+      "d": "이중 for문의 안쪽 루프. driving이 주는 행 수만큼 끌려서 매번 조인키로 lookup된다(수동태 driven=몰린다). outer 행마다 반복되므로 조인 컬럼에 인덱스가 없으면 Starts번 × full scan으로 터진다 — 그래서 driven엔 인덱스가 필수. outer 테이블(=driving)과 outer join(외부 조인)은 이름만 같은 다른 개념이다."
     }
   ],
   "PLANQ": [

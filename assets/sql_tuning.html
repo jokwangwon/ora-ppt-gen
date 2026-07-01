@@ -648,6 +648,14 @@ Predicate Information:
   </svg>
   <figcaption>NL의 비용은 바깥 행 수에 달렸다. 안쪽이 몇 번 돌았는지는 실행계획 <b>Starts</b>에 그대로 나온다.</figcaption>
   </figure>
+  <div class="why"><span class="h">driving과 driven — 왜 그렇게 부르나</span>
+  이중 for문으로 보면 이름이 그대로 풀린다. <code class="inl">for each row in OUTER { probe INNER }</code> —
+  <ul class="tight" style="margin:6px 0 0">
+    <li><b>driving(=outer, 선행)</b>: 바깥 루프. 자기 행 수만큼 안쪽을 돌려 <b>반복을 민다</b>. 그 횟수가 곧 <b class="k">Starts</b>다. 그래서 옵티마이저는 <b>적게 걸러진 작은 쪽</b>을 driving으로 두려 한다.</li>
+    <li><b>driven(=inner, 후행)</b>: 안쪽 루프. 스스로 횟수를 못 정하고 driving이 주는 만큼 <b>끌려서 조회당한다</b>(수동태). 매 outer 행의 조인키로 lookup된다.</li>
+  </ul></div>
+  <div class="tip"><b>그래서 driven엔 인덱스가 필수</b> — driven은 outer 행마다 반복해 뒤져지므로, 조인 컬럼에 인덱스가 없으면 <code class="inl">Starts번 × full scan</code>으로 터진다. NL 튜닝의 정석은 <b class="k">① driving은 작은(많이 걸러진) 쪽, ② driven의 조인 컬럼엔 인덱스</b>. 아래 두 플랜에서 driven이 늘 인덱스(UNIQUE/RANGE SCAN)로 접근되는 이유다.</div>
+  <div class="tip"><b>헷갈리지 말 것 — outer 테이블 ≠ outer 조인</b> 여기서 <b>outer 테이블</b>은 NL 바깥 루프(=driving)를 말한다. 짝 없는 행을 NULL로 살리는 <b>outer join(외부 조인 · LEFT/RIGHT)</b>과는 이름만 같고 다른 개념이다.</div>
 
   <h3 class="blk"><span class="ix">7.2</span>실측 ① 바깥이 1행 — employee_id=100</h3>
   <p><code class="inl">employee_id=100</code>이면 바깥 EMPLOYEES가 딱 1행이라, 안쪽 DEPARTMENTS도 <b>한 번만</b> 조회한다. 모든 Starts가 1이다.</p>

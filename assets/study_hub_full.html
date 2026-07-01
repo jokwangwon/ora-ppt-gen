@@ -36,7 +36,7 @@ h1{font-size:24px;font-weight:800;letter-spacing:-.02em;margin:7px 0 3px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:17px;margin:11px 0;box-shadow:0 1px 2px rgba(0,0,0,.03)}
 .daytag{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;margin-bottom:8px}
 .dt62{background:#efeafc;color:var(--d62)}.dt63{background:#e2f6f3;color:var(--d63)}.dt64{background:#fbeedd;color:var(--d64)}
-.dt65{background:#e8edf6;color:var(--d65)}.dt66{background:#f9e7f0;color:var(--d66)}.dt67{background:#f0e9dd;color:var(--d67)}.dt68{background:#e7f1e9;color:var(--d68)}.dt69{background:#f4e3ef;color:var(--d69)}.dt70{background:#e4f1ea;color:var(--d70)}.dt71{background:#f6e9dd;color:var(--d71)}.dt72{background:var(--d72);color:#fff}.dt72{background:var(--d72);color:#fff}.dt72{background:var(--d72);color:#fff}.dtsim{background:#e1f0f5;color:var(--dsim)}
+.dt65{background:#e8edf6;color:var(--d65)}.dt66{background:#f9e7f0;color:var(--d66)}.dt67{background:#f0e9dd;color:var(--d67)}.dt68{background:#e7f1e9;color:var(--d68)}.dt69{background:#f4e3ef;color:var(--d69)}.dt70{background:#e4f1ea;color:var(--d70)}.dt71{background:#f6e9dd;color:var(--d71)}.dt72{background:var(--d72);color:#fff}.dt72{background:var(--d72);color:#fff}.dt72{background:var(--d72);color:#fff}.dt72{background:var(--d72);color:#fff}.dtsim{background:#e1f0f5;color:var(--dsim)}
 .q{font-size:17px;font-weight:700;margin:2px 0 14px;line-height:1.45}
 .q code,.opt code,.ex code,.model code,.def code{font-family:var(--mono);font-size:.85em;background:#eef1f5;padding:1px 5px;border-radius:5px}
 .opt{display:block;width:100%;text-align:left;padding:14px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--panel);margin:8px 0;font-size:15px;cursor:pointer;font-family:inherit;color:inherit;line-height:1.4;transition:.12s}
@@ -2073,6 +2073,14 @@ Predicate Information:
   </svg>
   <figcaption>NL의 비용은 바깥 행 수에 달렸다. 안쪽이 몇 번 돌았는지는 실행계획 <b>Starts</b>에 그대로 나온다.</figcaption>
   </figure>
+  <div class="why"><span class="h">driving과 driven — 왜 그렇게 부르나</span>
+  이중 for문으로 보면 이름이 그대로 풀린다. <code class="inl">for each row in OUTER { probe INNER }</code> —
+  <ul class="tight" style="margin:6px 0 0">
+    <li><b>driving(=outer, 선행)</b>: 바깥 루프. 자기 행 수만큼 안쪽을 돌려 <b>반복을 민다</b>. 그 횟수가 곧 <b class="k">Starts</b>다. 그래서 옵티마이저는 <b>적게 걸러진 작은 쪽</b>을 driving으로 두려 한다.</li>
+    <li><b>driven(=inner, 후행)</b>: 안쪽 루프. 스스로 횟수를 못 정하고 driving이 주는 만큼 <b>끌려서 조회당한다</b>(수동태). 매 outer 행의 조인키로 lookup된다.</li>
+  </ul></div>
+  <div class="tip"><b>그래서 driven엔 인덱스가 필수</b> — driven은 outer 행마다 반복해 뒤져지므로, 조인 컬럼에 인덱스가 없으면 <code class="inl">Starts번 × full scan</code>으로 터진다. NL 튜닝의 정석은 <b class="k">① driving은 작은(많이 걸러진) 쪽, ② driven의 조인 컬럼엔 인덱스</b>. 아래 두 플랜에서 driven이 늘 인덱스(UNIQUE/RANGE SCAN)로 접근되는 이유다.</div>
+  <div class="tip"><b>헷갈리지 말 것 — outer 테이블 ≠ outer 조인</b> 여기서 <b>outer 테이블</b>은 NL 바깥 루프(=driving)를 말한다. 짝 없는 행을 NULL로 살리는 <b>outer join(외부 조인 · LEFT/RIGHT)</b>과는 이름만 같고 다른 개념이다.</div>
 
   <h3 class="blk"><span class="ix">7.2</span>실측 ① 바깥이 1행 — employee_id=100</h3>
   <p><code class="inl">employee_id=100</code>이면 바깥 EMPLOYEES가 딱 1행이라, 안쪽 DEPARTMENTS도 <b>한 번만</b> 조회한다. 모든 Starts가 1이다.</p>
@@ -2798,7 +2806,8 @@ const TERMS=[
   {t:"BCHR (버퍼 캐시 히트율)",e:"논리 읽기 중 디스크로 안 간 비율. 높다고 좋은 게 아니다.",d:"BCHR = (1 - disk/(query+current))*100. 흔히 높을수록 좋다지만, 나쁜 실행계획으로 논리 읽기(query)가 폭증하면 분모가 커져 히트율이 오히려 100%에 근접한다(캐시에서만 잔뜩 읽어서). 지표는 히트율이 아니라 논리 I/O(Buffers·consistent gets)의 절대량으로 본다."},
   {t:"Starts",e:"실행계획에서 그 operation을 반복 실행한 횟수.",d:"display_cursor(allstats last)의 컬럼. NL 안쪽이면 바깥 행 수만큼 찍힌다. location_id=1400에서 바깥 부서 사원이 5명이면 안쪽 EMPLOYEES의 Starts=5. 실행순서가 길고 헷갈릴 때 Starts부터 보면 안쪽이 몇 번 돌았는지 바로 안다."},
   {t:"bitmap 인덱스",e:"저선택도 컬럼용. AND/OR에 강하지만 OLTP엔 부적합.",d:"값 종류가 적은(중복 많은) 컬럼에 유리하며 AND/OR을 싸게 처리(index_combine)해 DW·DSS용이다. 단점: 키 하나가 여러 행을 한 조각으로 덮어, 다른 행이라도 같은 값을 넣으면 같은 조각을 두고 enq: TX - row lock contention이 난다. 동시 DML 잦은 OLTP엔 독."},
-  {t:"driving 테이블",e:"NL 조인에서 먼저(바깥) 도는 테이블. 조건이 먼저 거르는 쪽.",d:"고정이 아니라 쿼리 조건이 먼저 걸러내는 쪽이 driving이 된다. 그 걸러진 건수가 안쪽 반복(Starts)을 정하므로, 바깥이 작을수록 NL이 싸다. 순서는 ordered/leading 힌트로 지정한다."}
+  {t:"driving 테이블",e:"NL 조인에서 먼저(바깥) 도는 테이블. 조건이 먼저 거르는 쪽.",d:"고정이 아니라 쿼리 조건이 먼저 걸러내는 쪽이 driving이 된다. 그 걸러진 건수가 안쪽 반복(Starts)을 정하므로, 바깥이 작을수록 NL이 싸다. 순서는 ordered/leading 힌트로 지정한다."},
+  {t:"driven 테이블",e:"NL 조인에서 안쪽(inner)에서 반복 조회당하는 테이블.",d:"이중 for문의 안쪽 루프. driving이 주는 행 수만큼 끌려서 매번 조인키로 lookup된다(수동태 driven=몰린다). outer 행마다 반복되므로 조인 컬럼에 인덱스가 없으면 Starts번 × full scan으로 터진다 — 그래서 driven엔 인덱스가 필수. outer 테이블(=driving)과 outer join(외부 조인)은 이름만 같은 다른 개념이다."}
 ];
 
 const DAYS=[62,63,64,65,66,67,68,69,70,71,72,'심화'];
