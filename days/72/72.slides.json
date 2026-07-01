@@ -1,0 +1,149 @@
+{
+  "deck_id": "day72",
+  "title": "SQL이 한 일을 추적하고, 더 빠른 길을 고른다",
+  "subtitle": "72일차 — tkprof·10046 · 접근 경로 비교 · 인덱스 종류 · 조인",
+  "source": "72일차 노트 · sql_tuning 계열",
+  "tag": "Oracle DBA · 72일차",
+  "closing": "오늘의 한 줄: 추측하지 말고 Buffers로 재서 더 적게 읽는 길을 고른다.",
+  "slides": [
+    { "type": "title", "title": "SQL이 한 일을 추적하고, 더 빠른 길을 고른다", "subtitle": "72일차 — 측정 → 비교 → 선택" },
+
+    { "type": "section", "num": "00", "title": "오늘의 큰 그림", "subtitle": "튜닝은 측정 → 비교 → 선택이다" },
+    { "type": "content",
+      "title": "SQL 튜닝은 추측이 아니라 '측정 → 비교 → 선택'이다",
+      "blocks": [
+        { "kind": "svg", "maxw": 8.6,
+          "svg": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 210' font-family='sans-serif'><defs><marker id='g0' markerWidth='9' markerHeight='9' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 Z' fill='#94A3B8'/></marker></defs><rect x='30' y='70' width='230' height='80' rx='10' fill='#F1F5F9' stroke='#C74634' stroke-width='1.4'/><text x='145' y='104' text-anchor='middle' font-size='17' font-weight='700' fill='#1E293B'>① 측정</text><text x='145' y='128' text-anchor='middle' font-size='12' fill='#64748B'>tkprof · 10046 · autotrace</text><rect x='335' y='70' width='230' height='80' rx='10' fill='#F1F5F9' stroke='#C74634' stroke-width='1.4'/><text x='450' y='104' text-anchor='middle' font-size='17' font-weight='700' fill='#1E293B'>② 비교</text><text x='450' y='128' text-anchor='middle' font-size='12' fill='#64748B'>경로별 Buffers · disk</text><rect x='640' y='70' width='230' height='80' rx='10' fill='#F1F5F9' stroke='#16803d' stroke-width='1.6'/><text x='755' y='104' text-anchor='middle' font-size='17' font-weight='700' fill='#1E293B'>③ 선택</text><text x='755' y='128' text-anchor='middle' font-size='12' fill='#64748B'>가장 적게 읽는 길</text><line x1='260' y1='110' x2='333' y2='110' stroke='#94A3B8' stroke-width='1.6' marker-end='url(#g0)'/><line x1='565' y1='110' x2='638' y2='110' stroke='#94A3B8' stroke-width='1.6' marker-end='url(#g0)'/></svg>" },
+        { "kind": "callout", "tone": "tip", "head": "핵심 지표는 Buffers(논리 I/O)다",
+          "body": "실행 시간은 캐시·부하로 출렁이지만, 논리 I/O(Buffers=consistent gets)는 그 SQL이 실제로 한 일의 양이라 안정적이다. 오늘은 추적으로 이 양을 재고, 같은 결과를 더 적은 Buffers로 내는 경로를 고른다." }
+      ],
+      "notes": "튜닝의 본질은 같은 결과를 더 적은 논리 I/O로 내는 것이다. 그러려면 먼저 SQL이 실제로 무슨 일을 했는지 재야 한다(측정) → 여러 경로의 Buffers를 견줘야 한다(비교) → 가장 적게 읽는 길을 고른다(선택). 오늘의 모든 주제(tkprof·10046·인덱스·조인)가 이 세 단계에 걸린다." },
+
+    { "type": "content",
+      "title": "오늘은 71일차 추적·CF 위에 — 측정 도구를 넓히고 인덱스·조인으로 나아간다",
+      "blocks": [
+        { "kind": "svg", "maxw": 8.8,
+          "svg": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 170' font-family='sans-serif'><defs><marker id='gp' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 Z' fill='#94A3B8'/></marker></defs><text x='450' y='26' text-anchor='middle' font-size='14' fill='#64748B'>SQL 튜닝 흐름 — 68일차부터 이어짐</text><rect x='20' y='54' width='150' height='64' rx='9' fill='#F1F5F9' stroke='#94A3B8' stroke-width='1.2'/><text x='95' y='82' text-anchor='middle' font-size='16' font-weight='700' fill='#1E293B'>68</text><text x='95' y='102' text-anchor='middle' font-size='10.5' fill='#64748B'>튜닝 입구·full scan</text><rect x='195' y='54' width='150' height='64' rx='9' fill='#F1F5F9' stroke='#94A3B8' stroke-width='1.2'/><text x='270' y='82' text-anchor='middle' font-size='16' font-weight='700' fill='#1E293B'>69·70</text><text x='270' y='102' text-anchor='middle' font-size='10.5' fill='#64748B'>액세스경로·논리/물리 I/O</text><rect x='370' y='54' width='150' height='64' rx='9' fill='#F1F5F9' stroke='#94A3B8' stroke-width='1.2'/><text x='445' y='82' text-anchor='middle' font-size='16' font-weight='700' fill='#1E293B'>71</text><text x='445' y='102' text-anchor='middle' font-size='10.5' fill='#64748B'>CF·tkprof</text><rect x='545' y='54' width='330' height='64' rx='9' fill='#FBE3DD' stroke='#C74634' stroke-width='1.8'/><text x='710' y='82' text-anchor='middle' font-size='16' font-weight='700' fill='#C74634'>72 오늘</text><text x='710' y='102' text-anchor='middle' font-size='11' fill='#C74634'>10046·BCHR·인덱스종류·조인</text><line x1='170' y1='86' x2='193' y2='86' stroke='#94A3B8' stroke-width='1.4' marker-end='url(#gp)'/><line x1='345' y1='86' x2='368' y2='86' stroke='#94A3B8' stroke-width='1.4' marker-end='url(#gp)'/><line x1='520' y1='86' x2='543' y2='86' stroke='#94A3B8' stroke-width='1.4' marker-end='url(#gp)'/></svg>" },
+        { "kind": "callout", "tone": "why", "head": "이전 수업과의 연결",
+          "body": "tkprof·CF는 71일차에서 바로 이어지고, 논리 vs 물리 I/O(consistent gets/physical reads)는 70일차, and_equal은 69일차, TX 잠금 진단(blocking_session·v$lock)은 68일차에서 배웠다. 오늘 새로 얹는 건 10046 레벨·BCHR·bitmap 인덱스·조인 방법이다." }
+      ],
+      "notes": "오늘 내용은 독립 주제가 아니다. SQL TRACE·tkprof와 clustering factor는 71일차 끝에서 배웠고 오늘은 그 위에서 10046으로 추적을 넓힌다. Buffers=consistent gets(논리)·physical reads(물리) 구분은 70일차 autotrace 통계에서 정의했다. and_equal 인덱스 머지는 69일차, TX 락 경합 진단(blocking_session·v$segment_statistics)은 68일차. 새로 배우는 건 10046 레벨, BCHR 공식, bitmap 인덱스와 그 동시성 함정, 그리고 조인 방법(NL·SMJ·Hash)이다." },
+
+    { "type": "section", "num": "01", "title": "추적 — tkprof · 10046", "subtitle": "SQL이 한 일을 파일로 남겨 읽는다" },
+    { "type": "content",
+      "title": "SELECT의 비용은 tkprof의 Fetch 줄 query(논리)·disk(물리)로 읽는다",
+      "blocks": [
+        { "kind": "table", "headers": ["열", "뜻", "무엇을 보나"], "rows": [
+          ["query", "consistent read 블록 = consistent gets", "SELECT의 논리 I/O — 튜닝 핵심 지표"],
+          ["current", "current 모드 블록 = db block gets", "DML이 보는 논리 I/O"],
+          ["disk", "물리 읽기 = physical reads", "디스크에서 실제로 읽은 블록"]
+        ]},
+        { "kind": "callout", "tone": "why", "head": "읽는 법 (71일차 tkprof에서 이어짐)",
+          "body": "SELECT는 Fetch 줄의 query·disk를, DML은 Execute 줄의 current·disk를 본다. 예제(employee_id=100)는 Fetch에서 query=2, disk=9 — 인덱스로 2블록만 논리로 읽었다. Row Source의 cr(=논리)·pr(=물리)도 같은 값을 operation별로 보여준다." }
+      ],
+      "notes": "tkprof는 SQL마다 Parse·Execute·Fetch 세 줄로 통계를 준다. 열: query=consistent gets(SELECT 논리), current=db block gets(DML 논리), disk=physical reads. 규칙: SELECT는 Fetch의 query·disk, DML은 Execute의 current·disk. 71일차에서 배운 그대로, 오늘은 이걸로 여러 SQL을 견준다. Row Source Operation 줄의 cr/pr/pw도 같은 뜻(operation별)." },
+
+    { "type": "content",
+      "title": "10046은 sql_trace보다 더 — bind 값과 wait 이벤트까지 남긴다",
+      "blocks": [
+        { "kind": "table", "headers": ["레벨", "무엇을 추가로 남기나"], "rows": [
+          ["1", "기본 추적 (sql_trace=true와 동일)"],
+          ["4", "level 1 + bind 변수 값 (:b_id 같은)"],
+          ["8", "level 1 + wait event (db file sequential/scattered read 등)"],
+          ["12", "level 4 + 8 (bind + wait 모두)"]
+        ]},
+        { "kind": "callout", "tone": "tip", "head": "왜 10046인가 (오늘 새 도구)",
+          "body": "sql_trace는 무엇을 얼마나 읽었는지만 준다. 느린 원인이 '기다림'일 때는 level 8·12로 wait를, 값 의존이면 level 4로 bind를 봐야 보인다. (켜기: events '10046 … level 12')" }
+      ],
+      "notes": "10046 이벤트는 sql_trace의 확장판이다. level 1=기본, 4=+bind, 8=+wait, 12=4+8. bind를 보면 :b_id=50 같은 실제 값을, wait를 보면 db file sequential/scattered read·SQL*Net 대기를 알 수 있다. 튜닝에서 '무엇을 읽었나'만큼 '무엇을 기다렸나'가 중요할 때 필수. 끄기는 level 0(=off)." },
+
+    { "type": "content",
+      "title": "버퍼 캐시 히트율 = 논리로 읽은 블록 중 디스크를 안 간 비율",
+      "blocks": [
+        { "kind": "code", "lines": [
+          "BCHR = (1 - disk / (query + current)) * 100",
+          "",
+          "  query+current = 논리 블록 읽기 (logical reads)",
+          "  disk          = 물리 블록 읽기 (physical reads)",
+          "  → 높을수록 캐시에서 많이 찾았다는 뜻"
+        ]},
+        { "kind": "callout", "tone": "tip", "head": "높다고 무조건 좋은 건 아니다",
+          "body": "논리 읽기 자체가 과도하면(나쁜 실행계획) BCHR은 높아도 느리다. 그래서 히트율보다 '논리 I/O(Buffers)를 줄이는' 게 먼저다 — 70·71일차에서 consistent gets를 튜닝 지표로 삼은 이유와 같다." }
+      ],
+      "notes": "BCHR은 전체 논리 읽기(query+current) 중 물리 I/O 없이 캐시에서 찾은 비율이다. building block(consistent gets·physical reads)은 70일차 autotrace에서 정의했다. 함정: 논리 읽기가 폭증하면 BCHR은 오히려 100%에 가까워질 수 있어 '좋아 보이는데 느린' 상태가 된다. 지표는 BCHR이 아니라 논리 I/O 절대량." },
+
+    { "type": "section", "num": "02", "title": "접근 경로 비교", "subtitle": "같은 쿼리, 다른 인덱스" },
+    { "type": "content",
+      "title": "같은 쿼리라도 어느 인덱스로 가느냐로 Buffers가 갈린다",
+      "blocks": [
+        { "kind": "svg", "maxw": 7.6,
+          "svg": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 300' font-family='sans-serif'><text x='450' y='24' text-anchor='middle' font-size='14' fill='#64748B'>같은 쿼리 (department_id=80 AND salary=10000) — 경로별 Buffers</text><line x1='40' y1='250' x2='870' y2='250' stroke='#E2E8F0' stroke-width='1.4'/><rect x='70' y='160' width='120' height='90' rx='4' fill='#EEF1F5' stroke='#94A3B8' stroke-width='1.2'/><text x='130' y='150' text-anchor='middle' font-size='20' font-weight='700' fill='#64748B'>5</text><text x='130' y='272' text-anchor='middle' font-size='12' fill='#1E293B'>기본(옵티마이저)</text><text x='130' y='289' text-anchor='middle' font-size='11' fill='#64748B'>EMP_SAL_IDX</text><rect x='270' y='178' width='120' height='72' rx='4' fill='#F1F5F9' stroke='#16803d' stroke-width='1.6'/><text x='330' y='168' text-anchor='middle' font-size='20' font-weight='700' fill='#16803d'>4</text><text x='330' y='272' text-anchor='middle' font-size='12' fill='#1E293B'>index(dept) 힌트</text><text x='330' y='289' text-anchor='middle' font-size='11' fill='#64748B'>EMP_DEPT_IDX ✓</text><rect x='470' y='70' width='120' height='180' rx='4' fill='#FBE3DD' stroke='#D6453D' stroke-width='1.6'/><text x='530' y='60' text-anchor='middle' font-size='20' font-weight='700' fill='#D6453D'>10</text><text x='530' y='272' text-anchor='middle' font-size='12' fill='#1E293B'>and_equal</text><text x='530' y='289' text-anchor='middle' font-size='11' fill='#D6453D'>두 인덱스 머지 ✗</text><rect x='670' y='178' width='120' height='72' rx='4' fill='#F1F5F9' stroke='#16803d' stroke-width='1.6'/><text x='730' y='168' text-anchor='middle' font-size='20' font-weight='700' fill='#16803d'>4</text><text x='730' y='272' text-anchor='middle' font-size='12' fill='#1E293B'>index_combine</text><text x='730' y='289' text-anchor='middle' font-size='11' fill='#64748B'>bitmap AND ✓</text></svg>" },
+        { "kind": "callout", "tone": "why", "head": "무엇을 배우나",
+          "body": "옵티마이저 기본(EMP_SAL_IDX, 5)이 늘 최선은 아니다 — dept 인덱스를 강제하면 4로 준다. and_equal(69일차)은 두 인덱스 rowid를 머지하느라 오히려 10으로 최악. 정답은 취향이 아니라 Buffers 실측으로 고른다." }
+      ],
+      "notes": "department_id=80 AND salary=10000 한 쿼리를 네 경로로 실행해 Buffers를 비교한다. 기본(옵티마이저가 고른 EMP_SAL_IDX)=5, index(emp_dept_idx) 강제=4, and_equal(두 단일 인덱스 머지)=10(최악), index_combine(bitmap AND/OR)=4. 교훈: 옵티마이저 기본이 최선이 아닐 수 있고, and_equal은 구식이라 대개 비싸다. 힌트로 여러 경로를 만들어 Buffers로 견주는 게 오늘의 방법이다." },
+
+    { "type": "section", "num": "03", "title": "인덱스 종류", "subtitle": "B*tree vs bitmap" },
+    { "type": "content",
+      "title": "B*tree는 OLTP, bitmap은 DW — 정반대 상황을 위한 도구다",
+      "blocks": [
+        { "kind": "table", "headers": ["기준", "B*tree 인덱스", "bitmap 인덱스"], "rows": [
+          ["컬럼", "유일키·고선택도 컬럼", "중복 많은 저선택도 컬럼(성별 등)"],
+          ["DML 비용", "낮음 (row 수준 lock)", "높음 (여러 행을 함께 lock)"],
+          ["연산자", "OR에 비효율", "AND·OR 모두 효율(BITMAP AND)"],
+          ["NULL", "인덱스 스캔 안 함", "NULL도 스캔"],
+          ["용도", "OLTP", "DW·DSS(의사결정)"]
+        ]},
+        { "kind": "callout", "tone": "tip", "head": "고르는 기준",
+          "body": "값 종류가 적고 대량 조회·집계가 많은 DW라면 bitmap이 AND/OR을 싸게 처리한다(위 index_combine=4). 반대로 동시 DML이 많은 OLTP엔 bitmap이 독 — 다음 슬라이드의 동시성 함정 때문이다." }
+      ],
+      "notes": "B*tree와 bitmap은 정반대 상황용이다. B*tree는 유일/고선택도 컬럼·OLTP, bitmap은 중복 많은 컬럼·DW. bitmap은 AND/OR을 BITMAP AND로 싸게 처리하고 NULL도 인덱싱한다. 하지만 DML 비용이 커서 OLTP에선 위험하다(다음 장)." },
+
+    { "type": "content",
+      "title": "bitmap 인덱스는 한 값이 여러 행을 잠가 DML 동시성을 죽인다",
+      "blocks": [
+        { "kind": "svg", "maxw": 6.6,
+          "svg": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 280' font-family='sans-serif'><defs><marker id='gb' markerWidth='9' markerHeight='9' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 Z' fill='#94A3B8'/></marker></defs><rect x='60' y='24' width='210' height='42' rx='7' fill='#F1F5F9' stroke='#16803d' stroke-width='1.3'/><text x='165' y='50' text-anchor='middle' font-size='13' fill='#1E293B'>Sess A: insert gender=m</text><rect x='630' y='24' width='210' height='42' rx='7' fill='#FBE3DD' stroke='#D6453D' stroke-width='1.4'/><text x='735' y='50' text-anchor='middle' font-size='13' fill='#1E293B'>Sess C: insert gender=m</text><rect x='300' y='120' width='300' height='90' rx='10' fill='#F8FAFC' stroke='#E2E8F0' stroke-width='1.4'/><rect x='320' y='138' width='260' height='36' rx='6' fill='#FBE3DD' stroke='#D6453D' stroke-width='1.3'/><text x='450' y='161' text-anchor='middle' font-size='13' fill='#1E293B'>bitmap 조각 gender=m [A가 잠금]</text><text x='450' y='196' text-anchor='middle' font-size='12' fill='#64748B'>이 한 조각이 m인 모든 행을 덮는다</text><line x1='165' y1='66' x2='360' y2='134' stroke='#94A3B8' stroke-width='1.4' marker-end='url(#gb)'/><line x1='735' y1='66' x2='540' y2='134' stroke='#D6453D' stroke-width='1.6' stroke-dasharray='5 4' marker-end='url(#gb)'/><text x='450' y='256' text-anchor='middle' font-size='14' font-weight='700' fill='#D6453D'>C는 같은 m 조각을 기다림 → enq: TX - row lock contention</text></svg>" },
+        { "kind": "callout", "tone": "why", "head": "68일차 TX 잠금과 같은 계열",
+          "body": "bitmap은 키 하나가 여러 행(범위)을 한 조각으로 덮는다. A가 gender=m을 넣어 그 조각을 잠그면, 같은 m을 넣는 C는 행이 겹치지 않아도 대기한다 — enq: TX - row lock contention. 진단은 68일차대로 blocking_session·v$lock(TX). 그래서 bitmap은 OLTP 금지." }
+      ],
+      "notes": "bitmap 인덱스의 최대 함정. 한 키 값이 여러 행을 하나의 bitmap 조각으로 덮기 때문에, 서로 다른 행이라도 같은 키(gender=m)를 동시에 넣으면 뒤 세션이 enq: TX - row lock contention으로 막힌다. 68일차에서 배운 TX enqueue·blocking_session·v$lock으로 진단이 똑같다. 결론: 동시 DML이 잦은 OLTP에서 bitmap은 재앙, 읽기 위주 DW에서만." },
+
+    { "type": "section", "num": "04", "title": "조인", "subtitle": "방법과 실행 순서" },
+    { "type": "content",
+      "title": "조인은 건수·상황으로 NL·Sort-Merge·Hash 중 고른다",
+      "blocks": [
+        { "kind": "table", "headers": ["방법", "언제 유리", "힌트"], "rows": [
+          ["NESTED LOOP", "조인 건수가 적을 때 · 인덱스로 액세스", "use_nl"],
+          ["SORT MERGE", "건수 많을 때 · 정렬 비용 주의", "use_merge"],
+          ["HASH", "건수 많을 때 · 해시 알고리즘", "use_hash"]
+        ]},
+        { "kind": "callout", "tone": "tip", "head": "순서를 정하는 힌트도 따로 있다",
+          "body": "조인 '방법'과 조인 '순서'는 다른 축이다. 순서는 ordered(from 절 순서대로) 또는 leading(힌트에 나열한 순서대로)으로 고정한다. 소량이면 NL, 대량이면 Hash가 대체로 유리하다." }
+      ],
+      "notes": "세 조인 방법: NESTED LOOP(소량, 인덱스 액세스, use_nl), SORT MERGE(대량, 정렬 비용, use_merge), HASH(대량, 해시, use_hash). 조인 순서 힌트는 별개 축: ordered(from 절 순서), leading(지정 순서). 오늘은 새 개념이지만, 다음 장에서 보듯 NL의 실행 기계는 70·71일차의 인덱스 rowid 접근 반복과 똑같다." },
+
+    { "type": "content",
+      "title": "NL 조인은 바깥 행마다 안쪽을 반복한다 — 3→2→5→4→1로 수행된다",
+      "blocks": [
+        { "kind": "svg", "maxw": 8.2,
+          "svg": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 240' font-family='sans-serif'><defs><marker id='gn' markerWidth='9' markerHeight='9' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 Z' fill='#94A3B8'/></marker></defs><rect x='40' y='60' width='300' height='120' rx='10' fill='#FBE3DD' stroke='#C74634' stroke-width='1.5'/><text x='190' y='92' text-anchor='middle' font-size='16' font-weight='700' fill='#1E293B'>EMPLOYEES (outer/driving)</text><text x='190' y='118' text-anchor='middle' font-size='12' fill='#64748B'>emp_id=100 → 1행</text><text x='190' y='142' text-anchor='middle' font-size='12' fill='#64748B'>Id 3 인덱스 → Id 2 테이블</text><rect x='560' y='60' width='300' height='120' rx='10' fill='#F1F5F9' stroke='#16803d' stroke-width='1.5'/><text x='710' y='92' text-anchor='middle' font-size='16' font-weight='700' fill='#1E293B'>DEPARTMENTS (inner/driven)</text><text x='710' y='118' text-anchor='middle' font-size='12' fill='#64748B'>바깥 행의 dept_id로 조회</text><text x='710' y='142' text-anchor='middle' font-size='12' fill='#64748B'>Id 5 인덱스 → Id 4 테이블</text><path d='M340 105 C 440 85, 460 85, 558 105' fill='none' stroke='#94A3B8' stroke-width='1.6' marker-end='url(#gn)'/><text x='450' y='80' text-anchor='middle' font-size='12' fill='#64748B'>바깥 각 행마다 (loop)</text><text x='450' y='214' text-anchor='middle' font-size='14' font-weight='700' fill='#C74634'>수행 순서: Id 3 → 2 → 5 → 4 → 1 (NESTED LOOPS)</text></svg>" },
+        { "kind": "callout", "tone": "why", "head": "70·71일차 인덱스 접근의 반복이다",
+          "body": "바깥(EMPLOYEES) 1행을 인덱스로 찾아(3→2), 그 행의 부서코드로 안쪽(DEPARTMENTS)을 인덱스로 조회(5→4)해 붙인다(1). PL/SQL 이중 루프와 같은 모양 — 바깥이 적을수록 안쪽 반복이 적어 NL이 유리하다." }
+      ],
+      "notes": "NESTED LOOPS 조인은 바깥(driving) 테이블의 각 행마다 안쪽(driven)을 반복 조회한다. 실행계획 Id 순서는 3→2→5→4→1: Id3 emp 인덱스로 100번 rowid, Id2 emp 테이블 접근(1행), Id5 그 부서코드로 dept 인덱스, Id4 dept 테이블, Id1에서 둘을 조인. 이 '인덱스로 rowid 찾고 테이블 접근'의 반복은 70·71일차에서 본 TABLE ACCESS BY INDEX ROWID ← INDEX RANGE SCAN 부모/자식 루프와 똑같다. 바깥 집합이 작아야 NL이 싸다." },
+
+    { "type": "section", "num": "05", "title": "빈틈 & 궁금한 점", "subtitle": "노트가 안 다룬 것 · 더 확인할 것" },
+    { "type": "content",
+      "title": "여기서 남는 질문 — 확인하고 넘어가면 좋은 것들",
+      "blocks": [
+        { "kind": "bullets", "items": [
+          "옵티마이저 기본이 5인데 dept 힌트가 4라면, 왜 옵티마이저는 더 나쁜 쪽을 골랐나? → 통계·카디널리티 추정 문제일 가능성 (확인 권장)",
+          "and_equal은 왜 아직 존재하나 — 사실상 폐기(deprecated)에 가깝고 옵티마이저가 거의 안 쓴다 (확인 권장)",
+          "bitmap의 동시성 문제를 피하면서 저선택도 컬럼을 인덱싱하려면? → bitmap join index·partition 등 대안 (범위 밖, 추후)",
+          "조인 방법은 오늘 개념만 — NL/SMJ/Hash의 Buffers·A-Time 실측 비교는 다음 실습에서 붙이면 좋음"
+        ]}
+      ],
+      "notes": "이해했기에 나오는 질문들. (1) 옵티마이저가 5(EMP_SAL_IDX)를 고르고 dept 힌트가 4라면 통계·카디널리티 추정이 어긋났을 수 있다 — dbms_stats 재수집·히스토그램 확인 권장. (2) and_equal은 구식이라 최신 옵티마이저가 거의 선택하지 않는다(대개 단일 인덱스나 bitmap combine이 이김). (3) bitmap 동시성 회피는 이 노트 밖 주제. (4) 조인은 오늘 개념 위주라, NL/SMJ/Hash를 같은 쿼리로 강제해 Buffers를 견주는 실습을 다음에 붙이면 오늘 배운 '측정→비교→선택'과 딱 맞는다. 노트 밖 지식은 '확인 권장'으로 표시 — 지어내지 않는다." }
+  ]
+}

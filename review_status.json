@@ -50,6 +50,10 @@
     "68": {
       "status": "published",
       "note": "덱 생성(문서·문제는 기 저작). row migration·ITL·full scan"
+    },
+    "72": {
+      "status": "reviewing",
+      "note": "덱 초안(원본 노트 기반). 문서·문제 저작은 미완 — 새 개념 10046·BCHR·bitmap·조인"
     }
   }
 }
