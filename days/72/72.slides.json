@@ -162,17 +162,17 @@
           "kind": "code",
           "lines": [
             "alter session set events '10046 trace name context forever, level 12';",
+            "  -- level 12 = 4(bind) + 8(wait)  ← 레벨은 더한다",
             "exec :b_id := 50;   select * from hr.emp where department_id = :b_id;",
             "  BINDS:  :b_id = 50",
-            "  WAITS:  db file sequential read / db file scattered read",
-            "  Fetch:  query=10  disk=9  rows=45"
+            "  WAITS:  db file sequential read / db file scattered read"
           ]
         },
         {
           "kind": "callout",
           "tone": "tip",
-          "head": "레벨 요약",
-          "body": "1 기본 · 4 +bind · 8 +wait · 12 둘 다. sql_trace는 못 주는 '무슨 값으로·무엇을 기다렸나'가 여기서 보인다. 느린 게 기다림일 때 필수."
+          "head": "레벨은 더한다 — 12 = 4 + 8",
+          "body": "1 기본 · 4 +bind · 8 +wait, 그리고 둘 다 원하면 더해서 12(=4+8). sql_trace로는 안 보이는 '무슨 값으로(bind)·무엇을 기다렸나(wait)'가 level 12에서 다 찍힌다. 느린 게 기다림일 때 필수."
         }
       ],
       "notes": "sql_trace만으론 부족할 때 10046을 씁니다. level 12로 돌린 실제 예예요. bind 변수 b_id에 50이 들어간 게 찍혔고, 기다린 이벤트로 db file sequential read랑 scattered read가 나왔죠. 이건 sql_trace로는 안 보이는 정보예요. 레벨은 1이 기본, 4가 bind 추가, 8이 wait 추가, 12가 둘 다입니다. 느린 원인이 읽기가 아니라 '기다림'일 때 이게 꼭 필요해요."
