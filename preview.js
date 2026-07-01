@@ -17,9 +17,9 @@ const { W, H, M } = L;
 
 const CHROME = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
 const C = {
-  ink: "#1E293B", accent: "#C74634", white: "#FFFFFF", muted: "#64748B", muted2: "#94A3B8",
-  dark: "#0F172A", card: "#F1F5F9", line: "#E2E8F0", tint: "#FBE3DD", tint2: "#E89B8C",
-  slate: "#334155", codeFg: "#E2E8F0", codeComment: "#64748B",
+  ink: "#20303F", accent: "#C74634", white: "#FFFFFF", paper: "#FAF8F4", muted: "#6B6256", muted2: "#A79E90",
+  dark: "#2C3742", card: "#F4F1EA", line: "#E7E1D6", tint: "#FBE7DE", tint2: "#E89B8C",
+  slate: "#334155", codeFg: "#E7E2D8", codeComment: "#9AA6A0",
   dot1: "#EF4444", dot2: "#F59E0B", dot3: "#22C55E",
 };
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
@@ -69,7 +69,7 @@ function slideRoadmap(sl) {
     h += txt(x + 1.0, y + 0.02, colW - 1.0, 0.4, 17, C.ink, "font-weight:700", it.title);
     if (it.subtitle) h += txt(x + 1.0, y + 0.45, colW - 1.0, 0.4, 12, C.muted, "", it.subtitle);
   });
-  return { bg: C.white, inner: h };
+  return { bg: C.paper, inner: h };
 }
 function slideClosing(sl) {
   let h = box(0, 0, W, 0.72, `background:${C.accent}`);
@@ -95,23 +95,23 @@ function bCallout(b) {
   const label = b.head || (b.tone === "why" ? "왜 중요한가" : "기억할 점");
   const inner = `<div style="font-size:14pt;font-weight:700;color:${stripe === C.accent ? C.accent : C.ink};margin-bottom:8px">${esc(label)}</div>`
     + `<div style="font-size:13pt;color:${C.ink};line-height:1.35">${esc(b.body)}</div>`;
-  return box(b.x, b.y, b.w, b.h, `background:${C.card};border-left:5px solid ${stripe};padding:14px 16px 14px 20px;box-shadow:0 2px 6px rgba(0,0,0,.10);box-sizing:border-box;overflow:hidden`, inner);
+  return box(b.x, b.y, b.w, b.h, `background:${C.card};border:1px solid ${C.line};border-left:6px solid ${stripe};border-radius:10px;padding:14px 18px 14px 20px;box-shadow:0 4px 14px rgba(138,127,106,.16);box-sizing:border-box;overflow:hidden`, inner);
 }
 function bCode(b) {
   const dots = [C.dot1, C.dot2, C.dot3].map((c) => `<span style="width:11px;height:11px;border-radius:50%;background:${c};display:inline-block;margin-right:6px"></span>`).join("");
   const lines = b.lines.map((ln) => { const t = ln || " "; const cmt = /^\s*(--|#)/.test(t); return `<div style="color:${cmt ? C.codeComment : C.codeFg};white-space:pre">${esc(t)}</div>`; }).join("");
-  return box(b.x, b.y, b.w, b.h, `background:${C.dark};border-radius:6px;padding:12px 16px;box-shadow:0 2px 6px rgba(0,0,0,.10);box-sizing:border-box;overflow:hidden`,
+  return box(b.x, b.y, b.w, b.h, `background:${C.dark};border-radius:9px;padding:12px 16px;box-shadow:0 4px 14px rgba(138,127,106,.18);box-sizing:border-box;overflow:hidden`,
     `<div style="margin-bottom:8px">${dots}</div><div style="font-family:'WenQuanYi Zen Hei Mono',monospace;font-size:12.5pt;line-height:1.35">${lines}</div>`);
 }
 function bFigure(b) {
   const inner = `<div style="font-size:13pt"><b style="color:${C.accent}">다이어그램</b>&nbsp;&nbsp;<b style="color:${C.ink}">${esc(b.caption)}</b></div>`
     + (b.summary ? `<div style="font-size:12pt;color:${C.muted};font-style:italic;margin-top:6px;line-height:1.3">${esc(b.summary)}</div>` : "");
-  return box(b.x, b.y, b.w, b.h, `background:${C.card};border-left:5px solid ${C.accent};padding:12px 16px 12px 20px;box-shadow:0 2px 6px rgba(0,0,0,.10);box-sizing:border-box;overflow:hidden`, inner);
+  return box(b.x, b.y, b.w, b.h, `background:${C.card};border:1px solid ${C.line};border-left:6px solid ${C.accent};border-radius:10px;padding:12px 18px 12px 20px;box-shadow:0 4px 14px rgba(138,127,106,.16);box-sizing:border-box;overflow:hidden`, inner);
 }
 function bAnalogy(b) {
   const inner = `<div style="font-size:13pt;font-weight:700;color:${C.accent};margin-bottom:6px">비유</div>`
     + `<div style="font-size:14pt;font-style:italic;color:${C.ink};line-height:1.35">${esc(b.text)}</div>`;
-  return box(b.x, b.y, b.w, b.h, `background:${C.tint};border-left:5px solid ${C.accent};padding:12px 16px 12px 20px;box-shadow:0 2px 6px rgba(0,0,0,.10);box-sizing:border-box;overflow:hidden`, inner);
+  return box(b.x, b.y, b.w, b.h, `background:${C.tint};border:1px solid ${C.line};border-left:6px solid ${C.accent};border-radius:10px;padding:12px 18px 12px 20px;box-shadow:0 4px 14px rgba(138,127,106,.16);box-sizing:border-box;overflow:hidden`, inner);
 }
 function bSteps(b) {
   const rows = b.items.map((it, i) =>
@@ -135,7 +135,7 @@ function bPlan(b) {
       + (r.name ? `<span style="color:${C.muted}">  ${esc(r.name)}</span>` : "") + `</div>`;
   }).join("");
   const pred = b.predicate ? `<div style="color:${C.muted};font-size:11pt;margin-top:6px;white-space:pre-wrap">${esc(b.predicate)}</div>` : "";
-  return box(b.x, b.y, b.w, b.h, `background:${C.card};border:1px solid ${C.line};border-radius:6px;padding:10px 14px;box-shadow:0 2px 6px rgba(0,0,0,.10);box-sizing:border-box;overflow:hidden`,
+  return box(b.x, b.y, b.w, b.h, `background:${C.card};border:1px solid ${C.line};border-radius:10px;padding:10px 14px;box-shadow:0 4px 14px rgba(138,127,106,.16);box-sizing:border-box;overflow:hidden`,
     hdr + `<div style="font-family:'WenQuanYi Zen Hei Mono',monospace;font-size:12pt;line-height:1.35">${rows}</div>${pred}`);
 }
 function bSvg(b) {
@@ -157,7 +157,7 @@ function slideContent(sl) {
   if (sl.pages > 1) h += txt(W - M - 2.9, 0.72, 1.6, 0.5, 11, C.muted2, "text-align:right;display:flex;align-items:center;justify-content:flex-end", `${sl.page} / ${sl.pages}`);
   if (sl.layout === "split") h += drawB[sl.left.kind](sl.left) + drawB[sl.right.kind](sl.right);
   else for (const b of sl.blocks) h += (drawB[b.kind] || (() => ""))(b);
-  return { bg: C.white, inner: h };
+  return { bg: C.paper, inner: h };
 }
 
 const render = { title: slideTitle, section: slideSection, roadmap: slideRoadmap, closing: slideClosing, content: slideContent };

@@ -4,20 +4,20 @@
   "subtitle": "72일차 — tkprof·10046 · 접근 경로 비교 · 인덱스 종류 · 조인",
   "source": "72일차 노트 · sql_tuning 계열",
   "tag": "Oracle DBA · 72일차",
-  "closing": "오늘의 한 줄: 추측하지 말고 Buffers로 재서 더 적게 읽는 길을 고른다.",
+  "closing": "추측하지 말고, Buffers로 재서 더 적게 읽는 길을 고른다.",
   "slides": [
     { "type": "title", "title": "SQL이 한 일을 추적하고, 더 빠른 길을 고른다", "subtitle": "72일차 — 측정 → 비교 → 선택" },
 
     { "type": "section", "num": "00", "title": "오늘의 큰 그림", "subtitle": "튜닝은 측정 → 비교 → 선택이다" },
     { "type": "content",
-      "title": "SQL 튜닝은 추측이 아니라 '측정 → 비교 → 선택'이다",
+      "title": "SQL 튜닝은 감이 아니라 숫자로 한다 — 재고, 견주고, 고른다",
       "blocks": [
         { "kind": "svg", "maxw": 8.6,
           "svg": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 210' font-family='sans-serif'><defs><marker id='g0' markerWidth='9' markerHeight='9' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 Z' fill='#94A3B8'/></marker></defs><rect x='30' y='70' width='230' height='80' rx='10' fill='#F1F5F9' stroke='#C74634' stroke-width='1.4'/><text x='145' y='104' text-anchor='middle' font-size='17' font-weight='700' fill='#1E293B'>① 측정</text><text x='145' y='128' text-anchor='middle' font-size='12' fill='#64748B'>tkprof · 10046 · autotrace</text><rect x='335' y='70' width='230' height='80' rx='10' fill='#F1F5F9' stroke='#C74634' stroke-width='1.4'/><text x='450' y='104' text-anchor='middle' font-size='17' font-weight='700' fill='#1E293B'>② 비교</text><text x='450' y='128' text-anchor='middle' font-size='12' fill='#64748B'>경로별 Buffers · disk</text><rect x='640' y='70' width='230' height='80' rx='10' fill='#F1F5F9' stroke='#16803d' stroke-width='1.6'/><text x='755' y='104' text-anchor='middle' font-size='17' font-weight='700' fill='#1E293B'>③ 선택</text><text x='755' y='128' text-anchor='middle' font-size='12' fill='#64748B'>가장 적게 읽는 길</text><line x1='260' y1='110' x2='333' y2='110' stroke='#94A3B8' stroke-width='1.6' marker-end='url(#g0)'/><line x1='565' y1='110' x2='638' y2='110' stroke='#94A3B8' stroke-width='1.6' marker-end='url(#g0)'/></svg>" },
-        { "kind": "callout", "tone": "tip", "head": "핵심 지표는 Buffers(논리 I/O)다",
-          "body": "실행 시간은 캐시·부하로 출렁이지만, 논리 I/O(Buffers=consistent gets)는 그 SQL이 실제로 한 일의 양이라 안정적이다. 오늘은 추적으로 이 양을 재고, 같은 결과를 더 적은 Buffers로 내는 경로를 고른다." }
+        { "kind": "callout", "tone": "tip", "head": "왜 시간이 아니라 Buffers를 보나",
+          "body": "실행 시간은 그때 캐시 상태나 부하에 따라 왔다 갔다 한다. Buffers(consistent gets)는 다르다 — 그 쿼리가 읽은 블록 수라, 몇 번을 돌려도 거의 같은 값이 나온다. 그래서 시간 대신 이 숫자를 본다." }
       ],
-      "notes": "튜닝의 본질은 같은 결과를 더 적은 논리 I/O로 내는 것이다. 그러려면 먼저 SQL이 실제로 무슨 일을 했는지 재야 한다(측정) → 여러 경로의 Buffers를 견줘야 한다(비교) → 가장 적게 읽는 길을 고른다(선택). 오늘의 모든 주제(tkprof·10046·인덱스·조인)가 이 세 단계에 걸린다." },
+      "notes": "같은 결과를 더 적은 논리 I/O로 내면 그게 빨라진 거다. 그러려면 SQL이 실제로 무슨 일을 했는지 재고(측정), 경로마다 Buffers를 견주고(비교), 가장 적게 읽는 쪽을 고른다(선택). 오늘 다루는 tkprof·10046·인덱스·조인이 모두 이 세 단계에 걸린다." },
 
     { "type": "content",
       "title": "오늘은 71일차 추적·CF 위에 — 측정 도구를 넓히고 인덱스·조인으로 나아간다",
@@ -67,8 +67,8 @@
           "  disk          = 물리 블록 읽기 (physical reads)",
           "  → 높을수록 캐시에서 많이 찾았다는 뜻"
         ]},
-        { "kind": "callout", "tone": "tip", "head": "높다고 무조건 좋은 건 아니다",
-          "body": "논리 읽기 자체가 과도하면(나쁜 실행계획) BCHR은 높아도 느리다. 그래서 히트율보다 '논리 I/O(Buffers)를 줄이는' 게 먼저다 — 70·71일차에서 consistent gets를 튜닝 지표로 삼은 이유와 같다." }
+        { "kind": "callout", "tone": "tip", "head": "히트율이 높은데 느릴 때",
+          "body": "논리 읽기가 폭증하면 BCHR은 오히려 100%에 가까워진다 — 디스크는 안 가고 캐시에서만 잔뜩 읽어서다. 그러니 히트율이 높은데 느리면 이 경우를 의심한다. 지표로는 히트율보다 논리 I/O(Buffers) 절대량을 본다(70·71일차)." }
       ],
       "notes": "BCHR은 전체 논리 읽기(query+current) 중 물리 I/O 없이 캐시에서 찾은 비율이다. building block(consistent gets·physical reads)은 70일차 autotrace에서 정의했다. 함정: 논리 읽기가 폭증하면 BCHR은 오히려 100%에 가까워질 수 있어 '좋아 보이는데 느린' 상태가 된다. 지표는 BCHR이 아니라 논리 I/O 절대량." },
 
@@ -76,10 +76,10 @@
     { "type": "content",
       "title": "같은 쿼리라도 어느 인덱스로 가느냐로 Buffers가 갈린다",
       "blocks": [
-        { "kind": "svg", "maxw": 7.6,
+        { "kind": "svg", "maxw": 7.1,
           "svg": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 300' font-family='sans-serif'><text x='450' y='24' text-anchor='middle' font-size='14' fill='#64748B'>같은 쿼리 (department_id=80 AND salary=10000) — 경로별 Buffers</text><line x1='40' y1='250' x2='870' y2='250' stroke='#E2E8F0' stroke-width='1.4'/><rect x='70' y='160' width='120' height='90' rx='4' fill='#EEF1F5' stroke='#94A3B8' stroke-width='1.2'/><text x='130' y='150' text-anchor='middle' font-size='20' font-weight='700' fill='#64748B'>5</text><text x='130' y='272' text-anchor='middle' font-size='12' fill='#1E293B'>기본(옵티마이저)</text><text x='130' y='289' text-anchor='middle' font-size='11' fill='#64748B'>EMP_SAL_IDX</text><rect x='270' y='178' width='120' height='72' rx='4' fill='#F1F5F9' stroke='#16803d' stroke-width='1.6'/><text x='330' y='168' text-anchor='middle' font-size='20' font-weight='700' fill='#16803d'>4</text><text x='330' y='272' text-anchor='middle' font-size='12' fill='#1E293B'>index(dept) 힌트</text><text x='330' y='289' text-anchor='middle' font-size='11' fill='#64748B'>EMP_DEPT_IDX ✓</text><rect x='470' y='70' width='120' height='180' rx='4' fill='#FBE3DD' stroke='#D6453D' stroke-width='1.6'/><text x='530' y='60' text-anchor='middle' font-size='20' font-weight='700' fill='#D6453D'>10</text><text x='530' y='272' text-anchor='middle' font-size='12' fill='#1E293B'>and_equal</text><text x='530' y='289' text-anchor='middle' font-size='11' fill='#D6453D'>두 인덱스 머지 ✗</text><rect x='670' y='178' width='120' height='72' rx='4' fill='#F1F5F9' stroke='#16803d' stroke-width='1.6'/><text x='730' y='168' text-anchor='middle' font-size='20' font-weight='700' fill='#16803d'>4</text><text x='730' y='272' text-anchor='middle' font-size='12' fill='#1E293B'>index_combine</text><text x='730' y='289' text-anchor='middle' font-size='11' fill='#64748B'>bitmap AND ✓</text></svg>" },
-        { "kind": "callout", "tone": "why", "head": "무엇을 배우나",
-          "body": "옵티마이저 기본(EMP_SAL_IDX, 5)이 늘 최선은 아니다 — dept 인덱스를 강제하면 4로 준다. and_equal(69일차)은 두 인덱스 rowid를 머지하느라 오히려 10으로 최악. 정답은 취향이 아니라 Buffers 실측으로 고른다." }
+        { "kind": "callout", "tone": "why", "head": "숫자가 말해주는 것",
+          "body": "옵티마이저는 EMP_SAL_IDX로 5블록을 읽었다. 그런데 dept 인덱스를 강제하면 4로 준다. and_equal(69일차)은 두 인덱스 rowid를 합치느라 오히려 10 — 넷 중 가장 나쁘다. 어느 쪽이 빠른지는 Buffers를 찍어봐야 나온다." }
       ],
       "notes": "department_id=80 AND salary=10000 한 쿼리를 네 경로로 실행해 Buffers를 비교한다. 기본(옵티마이저가 고른 EMP_SAL_IDX)=5, index(emp_dept_idx) 강제=4, and_equal(두 단일 인덱스 머지)=10(최악), index_combine(bitmap AND/OR)=4. 교훈: 옵티마이저 기본이 최선이 아닐 수 있고, and_equal은 구식이라 대개 비싸다. 힌트로 여러 경로를 만들어 Buffers로 견주는 게 오늘의 방법이다." },
 
@@ -144,6 +144,6 @@
           "조인 방법은 오늘 개념만 — NL/SMJ/Hash의 Buffers·A-Time 실측 비교는 다음 실습에서 붙이면 좋음"
         ]}
       ],
-      "notes": "이해했기에 나오는 질문들. (1) 옵티마이저가 5(EMP_SAL_IDX)를 고르고 dept 힌트가 4라면 통계·카디널리티 추정이 어긋났을 수 있다 — dbms_stats 재수집·히스토그램 확인 권장. (2) and_equal은 구식이라 최신 옵티마이저가 거의 선택하지 않는다(대개 단일 인덱스나 bitmap combine이 이김). (3) bitmap 동시성 회피는 이 노트 밖 주제. (4) 조인은 오늘 개념 위주라, NL/SMJ/Hash를 같은 쿼리로 강제해 Buffers를 견주는 실습을 다음에 붙이면 오늘 배운 '측정→비교→선택'과 딱 맞는다. 노트 밖 지식은 '확인 권장'으로 표시 — 지어내지 않는다." }
+      "notes": "(1) 옵티마이저가 5(EMP_SAL_IDX)를 고르고 dept 힌트가 4라면 통계·카디널리티 추정이 어긋났을 수 있다 — dbms_stats 재수집·히스토그램 확인 권장. (2) and_equal은 구식이라 최신 옵티마이저가 거의 선택하지 않는다(대개 단일 인덱스나 bitmap combine이 이김). (3) bitmap 동시성 회피는 이 노트 밖 주제. (4) 조인은 오늘 개념 위주라, NL/SMJ/Hash를 같은 쿼리로 강제해 Buffers를 견주는 실습을 다음에 붙이면 오늘 배운 '측정→비교→선택'과 딱 맞는다. 노트 밖 지식은 '확인 권장'으로 표시 — 지어내지 않는다." }
   ]
 }

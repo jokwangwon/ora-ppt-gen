@@ -17,15 +17,17 @@ const { W, H, M } = L;
 
 // ── 팔레트 (참고 슬라이드에서 추출) ───────────────────────────────
 const C = {
-  ink: "1E293B", accent: "C74634", white: "FFFFFF",
-  muted: "64748B", muted2: "94A3B8", dark: "0F172A",
-  card: "F1F5F9", line: "E2E8F0", tint: "FBE3DD", tint2: "E89B8C",
-  slate: "334155", codeFg: "E2E8F0", codeComment: "64748B",
+  ink: "20303F", accent: "C74634", white: "FFFFFF", paper: "FAF8F4",
+  muted: "6B6256", muted2: "A79E90", dark: "2C3742",
+  card: "F4F1EA", line: "E7E1D6", tint: "FBE7DE", tint2: "E89B8C",
+  slate: "334155", codeFg: "E7E2D8", codeComment: "9AA6A0",
   dot1: "EF4444", dot2: "F59E0B", dot3: "22C55E",
 };
 const FONT = "굴림";
 const MONO = "Consolas";
-const shadow = () => ({ type: "outer", color: "000000", blur: 8, offset: 3, angle: 90, opacity: 0.10 });
+// 부드러운 그림자 (웜 페이퍼)
+const shadow = () => ({ type: "outer", color: "8A7F6A", blur: 11, offset: 2, angle: 90, opacity: 0.16 });
+const RAD = 0.09;  // 카드 모서리 반경
 
 // ── 공통 요소 ────────────────────────────────────────────────────
 function brandMark(pres, s) {
@@ -71,7 +73,7 @@ function contentHeader(pres, s, sl) {
 }
 
 function roadmapSlide(pres, s, sl) {
-  s.background = { color: C.white };
+  s.background = { color: C.paper };
   s.addShape(pres.shapes.RECTANGLE, { x: M, y: 0.95, w: 0.14, h: 0.14, fill: { color: C.accent }, line: { color: C.accent } });
   s.addText("발표 흐름", { x: 1.2, y: 0.72, w: 6, h: 0.7, fontFace: FONT, fontSize: 26, bold: true, color: C.ink, align: "left", valign: "middle", margin: 0 });
   s.addText("ROADMAP", { x: 1.2, y: 1.45, w: 6, h: 0.3, fontFace: FONT, fontSize: 12, color: C.muted2, align: "left", charSpacing: 2, margin: 0 });
@@ -114,8 +116,8 @@ function drawTable(pres, s, b) {
 function drawCallout(pres, s, b) {
   const stripe = b.tone === "why" ? C.accent : C.slate;
   const label = b.head || (b.tone === "why" ? "왜 중요한가" : "기억할 점");
-  s.addShape(pres.shapes.RECTANGLE, { x: b.x, y: b.y, w: b.w, h: b.h, fill: { color: C.card }, line: { color: C.card }, shadow: shadow() });
-  s.addShape(pres.shapes.RECTANGLE, { x: b.x, y: b.y, w: 0.07, h: b.h, fill: { color: stripe }, line: { color: stripe } });
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: b.x, y: b.y, w: b.w, h: b.h, fill: { color: C.card }, line: { color: C.line }, rectRadius: RAD, shadow: shadow() });
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: b.x + 0.03, y: b.y + 0.13, w: 0.08, h: b.h - 0.26, fill: { color: stripe }, line: { color: stripe }, rectRadius: 0.04 });
   s.addText(label, { x: b.x + 0.35, y: b.y + 0.22, w: b.w - 0.6, h: 0.4, fontFace: FONT, fontSize: 14, bold: true, color: stripe === C.accent ? C.accent : C.ink, align: "left", valign: "middle", margin: 0 });
   s.addText(b.body, { x: b.x + 0.35, y: b.y + 0.72, w: b.w - 0.6, h: b.h - 0.9, fontFace: FONT, fontSize: 13, color: C.ink, align: "left", valign: "top", margin: 0 });
 }
@@ -130,16 +132,16 @@ function drawCode(pres, s, b) {
   s.addText(runs, { x: b.x + 0.35, y: b.y + 0.72, w: b.w - 0.6, h: b.h - 0.9, fontFace: MONO, align: "left", valign: "top", margin: 0 });
 }
 function drawFigure(pres, s, b) {
-  s.addShape(pres.shapes.RECTANGLE, { x: b.x, y: b.y, w: b.w, h: b.h, fill: { color: C.card }, line: { color: C.card }, shadow: shadow() });
-  s.addShape(pres.shapes.RECTANGLE, { x: b.x, y: b.y, w: 0.07, h: b.h, fill: { color: C.accent }, line: { color: C.accent } });
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: b.x, y: b.y, w: b.w, h: b.h, fill: { color: C.card }, line: { color: C.line }, rectRadius: RAD, shadow: shadow() });
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: b.x + 0.03, y: b.y + 0.13, w: 0.08, h: b.h - 0.26, fill: { color: C.accent }, line: { color: C.accent }, rectRadius: 0.04 });
   const parts = [{ text: "다이어그램  ", options: { bold: true, color: C.accent, fontSize: 12 } }];
   if (b.caption) parts.push({ text: b.caption, options: { bold: true, color: C.ink, fontSize: 13 } });
   s.addText(parts, { x: b.x + 0.35, y: b.y + 0.2, w: b.w - 0.6, h: 0.55, fontFace: FONT, align: "left", valign: "top", margin: 0 });
   if (b.summary) s.addText(b.summary, { x: b.x + 0.35, y: b.y + 0.78, w: b.w - 0.6, h: b.h - 0.95, fontFace: FONT, fontSize: 12, color: C.muted, italic: true, align: "left", valign: "top", margin: 0 });
 }
 function drawAnalogy(pres, s, b) {
-  s.addShape(pres.shapes.RECTANGLE, { x: b.x, y: b.y, w: b.w, h: b.h, fill: { color: C.tint }, line: { color: C.tint }, shadow: shadow() });
-  s.addShape(pres.shapes.RECTANGLE, { x: b.x, y: b.y, w: 0.07, h: b.h, fill: { color: C.accent }, line: { color: C.accent } });
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: b.x, y: b.y, w: b.w, h: b.h, fill: { color: C.tint }, line: { color: C.tint }, rectRadius: RAD, shadow: shadow() });
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: b.x + 0.03, y: b.y + 0.13, w: 0.08, h: b.h - 0.26, fill: { color: C.accent }, line: { color: C.accent }, rectRadius: 0.04 });
   s.addText("비유", { x: b.x + 0.35, y: b.y + 0.16, w: 2, h: 0.34, fontFace: FONT, fontSize: 13, bold: true, color: C.accent, align: "left", valign: "middle", margin: 0 });
   s.addText(b.text, { x: b.x + 0.35, y: b.y + 0.56, w: b.w - 0.6, h: b.h - 0.7, fontFace: FONT, fontSize: 14, italic: true, color: C.ink, align: "left", valign: "top", margin: 0 });
 }
@@ -187,7 +189,7 @@ function drawBlock(pres, s, b) {
 }
 
 function contentSlide(pres, s, sl) {
-  s.background = { color: C.white };
+  s.background = { color: C.paper };
   contentHeader(pres, s, sl);
   if (sl.layout === "split") { drawBlock(pres, s, sl.left); drawBlock(pres, s, sl.right); }
   else for (const b of sl.blocks) drawBlock(pres, s, b);
