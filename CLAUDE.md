@@ -23,6 +23,7 @@ PPT는 HTML에서 파생하되 **새 사실을 지어내지 않는다.**
 | `build_ppt.js`       | 스펙 JSON → PPTX (pptxgenjs, 참고 디자인) |
 | `preview.js`         | 스펙 → HTML(동일 좌표) → 슬라이드 PNG (Chromium QA) |
 | `scripts/rezip.py`   | pptxgenjs 출력 재압축 |
+| `notes_export.py`    | 발표 대본 추출 — 덱 스펙 → 슬라이드별 [제목+요지+발표노트] md/txt (무료 PPT에서 노트 안 보일 때) |
 | `make.py`            | 파이프라인 엔트리 (위를 묶음) |
 | `assets/`            | HTML 자산 (문서 4종 + `study_hub_full.html`) — **git 추적**(세션 간 지속) |
 | `days/`              | 일차별 저작물(quiz·slides) — **git 추적**(세션 간 지속) |

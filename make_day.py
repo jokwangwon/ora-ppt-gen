@@ -99,6 +99,7 @@ def main(argv: list[str] | None = None) -> int:
         day_pptx = OUT / f"day{args.day}.pptx"
         if run(["node", "build_ppt.js", str(day_spec), "-o", str(day_pptx)]) == 0:
             run([sys.executable, "scripts/rezip.py", str(day_pptx)])
+            run([sys.executable, "notes_export.py", str(day_spec)])  # 발표 대본(노트) 별도 파일
             if args.preview:
                 run(["node", "preview.js", str(day_spec)])
     else:
