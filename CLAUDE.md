@@ -20,8 +20,9 @@ PPT는 HTML에서 파생하되 **새 사실을 지어내지 않는다.**
 | `preview.js`         | 스펙 → HTML(동일 좌표) → 슬라이드 PNG (Chromium QA) |
 | `scripts/rezip.py`   | pptxgenjs 출력 재압축 |
 | `make.py`            | 파이프라인 엔트리 (위를 묶음) |
-| `assets/`            | HTML 자산 (문서 4종 + `study_hub_full.html`) — git 제외 |
-| `ref/`               | 참고 디자인 PPTX (`reference.pptx`) + 언팩 — git 제외 |
+| `assets/`            | HTML 자산 (문서 4종 + `study_hub_full.html`) — **git 추적**(세션 간 지속) |
+| `days/`              | 일차별 저작물(quiz·slides) — **git 추적**(세션 간 지속) |
+| `ref/`               | 참고 디자인 PPTX (`reference.pptx`) + 언팩 — git 제외(대용량) |
 | `out/`               | 산출물(JSON/PPTX/QA 이미지) — git 제외 |
 
 ## 매일 하는 일 (일일 워크플로)
