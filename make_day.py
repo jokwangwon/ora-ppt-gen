@@ -120,7 +120,11 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\n■ 5) 대시보드 갱신")
     run([sys.executable, "build_dashboard.py"])
 
-    print("\n✓ 완료 — out/ · assets/dashboard.html 확인.")
+    # 6) 자료실 갱신 (덱 → files/ 복사 + index.html)
+    print(f"\n■ 6) 자료실 갱신")
+    run([sys.executable, "build_library.py"])
+
+    print("\n✓ 완료 — out/ · assets/dashboard.html · index.html 확인.")
     return 0
 
 

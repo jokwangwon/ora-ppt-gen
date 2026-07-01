@@ -14,6 +14,10 @@ out/
 slide-*.jpg
 slide-*.png
 
+# 자료실 공개 파일(files/)은 커밋해 GitHub Pages에서 바로 다운로드 제공
+!files/
+!files/*.pptx
+
 # OS
 .DS_Store
 

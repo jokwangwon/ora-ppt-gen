@@ -12,6 +12,7 @@ PPT는 HTML에서 파생하되 **새 사실을 지어내지 않는다.**
 | `inject_quiz.py`     | 하루치 문제(JSON)를 허브 JS 배열(MCQ/ESSAY/TERMS/PLANQ)·DAYS·날짜칩에 주입(멱등) |
 | `make_day.py`        | **일차 파이프라인** — 동기화·검증 → 문제 주입 → 일차 덱 + 문서 덱 + QA + 대시보드 |
 | `build_dashboard.py` | 관리 대시보드 생성 → `assets/dashboard.html` (검토·정확성·난이도·린트 한 눈에) |
+| `build_library.py`   | **자료실 생성** → 루트 `index.html` + `out/` 덱·대본을 `files/`로 복사(멱등). GitHub Pages(루트)로 공유·다운로드. |
 | `review.py`          | 검토/정확성 상태 관리 CLI → `review_status.json` (사람 소유, git 추적) |
 | `.claude/skills/study` | `/study` — 모르는 걸 물으면 설명 + 문서/PPT 담기 선택 + 오류 시 교정 제안 |
 | `.claude/skills/review-doc` | `/review-doc` — 문서 사실 오류를 LLM 정독으로 검증·최소 교정 |
