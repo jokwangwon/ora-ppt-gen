@@ -115,7 +115,11 @@ def main(argv: list[str] | None = None) -> int:
             if args.preview:
                 run(["node", "preview.js", str(spec)])
 
-    print("\n✓ 완료 — out/ 확인.")
+    # 5) 관리 대시보드 갱신
+    print(f"\n■ 5) 대시보드 갱신")
+    run([sys.executable, "build_dashboard.py"])
+
+    print("\n✓ 완료 — out/ · assets/dashboard.html 확인.")
     return 0
 
 

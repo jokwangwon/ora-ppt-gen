@@ -1,0 +1,50 @@
+{
+  "_schema": "docs[name] = {status, reviewed_at, note, accuracy:{checked,at,issues,method}} · status: reviewed|reviewing|unreviewed · accuracy.checked: 사실오류 LLM 검증 여부",
+  "docs": {
+    "guide_62_68.html": {
+      "status": "reviewed",
+      "reviewed_at": "2026-07-01",
+      "note": "해시테이블 소유·latch 36·redo copy 정정",
+      "accuracy": {
+        "checked": true,
+        "at": "2026-07-01",
+        "issues": 4,
+        "method": "LLM 정독(3-agent)"
+      }
+    },
+    "sql_tuning.html": {
+      "status": "reviewed",
+      "reviewed_at": "2026-07-01",
+      "note": "검은박스 .nal 정의 추가",
+      "accuracy": {
+        "checked": true,
+        "at": "2026-07-01",
+        "issues": 0,
+        "method": "LLM 정독"
+      }
+    },
+    "buffer_cache_dbwr_checkpoint.html": {
+      "status": "reviewed",
+      "reviewed_at": "2026-07-01",
+      "note": "checkpoint position·WAL 순서 정정",
+      "accuracy": {
+        "checked": true,
+        "at": "2026-07-01",
+        "issues": 3,
+        "method": "LLM 정독"
+      }
+    },
+    "rman_recovery.html": {
+      "status": "reviewed",
+      "reviewed_at": "2026-07-01",
+      "note": "dbms_repair 포기·MOUNT 상태·SYSTEM/UNDO 경계",
+      "accuracy": {
+        "checked": true,
+        "at": "2026-07-01",
+        "issues": 5,
+        "method": "LLM 정독(h2 사각지대)"
+      }
+    }
+  },
+  "days": {}
+}
