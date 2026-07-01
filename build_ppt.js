@@ -23,7 +23,7 @@ const C = {
   slate: "334155", codeFg: "E2E8F0", codeComment: "64748B",
   dot1: "EF4444", dot2: "F59E0B", dot3: "22C55E",
 };
-const FONT = "맑은 고딕";
+const FONT = "굴림";
 const MONO = "Consolas";
 const shadow = () => ({ type: "outer", color: "000000", blur: 8, offset: 3, angle: 90, opacity: 0.10 });
 
