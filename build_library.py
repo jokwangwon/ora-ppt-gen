@@ -114,7 +114,7 @@ def render(status: dict) -> str:
           <h3 class="ctitle">{escape(title)}</h3>
           {acc_txt}
           <div class="acts">
-            <a class="btn" href="assets/{fn}" target="_blank">문서 보기</a>
+            <a class="btn" href="assets/{fn}">문서 보기</a>
             <a class="btn ghost" href="assets/{fn}" download>HTML</a>
           </div>
         </article>""")
@@ -267,7 +267,7 @@ footer .inner{{padding:0;max-width:940px}}
     <a href="#hub"><span class="ic">📚</span>학습 허브</a>
     <a href="#docs"><span class="ic">📄</span>학습 문서</a>
     <a href="#decks"><span class="ic">🎞️</span>발표 자료</a>
-    <a href="assets/dashboard.html" target="_blank"><span class="ic">📊</span>대시보드</a>
+    <a href="assets/dashboard.html"><span class="ic">📊</span>대시보드</a>
   </nav>
   <div class="side-bottom">
     <button class="mode-btn" onclick="toggleMode()"><span id="mode-ic">🌙</span><span id="mode-tx">다크</span></button>
@@ -285,13 +285,13 @@ footer .inner{{padding:0;max-width:940px}}
       <article class="card">
         <div><h3 class="ctitle">📚 학습 허브</h3><p class="meta">객관식·서술형·실행계획·용어 검색·오답노트 · 받아두면 오프라인 작동</p></div>
         <div class="acts">
-          <a class="btn" href="assets/study_hub_full.html" target="_blank">열기</a>
+          <a class="btn" href="assets/study_hub_full.html">열기</a>
           <a class="btn ghost" href="assets/study_hub_full.html" download>다운로드</a>
         </div>
       </article>
       <article class="card">
         <div><h3 class="ctitle">📊 관리 대시보드</h3><p class="meta">검토·정확성·난이도·린트 상태</p></div>
-        <a class="btn ghost" href="assets/dashboard.html" target="_blank">열기</a>
+        <a class="btn ghost" href="assets/dashboard.html">열기</a>
       </article>
     </div>
 
