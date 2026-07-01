@@ -134,8 +134,25 @@ function drawFigure(pres, s, b) {
   s.addText(parts, { x: b.x + 0.35, y: b.y + 0.2, w: b.w - 0.6, h: 0.55, fontFace: FONT, align: "left", valign: "top", margin: 0 });
   if (b.summary) s.addText(b.summary, { x: b.x + 0.35, y: b.y + 0.78, w: b.w - 0.6, h: b.h - 0.95, fontFace: FONT, fontSize: 12, color: C.muted, italic: true, align: "left", valign: "top", margin: 0 });
 }
+function drawAnalogy(pres, s, b) {
+  s.addShape(pres.shapes.RECTANGLE, { x: b.x, y: b.y, w: b.w, h: b.h, fill: { color: C.tint }, line: { color: C.tint }, shadow: shadow() });
+  s.addShape(pres.shapes.RECTANGLE, { x: b.x, y: b.y, w: 0.07, h: b.h, fill: { color: C.accent }, line: { color: C.accent } });
+  s.addText("비유", { x: b.x + 0.35, y: b.y + 0.16, w: 2, h: 0.34, fontFace: FONT, fontSize: 13, bold: true, color: C.accent, align: "left", valign: "middle", margin: 0 });
+  s.addText(b.text, { x: b.x + 0.35, y: b.y + 0.56, w: b.w - 0.6, h: b.h - 0.7, fontFace: FONT, fontSize: 14, italic: true, color: C.ink, align: "left", valign: "top", margin: 0 });
+}
+function drawSteps(pres, s, b) {
+  let y = b.y + 0.05;
+  b.items.forEach((it, i) => {
+    const bh = 0.42 + Math.max(1, Math.ceil((it.body || "").length / 70)) * 0.28;
+    s.addShape(pres.shapes.OVAL, { x: b.x, y: y + 0.02, w: 0.4, h: 0.4, fill: { color: C.accent }, line: { color: C.accent } });
+    s.addText(it.n || String(i + 1), { x: b.x, y: y + 0.02, w: 0.4, h: 0.4, fontFace: FONT, fontSize: 15, bold: true, color: C.white, align: "center", valign: "middle", margin: 0 });
+    if (it.head) s.addText(it.head, { x: b.x + 0.55, y: y, w: b.w - 0.7, h: 0.38, fontFace: FONT, fontSize: 15, bold: true, color: C.ink, align: "left", valign: "middle", margin: 0 });
+    if (it.body) s.addText(it.body, { x: b.x + 0.55, y: y + 0.38, w: b.w - 0.7, h: bh - 0.38, fontFace: FONT, fontSize: 13, color: C.muted, align: "left", valign: "top", margin: 0 });
+    y += bh + 0.16;
+  });
+}
 function drawBlock(pres, s, b) {
-  ({ bullets: drawBullets, table: drawTable, callout: drawCallout, code: drawCode, figure: drawFigure }[b.kind] || (() => {}))(pres, s, b);
+  ({ bullets: drawBullets, table: drawTable, callout: drawCallout, code: drawCode, figure: drawFigure, analogy: drawAnalogy, steps: drawSteps }[b.kind] || (() => {}))(pres, s, b);
 }
 
 function contentSlide(pres, s, sl) {

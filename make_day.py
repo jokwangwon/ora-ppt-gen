@@ -75,6 +75,10 @@ def main(argv: list[str] | None = None) -> int:
         print("✗ 검증 실패 — 중단(--force 로 진행 가능).")
         return 1
 
+    # 1b) 저작 품질 린트 (조언 — 얇은 개념 지적)
+    print(f"\n■ 1b) 저작 품질 린트")
+    run([sys.executable, "lint_authoring.py", str(doc)])
+
     # 2) 문제 주입
     quiz = day_dir / "quiz.json"
     if quiz.exists():

@@ -12,6 +12,9 @@ PPT는 HTML에서 파생하되 **새 사실을 지어내지 않는다.**
 | `inject_quiz.py`     | 하루치 문제(JSON)를 허브 JS 배열(MCQ/ESSAY/TERMS/PLANQ)·DAYS·날짜칩에 주입(멱등) |
 | `make_day.py`        | **일차 파이프라인** — 동기화·검증 → 문제 주입 → 일차 덱 + 문서 덱 + QA |
 | `extract_slides.py`  | HTML 문서 → 슬라이드 스펙 JSON (추출) |
+| `svg_snippets.py`    | 인라인 SVG 다이어그램 생성기(정의된 클래스만 → 검은박스 0) |
+| `lint_authoring.py`  | 저작 품질 린터 — 개념(h3.blk)별 다이어그램·실측·서사 점수화 |
+| `AUTHORING.md`       | **정답지 작법 규약**(P1~P7 체크리스트·헬퍼 API·문제/슬라이드 규약) |
 | `layout.js`          | 레이아웃 엔진 — 좌표/페이지네이션 (렌더러·프리뷰 공유) |
 | `build_ppt.js`       | 스펙 JSON → PPTX (pptxgenjs, 참고 디자인) |
 | `preview.js`         | 스펙 → HTML(동일 좌표) → 슬라이드 PNG (Chromium QA) |
@@ -63,9 +66,12 @@ python inject_quiz.py days/71/quiz.json --day 71 --dry-run   # 문제 주입 미
   {type:"content", title, blocks:[
      {kind:"bullets", items:[]} | {kind:"table", headers:[], rows:[[]]} |
      {kind:"callout", tone:"why|tip", head, body} |
-     {kind:"code", lines:[]} | {kind:"figure", caption, summary} ]}
+     {kind:"code", lines:[]} | {kind:"figure", caption, summary} |
+     {kind:"analogy", text} | {kind:"steps", items:[{n,head,body}]} ]}
 ]}
 ```
+**정답지 작법**은 `AUTHORING.md` 참고: 개념마다 비유(analogy)·문제→원인→해결(steps)·
+다이어그램(svg_snippets)·why/tip·실측표. `make_day`가 `lint_authoring.py`로 얇은 개념을 지적한다.
 build 단계에서 title 뒤 **로드맵**, 맨 끝 **감사** 슬라이드가 자동 추가되고,
 `[bullets + callout|figure]` 2개면 좌/우 2단 레이아웃, 넘치면 자동 페이지네이션.
 

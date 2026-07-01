@@ -108,7 +108,22 @@ function bFigure(b) {
     + (b.summary ? `<div style="font-size:12pt;color:${C.muted};font-style:italic;margin-top:6px;line-height:1.3">${esc(b.summary)}</div>` : "");
   return box(b.x, b.y, b.w, b.h, `background:${C.card};border-left:5px solid ${C.accent};padding:12px 16px 12px 20px;box-shadow:0 2px 6px rgba(0,0,0,.10);box-sizing:border-box;overflow:hidden`, inner);
 }
-const drawB = { bullets: bBullets, table: bTable, callout: bCallout, code: bCode, figure: bFigure };
+function bAnalogy(b) {
+  const inner = `<div style="font-size:13pt;font-weight:700;color:${C.accent};margin-bottom:6px">비유</div>`
+    + `<div style="font-size:14pt;font-style:italic;color:${C.ink};line-height:1.35">${esc(b.text)}</div>`;
+  return box(b.x, b.y, b.w, b.h, `background:${C.tint};border-left:5px solid ${C.accent};padding:12px 16px 12px 20px;box-shadow:0 2px 6px rgba(0,0,0,.10);box-sizing:border-box;overflow:hidden`, inner);
+}
+function bSteps(b) {
+  const rows = b.items.map((it, i) =>
+    `<div style="display:flex;margin-bottom:12px">`
+    + `<div style="flex:0 0 auto;width:0.4in;height:0.4in;border-radius:50%;background:${C.accent};color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:15pt">${esc(it.n || String(i + 1))}</div>`
+    + `<div style="margin-left:0.15in">`
+    + (it.head ? `<div style="font-size:15pt;font-weight:700;color:${C.ink}">${esc(it.head)}</div>` : "")
+    + (it.body ? `<div style="font-size:13pt;color:${C.muted};line-height:1.3">${esc(it.body)}</div>` : "")
+    + `</div></div>`).join("");
+  return box(b.x, b.y, b.w, b.h, "", rows);
+}
+const drawB = { bullets: bBullets, table: bTable, callout: bCallout, code: bCode, figure: bFigure, analogy: bAnalogy, steps: bSteps };
 
 function slideContent(sl) {
   let h = box(M, 0.95, 0.14, 0.14, `background:${C.accent}`);

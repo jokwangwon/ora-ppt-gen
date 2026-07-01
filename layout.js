@@ -44,6 +44,14 @@ function codeHeight(c) {
 function figureHeight(f, w = CONTENT_W) {
   return 0.5 + wrapLines(f.caption, w - 0.5) * 0.3 + (f.summary ? wrapLines(f.summary, w - 0.5) * 0.28 : 0) + 0.3;
 }
+function analogyHeight(a, w = CONTENT_W) {          // 비유 오프너 (P1)
+  return 0.5 + wrapLines(a.text, w - 0.9) * 0.3 + 0.2;
+}
+function stepsHeight(s, w = CONTENT_W) {             // 문제→원인→해결 (P2)
+  let h = 0.1;
+  for (const it of s.items) h += 0.42 + wrapLines(it.body || "", w - 1.1) * 0.28 + 0.16;
+  return h;
+}
 function blockHeight(b, w = CONTENT_W) {
   switch (b.kind) {
     case "bullets": return bulletHeight(b.items, w);
@@ -51,6 +59,8 @@ function blockHeight(b, w = CONTENT_W) {
     case "callout": return calloutHeight(b, w);
     case "code": return codeHeight(b);
     case "figure": return figureHeight(b, w);
+    case "analogy": return analogyHeight(b, w);
+    case "steps": return stepsHeight(b, w);
     default: return 0.5;
   }
 }
@@ -80,6 +90,16 @@ function splitBlock(b) {
     if (b.lines.length <= per) return [b];
     const out = [];
     for (let i = 0; i < b.lines.length; i += per) out.push({ kind: "code", lines: b.lines.slice(i, i + per) });
+    return out;
+  }
+  if (b.kind === "steps") {
+    const out = []; let cur = [], h = 0.1;
+    for (const it of b.items) {
+      const ih = 0.42 + wrapLines(it.body || "", CONTENT_W - 1.1) * 0.28 + 0.16;
+      if (h + ih > MAXH && cur.length) { out.push({ kind: "steps", items: cur }); cur = []; h = 0.1; }
+      cur.push(it); h += ih;
+    }
+    if (cur.length) out.push({ kind: "steps", items: cur });
     return out;
   }
   return [b];
