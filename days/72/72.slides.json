@@ -61,46 +61,26 @@
     },
     {
       "type": "content",
-      "title": "플랜의 네 숫자 — Starts·E-Rows/A-Rows·Buffers·Reads가 핵심이다",
+      "title": "실제 플랜을 읽어보자 — dept=80 AND salary=10000",
       "blocks": [
         {
-          "kind": "table",
-          "headers": [
-            "컬럼",
-            "뜻",
-            "읽는 법"
-          ],
-          "rows": [
-            [
-              "Starts",
-              "그 operation이 실행된 횟수",
-              "1보다 크면 안쪽이 반복됐다는 뜻 (NL)"
-            ],
-            [
-              "E-Rows / A-Rows",
-              "옵티마이저 예상 / 실제 행 수",
-              "크게 벌어지면 통계·카디널리티 의심"
-            ],
-            [
-              "Buffers",
-              "논리 I/O(누적)",
-              "튜닝 핵심 — 이 숫자를 줄이는 게 목표"
-            ],
-            [
-              "Reads",
-              "물리 I/O",
-              "디스크에서 실제로 읽은 블록"
-            ]
+          "kind": "code",
+          "lines": [
+            "| Id | Operation                    | Name        | Starts | E-Rows | A-Rows | Buffers |",
+            "|  0 | SELECT STATEMENT             |             |      1 |        |      3 |       5 |",
+            "|* 1 |  TABLE ACCESS BY INDEX ROWID | EMP         |      1 |      1 |      3 |       5 |",
+            "|* 2 |   INDEX RANGE SCAN           | EMP_SAL_IDX |      1 |      2 |      4 |       2 |",
+            "  1 - filter(\"DEPARTMENT_ID\"=80)     2 - access(\"SALARY\"=10000)"
           ]
         },
         {
           "kind": "callout",
           "tone": "why",
-          "head": "access와 filter는 다르다",
-          "body": "Predicate에서 access는 인덱스로 바로 범위를 좁힌 조건, filter는 일단 읽고 나서 걸러낸 조건이다. 핵심 조건이 filter로만 처리되면 인덱스 기회를 놓친 것. E-Rows≪A-Rows면 추정이 빗나간 거라 통계부터 의심한다."
+          "head": "이 플랜에서 읽은 것",
+          "body": "Starts는 다 1(반복 없음). E-Rows 2 vs A-Rows 4 — 추정이 살짝 빗나갔다. Buffers 합 5가 논리 I/O. salary는 access(좁힘)인데 department_id는 filter(읽고 버림) → dept를 인덱스로 태우면 더 줄겠다는 판정이 여기서 나온다."
         }
       ],
-      "notes": "이게 오늘의 핵심 슬라이드예요. display_cursor를 allstats last로 뽑으면 이 컬럼들이 나옵니다. 네 개만 봅니다. 먼저 Starts, 그 operation이 몇 번 실행됐나예요. 이게 1보다 크면 안쪽이 반복됐다는 신호인데, 조금 있다 조인에서 진짜 중요해집니다. 그다음 E-Rows랑 A-Rows, 옵티마이저 예상치랑 실제 값이에요. 둘이 크게 벌어지면 통계가 틀렸다는 거고요. Buffers는 논리 I/O, 우리가 줄이려는 그 숫자. Reads는 물리 읽기. 그리고 아래 Predicate에서 access랑 filter를 꼭 구분하세요 — access는 인덱스로 바로 좁힌 거, filter는 읽고 나서 버린 거예요. 핵심 조건이 filter로만 잡히면 인덱스 기회를 놓친 겁니다."
+      "notes": "실제로 돌린 플랜을 같이 읽어봅시다. dept=80 그리고 salary=10000, display_cursor를 allstats last로 뽑은 거예요. 먼저 Starts, 다 1이죠? 반복이 없었다는 뜻입니다. 그다음 Id 2번 보면 E-Rows가 2인데 A-Rows가 4예요. 옵티마이저가 2행 예상했는데 실제 4행, 살짝 빗나갔죠. 통계가 완벽친 않다는 신호고요. Buffers는 맨 위 0번에 5, 이게 이 쿼리가 읽은 논리 블록 총량입니다. 그리고 아래 Predicate가 핵심이에요. salary는 access, 인덱스로 바로 좁혔다는 거고, department_id는 filter, 일단 읽고 나서 버렸다는 겁니다. 그럼 자연스럽게 이런 판정이 나와요 — department_id를 filter가 아니라 access로, 그러니까 dept 인덱스를 태우면 더 줄지 않을까? 바로 그걸 다음에 확인합니다."
     },
     {
       "type": "section",
