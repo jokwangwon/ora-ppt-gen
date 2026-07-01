@@ -185,17 +185,18 @@
           "kind": "code",
           "lines": [
             "BCHR = (1 - disk / (query + current)) * 100",
-            "  query+current = 논리 읽기,  disk = 물리 읽기"
+            "-- 나쁜 계획:  query 100,000  disk 50  ->  BCHR 99.95%",
+            "-- 좋은 계획:  query    200   disk 20  ->  BCHR 90.9%  (논리 I/O 500배 적음)"
           ]
         },
         {
           "kind": "callout",
           "tone": "tip",
-          "head": "히트율이 높은데 느리다면",
-          "body": "실행계획이 나빠 논리 읽기가 폭증하면 BCHR은 오히려 100%에 가까워진다 — 디스크는 안 가고 캐시에서만 잔뜩 읽어서다. 지표는 히트율이 아니라 논리 I/O(Buffers) 절대량이다."
+          "head": "히트율 높은 쪽이 오히려 500배 느리다",
+          "body": "실행계획이 나빠 논리 읽기가 폭증하면 BCHR은 오히려 100%에 가까워진다(위 나쁜 계획 99.95%). 디스크는 안 가고 캐시에서만 잔뜩 읽어서다. 지표는 히트율이 아니라 논리 I/O(Buffers) 절대량이다."
         }
       ],
-      "notes": "세 번째, 버퍼 캐시 히트율입니다. 공식은 논리 읽기 중 디스크 안 가고 캐시에서 찾은 비율이에요. 함정이 있어요. 실행계획이 나빠서 논리 읽기가 폭발하면 오히려 히트율이 100%에 가까워집니다. 디스크는 안 가고 캐시에서만 잔뜩 읽으니까요. 그래서 히트율 높은데 느리면 이 경우를 의심하세요. 진짜 지표는 히트율이 아니라 Buffers 절대량입니다."
+      "notes": "세 번째, 버퍼 캐시 히트율입니다. 공식은 논리 읽기 중 디스크 안 가고 캐시에서 찾은 비율이에요. 함정을 숫자로 보죠. 나쁜 계획은 논리 10만에 디스크 50이라 99.95%, 좋은 계획은 논리 200에 디스크 20이라 90.9%. 히트율은 나쁜 쪽이 높은데 실제 일량은 500배 많아요. 그러니 히트율 말고 논리 I/O 절대량을 보라는 겁니다."
     },
     {
       "type": "section",
@@ -395,7 +396,7 @@
           "kind": "callout",
           "tone": "why",
           "head": "바깥(driving)이 반복을 정한다",
-          "body": "바깥 EMPLOYEES의 각 행마다 안쪽 DEPARTMENTS를 인덱스로 조회해 붙인다. 바깥이 작을수록 안쪽 반복이 적어 NL이 싸다. 실제 플랜 두 개로 확인한다."
+          "body": "바깥 EMPLOYEES의 각 행마다 안쪽 DEPARTMENTS를 인덱스로 조회해 붙인다. 바깥이 작을수록 안쪽 반복이 적어 NL이 싸다. driven(안쪽)엔 조인키 인덱스가 있어야 반복이 싸다. 실제 플랜 두 개로 확인한다."
         }
       ],
       "notes": "NL이 실제로 어떻게 도는지, 구조부터요. 바깥 테이블이 driving이고, 그 각 행마다 안쪽을 반복 조회합니다. 바깥이 작을수록 안쪽이 덜 돌아서 싸요. 이제 실제 플랜 두 개로 확인합니다 — 바깥이 1행일 때랑 여러 행일 때."
@@ -408,20 +409,20 @@
           "kind": "code",
           "lines": [
             "|  1 |  NESTED LOOPS                               |    4 |  Starts",
-            "|  2 |   TABLE ACCESS BY INDEX ROWID EMPLOYEES     |    2 |    1   << 바깥",
-            "|  3 |    INDEX UNIQUE SCAN EMP_EMP_ID_PK          |      |    1",
-            "|  4 |   TABLE ACCESS BY INDEX ROWID DEPARTMENTS   |    2 |    1   << 안쪽",
-            "|  5 |    INDEX UNIQUE SCAN DEPT_ID_PK             |      |    1"
+            "|  2 |   TABLE ACCESS BY INDEX ROWID EMPLOYEES     |    2 |    1   << outer/driving",
+            "|* 3 |    INDEX UNIQUE SCAN EMP_EMP_ID_PK          |      |    1",
+            "|  4 |   TABLE ACCESS BY INDEX ROWID DEPARTMENTS   |    2 |    1   << inner/driven",
+            "|* 5 |    INDEX UNIQUE SCAN DEPT_ID_PK             |      |    1"
           ]
         },
         {
           "kind": "callout",
           "tone": "why",
-          "head": "한 번씩만 돈다",
-          "body": "바깥 EMPLOYEES가 employee_id=100 딱 1행이라 안쪽 DEPARTMENTS도 1번만. 모든 Starts=1, 순서는 3→2→5→4→1, Buffers 4로 끝. 여기까진 쉽다."
+          "head": "한 번씩만 돈다 · |* = Predicate 있음",
+          "body": "Starts 다 1, 순서 3->2->5->4->1, Buffers 4. |* 3·5는 아래 Predicate에 조건 있다는 표시 — 3=access(EMP_ID=100), 5=access(조인키). Id5 access(조인키)가 곧 driven이 인덱스로 붙은 증거다."
         }
       ],
-      "notes": "첫 번째, 바깥이 1행인 경우. employee_id=100이니까 바깥 EMPLOYEES가 딱 한 행이에요. 그러니 안쪽 DEPARTMENTS도 한 번만 조회합니다. 오른쪽 Starts 보면 다 1이죠. 실행 순서는 3에서 사원 인덱스, 2에서 사원 행, 5에서 부서 인덱스, 4에서 부서 행, 1에서 붙여서 3-2-5-4-1. Buffers 4로 끝나요. 여기까진 쉽습니다."
+      "notes": "첫 번째, 바깥이 1행인 경우. employee_id=100이니 바깥 EMPLOYEES가 한 행, 안쪽도 한 번만. Starts 다 1이죠. 순서는 3-2-5-4-1, Buffers 4. 그리고 Id 옆의 별표 보이시죠? 아래 Predicate에 조건 있다는 표시예요. Id5가 access, 그것도 조인키로 access했다는 건 driven인 DEPARTMENTS를 인덱스로 붙였다는 증거입니다. driven엔 인덱스가 있어야 한다는 게 여기서 확인돼요."
     },
     {
       "type": "content",

@@ -37,7 +37,7 @@ a{color:var(--red);text-decoration:none;font-weight:600}a:hover{text-decoration:
 <h2>일차 저작물</h2>
 <table><tr><th>일차</th><th>문제</th><th>일차덱</th><th>상태</th><th>메모</th></tr>
 <tr><td class="mono">68일차</td><td><span class="small">-</span></td><td><span class="ok">있음</span></td><td><span class="chip" style="color:#64748b;background:#f1f5f9">· 미검토</span></td><td class="note">덱 생성(문서·문제는 기 저작). row migration·ITL·full scan</td></tr>
-<tr><td class="mono">72일차</td><td><span class="ok">있음</span></td><td><span class="ok">있음</span></td><td><span class="chip" style="color:#b45309;background:#fef3c7">● 검토중</span></td><td class="note">덱 하이브리드 + 문서·문제 저작 완료. 문서: §5.6 접근경로 4플랜(and_equal 10)·§5.7 비트맵 row lock·§6.6 10046 level12·§6.7 BCHR·§7 조인(NL Starts). 문제: MCQ5·ESSAY2·TERMS6·PLANQ2. NL driving 전환(emp_id=100↔location=1400) 덱·문서 모두 명시.</td></tr>
+<tr><td class="mono">72일차</td><td><span class="ok">있음</span></td><td><span class="ok">있음</span></td><td><span class="chip" style="color:#b45309;background:#fef3c7">● 검토중</span></td><td class="note">덱 하이브리드 + 문서·문제 저작 완료. 문서: §5.6 접근경로 4플랜·§5.7 비트맵(구조/조각잠금)·§6.6 10046(추적파일/tkprof/bind peeking)·§6.7 BCHR(숫자대비)·§7 조인(driving/driven·Predicate/*·access-filter). 덱 보강: [10] BCHR 숫자, [20] driven 인덱스, [21] Predicate/access=driven 인덱스 증거. 문제 MCQ5·ESSAY2·TERMS7·PLANQ2. 허브 용어 검색창 추가.</td></tr>
 </table>
 <h2>PPT 덱</h2>
 <table><tr><th>덱</th><th>슬라이드</th><th>빌드</th></tr>
