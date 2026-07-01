@@ -7,6 +7,8 @@
 전제: 대상 문서가 아래 클래스를 정의한다(guide/sql/buffer 계열 공통).
   노드: ntune(주강조)·ncor(정답/포인트)·nmut(약)   연결: edge   라벨: svg-sub·svg-mono
 텍스트 색은 style="fill:var(--ink)" 로 준다.
+**주의**: ntune 은 sql 전용. 공통 안전 클래스는 ncor·nmut·nal·edge (sql·guide·buffer 공통).
+대상 문서가 정의한 클래스를 cls= 로 넘겨라 — sync_and_verify 가 미정의를 잡는다.
 
 대화 저작 중 파이썬으로 불러 쓰거나(권장), CLI 데모로 확인:
     python svg_snippets.py demo > /tmp/demo.svg
@@ -41,7 +43,7 @@ def figure(inner: str, caption: str, vb_w: int = 680, vb_h: int = 200, aria: str
     )
 
 
-def boxes_row(items: list[str], *, cls: str = "ntune", y: float = 40,
+def boxes_row(items: list[str], *, cls: str = "ncor", y: float = 40,
               x0: float = 24, w: float = 150, h: float = 34, gap: float = 18) -> str:
     """라벨 박스 한 줄. (개념의 요소 나열 P4)"""
     out = []
@@ -52,7 +54,7 @@ def boxes_row(items: list[str], *, cls: str = "ntune", y: float = 40,
     return "".join(out)
 
 
-def flow(steps: list[str], *, cls: str = "ntune", y: float = 46,
+def flow(steps: list[str], *, cls: str = "ncor", y: float = 46,
          x0: float = 24, w: float = 150, h: float = 40, gap: float = 40, uid: str = "f") -> str:
     """박스 → 박스 → 박스 (화살표 연결). 문제→원인→해결, Id 흐름 등 (P3)."""
     parts = [_defs(uid)]
@@ -73,7 +75,7 @@ def good_bad_grid(good: list[str], bad: list[str], *, good_label: str, bad_label
                   y0: float = 36, gap_y: float = 94) -> str:
     """좋음(ntune) vs 나쁨(nmut) 두 묶음 대비. CF·정규화 등 (P6)."""
     parts = [f'<text class="svg-sub" x="24" y="{y0 - 12}">{escape(good_label)}</text>']
-    parts.append(boxes_row(good, cls="ntune", y=y0, w=130, gap=16))
+    parts.append(boxes_row(good, cls="ncor", y=y0, w=130, gap=16))
     y1 = y0 + gap_y
     parts.append(f'<text class="svg-sub" x="24" y="{y1 - 12}">{escape(bad_label)}</text>')
     parts.append(boxes_row(bad, cls="nmut", y=y1, w=130, gap=16))
@@ -83,8 +85,8 @@ def good_bad_grid(good: list[str], bad: list[str], *, good_label: str, bad_label
 def plan_pair(top: str, bottom: str, *, note: str = "", uid: str = "p") -> str:
     """실행계획 두 줄의 상호작용(Id N ↕ Id M) (P3)."""
     parts = [_defs(uid)]
-    parts.append(_rect(60, 30, 360, 36, "ntune", top))
-    parts.append(_rect(60, 110, 360, 36, "ncor", bottom))
+    parts.append(_rect(60, 30, 360, 36, "ncor", top))
+    parts.append(_rect(60, 110, 360, 36, "nal", bottom))
     parts.append(f'<line class="edge" x1="440" y1="48" x2="440" y2="128" marker-end="url(#ah{uid})"/>')
     parts.append(f'<line class="edge" x1="460" y1="128" x2="460" y2="48" marker-end="url(#ah{uid})"/>')
     if note:
