@@ -49,6 +49,24 @@ def _concept_html(h3: Tag) -> str:
     return "".join(parts)
 
 
+def complexity(title: str, html: str) -> str:
+    """개념 난이도: 쉬움 / 보통 / 어려움.
+
+    목표는 '즉시 이해'다. 난이도에 맞춰 설명 깊이를 매칭한다 —
+    쉬운 개념은 한두 줄+표로 충분(얇아도 정상), 어려운 개념일수록 구조가 필요.
+    난이도는 '움직이는 부품 수'로 추정한다: 하위 항목·표 행·단계·주의/예외·코드.
+    """
+    txt = re.sub(r"<[^>]+>", " ", html)
+    prose = len(re.sub(r"\s+", "", txt))
+    parts = len(re.findall(r"<li\b", html)) + len(re.findall(r"<tr\b", html)) + len(re.findall(r"<h4\b", html))
+    caveats = len(re.findall(r"주의|예외|함정|충돌|하지만|단,|반면| vs |왜 ", txt))
+    codeplan = len(re.findall(r"<pre|kind.:.(?:code|plan)", html))
+    steps = 1 if re.search(r"①.*②|단계|순서|→", txt, re.S) else 0
+    hard = (prose > 900) or (parts >= 9) or (caveats >= 3) or (codeplan >= 2) or (steps and prose > 500)
+    easy = (prose < 320) and (parts <= 3) and (caveats == 0) and (codeplan == 0)
+    return "어려움" if hard else ("쉬움" if easy else "보통")
+
+
 def concept_type(title: str, html: str) -> str:
     """개념 유형: reference(참조표·정리) / example(예제·실습) / mechanism(원리).
 
@@ -82,9 +100,26 @@ def score_concept(title: str, html: str) -> dict:
         "depth": len(re.sub(r"\s+", "", txt)) >= 400,
     }
     score = sum(w for key, w, _ in CHECKS if flags[key])
-    missing = [label for key, _, label in CHECKS if not flags[key]]
-    return {"title": title, "score": score, "flags": flags, "missing": missing,
-            "type": concept_type(title, html)}
+    lvl = complexity(title, html)
+    typ = concept_type(title, html)
+
+    # 난이도 대비 설명 판정: '어려운데 구조가 약한'(벽글) 개념만 보강 대상.
+    # 쉬운 개념은 얇아도 정상. 구조 aid = 도해·단계서사·why/tip·표(둘 이상).
+    tables = len(re.findall(r"<table", html))
+    has_structure = flags["diagram"] or flags["steps"] or flags["callout"] or tables >= 2
+    needs_work = (typ == "mechanism" and lvl == "어려움" and not has_structure)
+
+    # 무엇이 이해를 도울지 (어려운 개념에 한해)
+    helps = []
+    if not flags["diagram"]:
+        helps.append("도해(구조/흐름)")
+    if not flags["callout"]:
+        helps.append("why(왜 그런가)")
+    if not flags["steps"] and re.search(r"순서|단계|→", re.sub(r"<[^>]+>", " ", html)):
+        helps.append("단계 정리")
+
+    return {"title": title, "score": score, "flags": flags, "type": typ,
+            "level": lvl, "needs_work": needs_work, "helps": helps}
 
 
 def lint(doc_path: Path, min_score: int) -> tuple[list[dict], int]:
@@ -92,9 +127,9 @@ def lint(doc_path: Path, min_score: int) -> tuple[list[dict], int]:
     results = []
     for h3 in soup.find_all("h3", class_="blk"):
         results.append(score_concept(_text(h3), _concept_html(h3)))
-    # 얇음은 '메커니즘' 개념만 대상 (참조·예제는 얇아도 정상)
-    thin = [r for r in results if r["type"] == "mechanism" and r["score"] < min_score]
-    return results, len(thin)
+    # 보강 대상 = '어려운데 구조가 약한' 개념만. 쉬운 개념은 얇아도 정상.
+    need = [r for r in results if r["needs_work"]]
+    return results, len(need)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -112,23 +147,23 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[lint] {args.doc.name}: h3.blk 개념이 없음 (구조 밖 문서일 수 있음)")
         return 0
 
-    mech = [r for r in results if r["type"] == "mechanism"]
-    avg = (sum(r["score"] for r in mech) / len(mech)) if mech else 0
-    T = {"mechanism": "원리", "reference": "참조", "example": "예제"}
-    print(f"[lint] {args.doc.name} — 개념 {len(results)}개(원리 {len(mech)}), "
-          f"원리 평균 {avg:.1f}/{MAX_SCORE}, 보강대상(원리<{args.min}) {n_thin}개\n")
+    from collections import Counter
+    lv = Counter(r["level"] for r in results)
+    print(f"[lint] {args.doc.name} — 개념 {len(results)}개 "
+          f"(쉬움 {lv['쉬움']}·보통 {lv['보통']}·어려움 {lv['어려움']}), "
+          f"설명 보강 권장 {n_thin}개\n")
+    print("  목표: 즉시 이해. 쉬운 건 얇아도 정상, '어려운데 구조가 약한' 것만 ⚠.\n")
     for r in results:
-        thin = r["type"] == "mechanism" and r["score"] < args.min
-        mark = "⚠" if thin else "·"
-        line = f"  {mark} [{r['score']}/{MAX_SCORE}] ({T[r['type']]}) {r['title'][:40]}"
-        if thin:
-            line += f"  ← 보강: {', '.join(r['missing'])}"
+        mark = "⚠" if r["needs_work"] else "·"
+        line = f"  {mark} [{r['level']}] {r['title'][:44]}"
+        if r["needs_work"]:
+            line += f"  ← 이해 도움: {', '.join(r['helps']) or '구조 정리'}"
         print(line)
 
     if n_thin and args.strict:
-        print(f"\n✗ 얇은 원리 개념 {n_thin}개 — 정답지 작법으로 보강 필요(--strict).")
+        print(f"\n✗ 어려운데 설명이 약한 개념 {n_thin}개 — 구조(도해·단계·why) 보강 필요(--strict).")
         return 1
-    print(f"\n{'✓ 원리 개념이 모두 기준 충족.' if n_thin == 0 else '△ ⚠ 원리 개념을 대화로 보강 권장(다이어그램/실측/서사). 참조·예제는 얇아도 정상.'}")
+    print(f"\n{'✓ 난이도 대비 설명이 적절합니다.' if n_thin == 0 else '△ ⚠ 개념만 보강 권장 — 어려운데 벽글인 것. 쉬운 개념은 그대로 두세요.'}")
     return 0
 
 

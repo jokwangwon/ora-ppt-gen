@@ -75,9 +75,11 @@ def main(argv: list[str] | None = None) -> int:
         print("✗ 검증 실패 — 중단(--force 로 진행 가능).")
         return 1
 
-    # 1b) 저작 품질 린트 (조언 — 얇은 개념 지적)
-    print(f"\n■ 1b) 저작 품질 린트")
+    # 1b) 저작 품질 린트 (조언) — 난이도 대비 설명 + 얼버무림
+    print(f"\n■ 1b) 저작 품질 린트 (난이도 매칭)")
     run([sys.executable, "lint_authoring.py", str(doc)])
+    print(f"\n■ 1c) 얼버무림 검사")
+    run([sys.executable, "lint_vagueness.py", str(doc)])
 
     # 2) 문제 주입
     quiz = day_dir / "quiz.json"

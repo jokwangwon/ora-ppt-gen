@@ -35,50 +35,56 @@ def blackbox(doc_html: str) -> list[str]:
 
 
 def build_report(docs: list[Path]) -> str:
+    from collections import Counter
     rows = []           # 요약표
-    backlog = []        # (score, doc, title, type, missing)
+    backlog = []        # (doc, title, level, helps) — 어려운데 구조 약한 것만
     issues = []         # 구조/검은박스
     for p in docs:
         html = p.read_text(encoding="utf-8")
-        results, _ = la.lint(p, 4)
+        results, need = la.lint(p, 4)
         if not results:
             issues.append(f"- `{p.name}` — h3.blk 구조 밖(추출·평가 불가)")
-            rows.append((p.name, 0, 0, None, 0))
+            rows.append((p.name, 0, Counter(), 0))
             continue
-        mech = [r for r in results if r["type"] == "mechanism"]
-        avg = sum(r["score"] for r in mech) / len(mech) if mech else 0
-        thin = [r for r in mech if r["score"] < 4]
-        rows.append((p.name, len(results), len(mech), avg, len(thin)))
-        for r in thin:
-            backlog.append((r["score"], p.name, r["title"], r["type"], r["missing"]))
+        lv = Counter(r["level"] for r in results)
+        rows.append((p.name, len(results), lv, need))
+        for r in results:
+            if r["needs_work"]:
+                backlog.append((p.name, r["title"], r["level"], r["helps"]))
         bb = blackbox(html)
         if bb:
             issues.append(f"- `{p.name}` — 검은박스 후보(미정의 SVG 클래스): {bb}")
 
-    backlog.sort(key=lambda x: (x[0], x[1]))  # 점수 낮은 순
-
     out = ["# 허브 품질 평가 리포트", ""]
-    out.append("> 점수는 **풍부화 요소(다이어그램·비유·실측·서사·깊이)** 존재 여부의 대리 지표입니다.")
-    out.append("> 정확성·명료성 판정이 아니며, 참조표·예제 개념은 얇아도 정상입니다.\n")
+    out.append("> 목표는 **즉시 이해**입니다. 난이도에 맞춰 설명 깊이를 매칭합니다 —")
+    out.append("> 쉬운 개념은 얇아도 정상이고, **'어려운데 구조가 약한(벽글)' 개념만** 보강 대상입니다.")
+    out.append("> (기계적 지표라 대략치입니다. 실제 '곧바로 이해되나'는 사람/LLM이 읽어 판단해야 정확합니다.)\n")
 
-    out.append("## 요약 (원리 개념 기준)\n")
-    out.append(f"| 문서 | 개념 | 원리 | 원리 평균 /{MAX} | 보강대상(원리<4) |")
-    out.append("|------|-----:|-----:|-----:|-----:|")
-    tot_mech = tot_thin = 0
-    for name, n, m, avg, thin in rows:
-        avg_s = "—" if not m else f"{avg:.1f}"
-        out.append(f"| {name} | {n} | {m} | {avg_s} | {thin} |")
-        tot_mech += m
-        tot_thin += thin
-    pct = (tot_thin / tot_mech * 100) if tot_mech else 0
-    out.append(f"| **합계** | | **{tot_mech}** | | **{tot_thin} ({pct:.0f}%)** |\n")
+    out.append("## 요약 (난이도 분포)\n")
+    out.append("| 문서 | 개념 | 쉬움 | 보통 | 어려움 | 설명 보강 권장 |")
+    out.append("|------|-----:|-----:|-----:|-----:|-----:|")
+    tot = tot_need = 0
+    for name, n, lv, need in rows:
+        out.append(f"| {name} | {n} | {lv['쉬움']} | {lv['보통']} | {lv['어려움']} | {need} |")
+        tot += n
+        tot_need += need
+    out.append(f"| **합계** | **{tot}** | | | | **{tot_need}** |\n")
 
-    out.append("## 보강 백로그 (원리 개념, 점수 낮은 순)\n")
-    out.append("0/7·1/7 부터 대화로 보강 권장 — 원문 사실은 그대로, 다이어그램·비유·서사만 추가.\n")
-    out.append(f"| 점수 | 문서 | 개념 | 보강할 것 |")
-    out.append("|-----:|------|------|------|")
-    for score, name, title, typ, missing in backlog:
-        out.append(f"| {score}/{MAX} | {name} | {title[:38]} | {', '.join(missing)} |")
+    if backlog:
+        out.append("## 보강 권장 (어려운데 구조가 약한 개념)\n")
+        out.append("원문 사실은 그대로, 이해를 돕는 구조(도해/단계/why)만 더한다.\n")
+        out.append("| 문서 | 개념 | 난이도 | 이해 도움 |")
+        out.append("|------|------|------|------|")
+        for name, title, lvl, helps in backlog:
+            out.append(f"| {name} | {title[:40]} | {lvl} | {', '.join(helps) or '구조 정리'} |")
+    else:
+        out.append("## 보강 권장\n\n없음 — 난이도 대비 설명이 대체로 적절합니다. "
+                   "(정밀 판단은 개념별 'LLM 가독성 리뷰' 권장 — 아래 참고)\n")
+
+    out.append("\n## 더 정확한 평가 — LLM 가독성 리뷰\n")
+    out.append("기계적 지표는 '구조 유무'만 본다. **'처음 보는 사람이 곧바로 이해되나'** 는 "
+               "개념을 실제로 읽어야 안다. 대화로 개념을 하나씩 읽어 *어디서 걸리는지 → 최소 수정*을 "
+               "짚는 방식이 목표에 가장 부합한다.")
 
     if issues:
         out.append("\n## 구조·검증 이슈\n")
