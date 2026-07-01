@@ -1,0 +1,77 @@
+{
+  "deck_id": "day68",
+  "title": "68일차 — row migration · ITL · 저장 구조 실습",
+  "subtitle": "블록이 꽉 차면 생기는 일 — 행 이사, ITL 슬롯 부족, 그리고 full scan",
+  "source": "68일차 노트 · guide_62_68.html §7",
+  "slides": [
+    { "type": "title", "title": "68일차 — row migration · ITL 실습", "subtitle": "블록이 꽉 차면 생기는 일" },
+
+    { "type": "section", "num": "01", "title": "UNDO 테이블스페이스", "subtitle": "extent는 오라클이 관리한다" },
+    { "type": "content", "title": "UNDO — 사용자가 extent를 못 정한다", "blocks": [
+      { "kind": "analogy", "text": "UNDO는 트랜잭션 크기에 따라 수시로 늘고 줄어야 하는 공간이라, 방 크기를 세입자가 아니라 건물주(오라클)가 직접 정한다." },
+      { "kind": "bullets", "items": [
+        "LMT(Locally Managed)만 가능 — Dictionary Managed로 못 만든다.",
+        "extent 크기와 확장 방식을 오라클이 자동 결정 — 사용자가 UNIFORM SIZE로 못 정한다.",
+        "그래서 CREATE UNDO TABLESPACE는 datafile 절까지만 쓴다."
+      ]},
+      { "kind": "callout", "tone": "why", "head": "왜 datafile 절까지만인가",
+        "body": "extent 절(EXTENT MANAGEMENT·UNIFORM 등)을 쓸 여지가 없어서, DATAFILE·SIZE·AUTOEXTEND·MAXSIZE 같은 datafile 옵션만 작성한다." }
+    ]},
+
+    { "type": "section", "num": "02", "title": "row migration", "subtitle": "행이 블록을 옮길 때" },
+    { "type": "content", "title": "row migration — 행이 이사하면 더블 홉", "blocks": [
+      { "kind": "analogy", "text": "서랍(블록)에 든 물건이 커져 안 들어가면, 옆 서랍으로 옮기고 원래 자리엔 '옆 서랍 감' 쪽지(포인터)만 남긴다. 찾을 때 두 번 연다." },
+      { "kind": "steps", "items": [
+        { "n": "①", "head": "문제 — 행이 커졌다", "body": "update로 행이 커졌는데 그 블록에 pctfree 여유가 없다." },
+        { "n": "②", "head": "원인 — 새 블록으로 이사", "body": "행이 새 블록으로 옮겨가고, 원래 블록엔 새 주소 포인터만 남는다. 인덱스는 옛 rowid를 그대로 가리킨다." },
+        { "n": "③", "head": "해결 — 테이블 재구성", "body": "alter table ... move 로 행을 재배치(→ 인덱스가 UNUSABLE) 후 alter index ... rebuild online 으로 복구." }
+      ]},
+      { "kind": "table", "headers": ["통계 수집", "chain_cnt", "blocks"], "rows": [
+        ["dbms_stats.gather_table_stats", "0 (안 채워짐)", "748"],
+        ["analyze table ... compute statistics", "334", "748"]
+      ]},
+      { "kind": "callout", "tone": "why", "head": "chain_cnt는 analyze로만 채워진다 (함정)",
+        "body": "dbms_stats로는 0으로 남고, analyze를 써야 migration된 334행이 잡힌다. 인덱스 스캔을 돌리면 table fetch continued row가 정확히 334 증가 — 더블 홉(추가 I/O)의 증거." },
+      { "kind": "callout", "tone": "tip", "head": "migration ≠ chaining",
+        "body": "row migration은 커진 행의 이사(pctfree로 예방). row chaining은 행 자체가 블록보다 커서 처음부터 여러 블록에 걸치는 것(긴 행·LOB) — 블록 크기가 답." }
+    ]},
+
+    { "type": "section", "num": "03", "title": "ITL 슬롯 부족", "subtitle": "enq: TX - allocate ITL entry" },
+    { "type": "content", "title": "ITL 슬롯 부족 — 창구가 모자랄 때", "blocks": [
+      { "kind": "analogy", "text": "ITL 슬롯은 블록의 '거래 창구'다. 한 블록의 여러 행을 여러 세션이 동시에 고치는데 창구가 1개(initrans 1)이고 늘릴 공간도 없으면(pctfree 0), 다음 세션은 기다린다." },
+      { "kind": "table", "headers": ["파라미터", "지정값", "조회값(dba_tables)"], "rows": [
+        ["initrans", "1", "1 (미리 만드는 슬롯 수)"],
+        ["maxtrans", "2", "255 — 10g 이후 폐기, 항상 255"],
+        ["pctfree", "0", "0 (슬롯 늘릴 여유 없음)"]
+      ]},
+      { "kind": "steps", "items": [
+        { "n": "①", "head": "재현", "body": "initrans 1 maxtrans 2 pctfree 0 테이블에서, 한 블록에 든 row1·row2·row3을 세 세션이 동시에 update." },
+        { "n": "②", "head": "관찰", "body": "세 번째 세션이 enq: TX - allocate ITL entry로 대기. v$session.blocking_session으로 막은 세션 추적, v$segment_statistics의 'ITL waits'로 경합 객체 확인." },
+        { "n": "③", "head": "해결", "body": "alter table ... initrans 2 pctfree 10 — 단 새 블록부터만 적용. 기존 블록도 먹이려면 move(data_object_id 바뀜) + rebuild online. row migration과 같은 처방." }
+      ]},
+      { "kind": "callout", "tone": "why", "head": "v$lock에서 구분",
+        "body": "allocate ITL entry는 TX를 REQUEST=4(Share)로 요청한다 — row lock contention의 X(6)과 다르다." }
+    ]},
+
+    { "type": "section", "num": "04", "title": "Full Table Scan", "subtitle": "튜닝으로 가는 길" },
+    { "type": "content", "title": "Full Table Scan — 첫 블록부터 HWM까지", "blocks": [
+      { "kind": "bullets", "items": [
+        "세그먼트의 첫 블록부터 HWM(High Water Mark, 사용·미사용 경계)까지 통째로 읽는다.",
+        "많은 양의 데이터를 검색할 때 유리하다.",
+        "한 번의 I/O call에 db_file_multiblock_read_count(이 환경 78)만큼 묶어 읽는 Multi Block I/O.",
+        "그래서 db file scattered read 대기가 발생한다."
+      ]},
+      { "kind": "callout", "tone": "tip", "head": "HWM은 delete로 안 내려간다",
+        "body": "행을 다 지워도 HWM은 그대로라 full scan이 여전히 느리다. truncate가 HWM을 리셋한다." },
+      { "kind": "code", "lines": [
+        "SYS@ora19c> create table hr.emp as select * from hr.employees;",
+        "SYS@ora19c> select * from hr.emp where employee_id = 100;",
+        "",
+        "| Id | Operation          | Name |",
+        "|  0 | SELECT STATEMENT   |      |",
+        "|* 1 |  TABLE ACCESS FULL | EMP  |   <- 인덱스가 없어 full scan",
+        "   1 - filter(\"EMPLOYEE_ID\"=100)"
+      ]}
+    ]}
+  ]
+}

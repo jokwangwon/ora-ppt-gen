@@ -22,7 +22,7 @@ a{color:var(--red);text-decoration:none;font-weight:600}a:hover{text-decoration:
 .small{color:var(--muted);font-size:11.5px}
 .legend{margin-top:6px;font-size:11.5px;color:#cbd5e1}
 </style></head><body>
-<header><div class="m">ORACLE DBA · STUDY OPS</div><h1>학습 자료 관리 대시보드</h1><div class="sub">문서 4 · 검토완료 4/4 · 일차 0 · 덱 4</div><div class="legend">상태는 review_status.json(사람 소유) · 지표는 생성 때 재계산 · PPTX는 세션 빌드물이라 out/에 있을 때만 열림</div></header>
+<header><div class="m">ORACLE DBA · STUDY OPS</div><h1>학습 자료 관리 대시보드</h1><div class="sub">문서 4 · 검토완료 4/4 · 일차 1 · 덱 4</div><div class="legend">상태는 review_status.json(사람 소유) · 지표는 생성 때 재계산 · PPTX는 세션 빌드물이라 out/에 있을 때만 열림</div></header>
 <div class="wrap">
 <h2>문서</h2><p class="small">‘검토’=사람 확인 · ‘정확성’=사실 오류 LLM 검증. 원본은 수업 중 직접 작성해 사실 오류가 있을 수 있으므로 정확성 검증을 따로 표시합니다.</p><table><tr><th>문서</th><th>주제</th><th>검토</th><th>정확성(사실검증)</th><th>난이도(쉬움·보통·어려움)</th><th>보강권장</th><th>얼버무림</th><th>검은박스</th><th>확인일</th><th></th></tr>
 <tr><td class="mono">buffer_cache_dbwr_checkpoint.html</td><td class="small">버퍼·DBWR</td><td><span class="chip" style="color:#16803d;background:#dcfce7">✅ 검토완료</span></td><td><span class="ok" title="LLM 정독 · 2026-07-01 · 발견/수정 3건">✔ 검증(3)</span></td><td><span class="bar" title="쉬움 4·보통 2·어려움 1"><span style="width:57%;background:#94a3b8"></span><span style="width:29%;background:#f59e0b"></span><span style="width:14%;background:#C74634"></span></span> <span class="small">7개</span></td><td><span class="ok">0</span></td><td><span class="warn">2</span></td><td><span class="ok">0</span></td><td class="small">2026-07-01</td><td><a href="buffer_cache_dbwr_checkpoint.html">열기</a></td></tr>
@@ -35,7 +35,9 @@ a{color:var(--red);text-decoration:none;font-weight:600}a:hover{text-decoration:
 <tr><td></td><td colspan="9" class="note">↳ 검은박스 .nal 정의 추가</td></tr>
 </table>
 <h2>일차 저작물</h2>
-<p class="small">아직 없음 — <span class="mono">days/&lt;N&gt;/</span> 저작 시 표시됩니다.</p>
+<table><tr><th>일차</th><th>문제</th><th>일차덱</th><th>상태</th><th>메모</th></tr>
+<tr><td class="mono">68일차</td><td><span class="small">-</span></td><td><span class="ok">있음</span></td><td><span class="chip" style="color:#64748b;background:#f1f5f9">· 미검토</span></td><td class="note">덱 생성(문서·문제는 기 저작). row migration·ITL·full scan</td></tr>
+</table>
 <h2>PPT 덱</h2>
 <table><tr><th>덱</th><th>슬라이드</th><th>빌드</th></tr>
 <tr><td class="mono">buffer_cache_dbwr_checkpoint</td><td>18장</td><td><span class="ok">완료</span></td></tr>

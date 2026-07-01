@@ -46,5 +46,10 @@
       }
     }
   },
-  "days": {}
+  "days": {
+    "68": {
+      "status": "published",
+      "note": "덱 생성(문서·문제는 기 저작). row migration·ITL·full scan"
+    }
+  }
 }
