@@ -53,7 +53,7 @@
     },
     "72": {
       "status": "reviewing",
-      "note": "전체 노트 대기. [방향] 72 축 = 실행계획/tkprof 출력값 해석(Starts·E-Rows/A-Rows·Buffers·Reads·cr/pr·실행순서·access/filter) 중심으로 덱 재구성 — '측정>비교>선택'보다 '숫자 읽기'가 주제"
+      "note": "전체 노트 수령. 덱 재구성 완료 — 축='실행계획 출력값 해석'(Starts·E/A-Rows·Buffers). 문서 섹션·문제 저작은 다음 단계"
     }
   }
 }
