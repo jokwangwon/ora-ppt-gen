@@ -1,9 +1,18 @@
+# Node
+node_modules/
+
+# Python
 __pycache__/
 *.py[cod]
 .venv/
 venv/
-env/
-.env
+
+# 빌드/QA 산출물
+out/
 *.pptx
-examples/
+*.pdf
+slide-*.jpg
+slide-*.png
+
+# OS
 .DS_Store
