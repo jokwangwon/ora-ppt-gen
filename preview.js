@@ -140,8 +140,10 @@ function bPlan(b) {
 }
 function bSvg(b) {
   const capH = b.h - (b.caption ? 0.35 : 0);
+  const effW = Math.min(b.w, b.maxw || L.SVG_MAXW);
   const svg = String(b.svg || "").replace("<svg", '<svg style="max-width:100%;max-height:100%;height:auto"');
-  const inner = `<div style="width:100%;height:${capH}in;display:flex;align-items:center;justify-content:center">${svg}</div>`
+  const inner = `<div style="width:100%;height:${capH}in;display:flex;align-items:center;justify-content:center">`
+    + `<div style="width:${effW}in;max-width:100%;display:flex;align-items:center;justify-content:center">${svg}</div></div>`
     + (b.caption ? `<div style="text-align:center;font-size:11pt;color:${C.muted};font-style:italic;margin-top:3px">${esc(b.caption)}</div>` : "");
   return box(b.x, b.y, b.w, b.h, "box-sizing:border-box", inner);
 }

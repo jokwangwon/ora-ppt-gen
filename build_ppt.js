@@ -157,7 +157,7 @@ function drawSteps(pres, s, b) {
 function drawSvg(pres, s, b) {
   // evidence 다이어그램. sharp가 미리 래스터한 PNG(b._png)를 비율 유지·중앙 배치.
   const ar = L.svgAspect(b.svg);
-  let w = b.w, h = w / ar;
+  let w = Math.min(b.w, b.maxw || L.SVG_MAXW), h = w / ar;
   const capH = b.h - (b.caption ? 0.35 : 0);
   if (h > capH) { h = capH; w = h * ar; }
   const x = b.x + (b.w - w) / 2, y = b.y;
