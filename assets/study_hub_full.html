@@ -80,6 +80,14 @@ textarea:focus{outline:none;border-color:var(--accent);background:#fff}
 .tface.back{transform:rotateY(180deg);background:#fbfcfd}.tface .lab{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);position:absolute;top:13px;left:15px}
 .tface .tterm{font-size:21px;font-weight:800;font-family:var(--mono);line-height:1.4}.tface.back .tdef{font-size:15px;font-weight:500;line-height:1.65}
 .fnav{display:flex;gap:7px;margin-top:4px}.fnav .btn{flex:1}
+.tsearch{margin:10px 0 2px}
+.tsearch input{width:100%;box-sizing:border-box;border:1.5px solid var(--line);border-radius:11px;padding:11px 13px;font-family:inherit;font-size:14.5px;background:var(--panel);color:var(--ink)}
+.tsearch input:focus{outline:none;border-color:var(--accent);background:#fff}
+.tmatches{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px;align-items:center}
+.tmatches .tcount{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-right:2px}
+.tmatches .tchip{font-family:var(--mono);font-size:12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:5px 9px;cursor:pointer;color:var(--ink)}
+.tmatches .tchip:hover{border-color:var(--accent);color:var(--accent)}
+.tmatches .tno{font-family:var(--mono);font-size:12px;color:var(--no)}
 .dirrow{display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:12px;color:var(--muted);margin:6px 0}
 .dirrow button{font-family:var(--mono);font-size:12px;color:var(--dsim);background:var(--accent-t);border:1px solid #cfe0fb;border-radius:8px;padding:6px 10px;cursor:pointer;font-weight:700}
 .note{background:var(--accent-t);border:1px solid #cfe0fb;border-radius:11px;padding:11px 14px;font-size:13px;color:#1f4f9e;margin:9px 0}
@@ -162,6 +170,8 @@ details.acc .body th{font-family:var(--mono);font-size:11px;color:var(--muted);t
 
 <!-- TERM -->
 <div id="termArea" class="hidden">
+  <div class="tsearch"><input id="tsearch" type="search" placeholder="🔎 용어 검색 — 예: bitmap, Starts, 10046, 조인" oninput="searchTerms(this.value)" autocomplete="off"></div>
+  <div id="tmatches" class="tmatches"></div>
   <div class="dirrow"><span id="tprog">0 / 0</span><button onclick="toggleDir()" id="dirbtn">방향: 용어 → 뜻</button></div>
   <div class="tflip" id="tflip" onclick="flipT()"><div class="tflip-in">
     <div class="tface front"><span class="lab" id="flabF">용어</span><div class="tterm" id="tfront"></div></div>
@@ -3029,6 +3039,7 @@ function startTerms(){tlist=shuffle(TERMS.filter(()=>true));ti=0;tflip=false;ren
 function renderT(){
   document.getElementById('tflip').classList.remove('on');tflip=false;
   const c=tlist[ti];
+  if(!c){document.getElementById('tfront').innerHTML='<div style="color:var(--muted);font-size:15px">검색 결과가 없어요</div>';document.getElementById('tback').innerHTML='';document.getElementById('tprog').textContent='0 / 0';return;}
   const ff=document.getElementById('tfront'), bb=document.getElementById('tback');
   if(dir===0){ // 용어 → 뜻
     ff.style.fontFamily='var(--mono)';ff.style.fontSize='21px';
@@ -3048,9 +3059,22 @@ function renderT(){
   document.getElementById('tprog').textContent=`${ti+1} / ${tlist.length}`;
 }
 function flipT(){tflip=!tflip;document.getElementById('tflip').classList.toggle('on',tflip);}
-function tnext(){ti=(ti+1)%tlist.length;renderT();}
-function tprev(){ti=(ti-1+tlist.length)%tlist.length;renderT();}
+function tnext(){if(!tlist.length)return;ti=(ti+1)%tlist.length;renderT();}
+function tprev(){if(!tlist.length)return;ti=(ti-1+tlist.length)%tlist.length;renderT();}
 function toggleDir(){dir=dir?0:1;document.getElementById('dirbtn').textContent=dir?'방향: 뜻 → 용어':'방향: 용어 → 뜻';renderT();}
+function searchTerms(q){
+  q=(q||'').trim().toLowerCase();
+  if(!q){tlist=shuffle(TERMS.filter(()=>true));ti=0;renderMatches([], '');renderT();return;}
+  const hits=TERMS.filter(t=>((t.t||'')+' '+(t.e||'')+' '+(t.d||'')).toLowerCase().includes(q));
+  tlist=hits;ti=0;renderMatches(hits,q);renderT();
+}
+function renderMatches(hits,q){
+  const m=document.getElementById('tmatches');
+  if(!q){m.innerHTML='';return;}
+  if(!hits.length){m.innerHTML=`<span class="tno">'${q}' 검색 결과 없음</span>`;return;}
+  m.innerHTML=`<span class="tcount">${hits.length}개</span>`+hits.map((h,i)=>`<button class="tchip" onclick="jumpTerm(${i})">${h.t}</button>`).join('');
+}
+function jumpTerm(i){if(i<0||i>=tlist.length)return;ti=i;renderT();document.getElementById('tflip').scrollIntoView({block:'center',behavior:'smooth'});}
 
 /* ===== 오답노트 ===== */
 function renderWrong(){
