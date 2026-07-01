@@ -561,12 +561,31 @@ Predicate Information:
   <div class="why"><span class="h">레벨은 더한다 — 12 = 4 + 8</span>
   1(기본) · 4(+bind) · 8(+wait)이고, <b>둘 다 원하면 더해서 12</b>다(비트마스크라 값을 합친다). tkprof로는 "얼마나 걸렸나"까지지만, level 12를 걸면 <b>무슨 값으로 돌렸고(bind)·무엇을 기다렸나(wait)</b>가 추적파일에 그대로 남는다. 대기가 <span class="we">db file sequential read</span>면 인덱스 단일 블록 읽기, <span class="we">db file scattered read</span>면 full scan multi-block 읽기다 — 어제 본 대기이벤트가 여기서 원인 진단으로 이어진다.</div>
 
+  <p style="margin-top:14px"><b class="k">켠 다음 — 그 추적파일은 어디 있나?</b> 파일명에 꼬리표를 달고 경로를 물어본다.</p>
+  <pre class="term"><span class="pr">HR&gt;</span> alter session set tracefile_identifier = 'my10046';   <span class="cm">-- 파일명 꼬리표</span>
+<span class="pr">HR&gt;</span> select value from v$diag_info where name = 'Default Trace File';
+<span class="out">.../diag/rdbms/ora19c/ora19c/trace/ora19c_ora_1234_my10046.trc</span></pre>
+  <div class="tip"><b>tkprof로 이어진다</b> — <code class="inl">sql_trace=true</code>(§6.5)가 사실 10046의 얕은 버전이다. 그래서 level 12로 뽑은 이 <code class="inl">.trc</code>도 <code class="inl">tkprof x.trc out.txt sys=no</code>로 포맷하면 통계 표 아래에 <b>대기 이벤트 요약</b>(Elapsed times include waiting on …)이 붙어 "어디서 기다렸나"가 정리된다. 즉 <b class="k">10046 level 12 = tkprof 통계 + bind 값 + wait 상세.</b> 현대식으로는 <code class="inl">dbms_monitor.session_trace_enable(waits=&gt;true, binds=&gt;true)</code>가 같은 level 12다. <span class="db add">확인 권장</span></div>
+  <div class="why"><span class="h">bind 값을 왜 봐야 하나 — bind peeking</span>
+  옵티마이저는 하드파싱 때 바인드 변수의 <b>실제 값을 엿보고(peeking)</b> 계획을 정한다. 그래서 <code class="inl">:b_id = 50</code>일 땐 빠른 계획이, 값이 편중된 다른 입력에선 같은 SQL·같은 커서인데 느릴 수 있다. tkprof는 "느렸다"까지만 알려주고, <b>어떤 값에서 느렸는지</b>는 level 12의 BINDS가 있어야 재현·진단된다. <span class="db add">확인 권장</span> — peeking 세부는 수업 노트 밖 표준 지식이니 홈랩에서 직접 확인해 보세요.</div>
+
   <h3 class="blk"><span class="ix">6.7</span>버퍼 캐시 히트율(BCHR) — 높다고 좋은 게 아니다 <span class="db add">72일차</span></h3>
   <p><b>BCHR</b>(Buffer Cache Hit Ratio)은 논리 읽기 중 <b>디스크로 안 간 비율</b>이다.</p>
   <pre class="term"><span class="out">BCHR = ( 1 - disk / (query + current) ) * 100</span>
 <span class="cm">   query + current = 논리 읽기(블록),   disk = 물리 읽기(블록)</span></pre>
   <div class="why"><span class="h">히트율이 높은데 느리다면 — 지표를 잘못 본 것</span>
   "BCHR은 높을수록 좋다"고 배우지만, <b class="k">나쁜 실행계획이 오히려 BCHR을 100%에 가깝게 만든다.</b> 실행계획이 나빠 논리 읽기(query)가 폭증하면 분모가 커져 <code class="inl">disk/(query+current)</code>가 0에 수렴 — 디스크는 안 가고 <b>캐시에서만 잔뜩 읽어서</b> 히트율은 오히려 올라간다. 그래서 봐야 할 것은 히트율(비율)이 아니라 <b>논리 I/O(Buffers·consistent gets)의 절대량</b>이다. §6.2의 "튜닝은 보통 consistent gets를 본다"와 같은 결론이다.</div>
+  <p style="margin-top:14px"><b class="k">숫자로 보면 함정이 분명하다</b> — 같은 결과를 내는 두 계획 (이해용 예시 수치):</p>
+  <table>
+    <tr><th>지표</th><th>나쁜 계획</th><th>좋은 계획</th></tr>
+    <tr><td>query (논리 읽기)</td><td>100,000</td><td>200</td></tr>
+    <tr><td>disk (물리 읽기)</td><td>50</td><td>20</td></tr>
+    <tr><td><b>BCHR</b></td><td><b style="color:var(--alert)">99.95%</b></td><td>90.9%</td></tr>
+    <tr><td>실제 한 일(논리 I/O)</td><td>✗ 500배 많음</td><td>✓ 적음</td></tr>
+  </table>
+  <div class="tip"><b>히트율이 높은 쪽이 오히려 500배 느리다</b> — 나쁜 계획은 캐시에서 10만 블록을 헛읽고 디스크(50)는 거의 안 가니 <code class="inl">1-50/100000</code> ≈ <b>99.95%</b>. 좋은 계획은 200블록만 읽고 끝나지만 디스크 비중이 커 <code class="inl">1-20/220</code> ≈ <b>90.9%</b>. <b class="k">비율(BCHR)이 아니라 논리 I/O 절대량(query)</b>을 봐야 진짜 빠른 쪽을 고른다.</div>
+  <div class="why"><span class="h">BCHR은 어디서 나오나 · 대신 무엇을 보나</span>
+  시스템 전체 BCHR은 <code class="inl">v$sysstat</code>의 <code class="inl">consistent gets</code>·<code class="inl">db block gets</code>·<code class="inl">physical reads</code>로 계산된다 — 인스턴스 누적이라 SQL 하나의 문제를 더 뭉뚱그린다. 그래서 진단은 BCHR을 지나쳐 아래로 내려가 본다: <b>① SQL별 Buffers·consistent gets(§6.2)</b>, <b>② A-Time·대기(10046, §6.6)</b>, <b>③ E-Rows↔A-Rows 괴리(§2.5)</b>. <span class="db add">확인 권장</span> — BCHR 무용론은 널리 알려진 표준 논지이니 세부는 직접 확인 권장.</div>
 </section>
 
 <section class="part" id="join">
