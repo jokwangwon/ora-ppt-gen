@@ -56,8 +56,8 @@ function planHeight(p, w = CONTENT_W) {              // 실행계획 표 (P3)
   const pred = p.predicate ? wrapLines(p.predicate, w - 0.9) * 0.26 + 0.2 : 0;
   return 0.5 + p.rows.length * 0.3 + pred + 0.25;
 }
-function svgAspect(svg) {                            // viewBox → 가로/세로 비
-  const m = /viewBox\s*=\s*"[\d.]+\s+[\d.]+\s+([\d.]+)\s+([\d.]+)"/.exec(svg || "");
+function svgAspect(svg) {                            // viewBox → 가로/세로 비 (작은/큰따옴표 모두)
+  const m = /viewBox\s*=\s*['"]\s*[\d.]+\s+[\d.]+\s+([\d.]+)\s+([\d.]+)/.exec(svg || "");
   return m ? (+m[1]) / (+m[2]) : 2.5;
 }
 const SVG_MAXW = 8.8;                                // 다이어그램 최대 폭(가로로 안 늘어나게 중앙 배치)
