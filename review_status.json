@@ -51,6 +51,10 @@
       "status": "published",
       "note": "덱 생성(문서·문제는 기 저작). row migration·ITL·full scan"
     },
+    "73": {
+      "status": "reviewing",
+      "note": "축=NL 조인. 문서 §2.6 혼자읽는 5단계 루틴 + §7.4~7.8(인덱스가 조인을 바꿈·Seattle 227→72→18→9·양끝필터 8vs12·driving 126vs35·232vs95·prefetch/batch i/o). 문제 MCQ5·ESSAY2·TERMS5·PLANQ2. 덱 24장(스플릿0)."
+    },
     "72": {
       "status": "reviewing",
       "note": "덱 하이브리드 + 문서·문제 저작 완료. 문서: §5.6 접근경로 4플랜·§5.7 비트맵(구조/조각잠금)·§6.6 10046(추적파일/tkprof/bind peeking)·§6.7 BCHR(숫자대비)·§7 조인(driving/driven·Predicate/*·access-filter). 덱 보강: [10] BCHR 숫자, [20] driven 인덱스, [21] Predicate/access=driven 인덱스 증거. 문제 MCQ5·ESSAY2·TERMS7·PLANQ2. 허브 용어 검색창 추가."
