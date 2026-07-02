@@ -18,14 +18,13 @@ ul,ol{padding-left:22px}
 .back{position:fixed;right:16px;bottom:16px;background:#1d7dcc;color:#fff;font:700 13px/1 system-ui;text-decoration:none;padding:11px 15px;border-radius:24px;box-shadow:0 4px 14px rgba(0,0,0,.22)}
 </style></head><body><div class="wrap">
 <div class="top">Oracle DBA 학습 자료실 · 일일 복습</div>
-<h2>73일차 비교 시트 (Claude 버전)</h2>
-<div class='note'>⚠ <b>자습이 끝나기 전엔 열지 마세요.</b> 내 review.md를 다 쓴 뒤, 항목별로 대조해 ○(일치)·△(부분)·×(놓침)를 매기는 용도.</div>
-<div class='note'>Claude가 수업 노트만 보고 독립적으로 작성한 버전입니다 — 정답지가 아니라 <b>대조 상대</b>입니다.</div>
+<h2>73일차 복습 시트</h2>
+<div class='note'>오늘 하루를 한 장으로 — 축·개념·명령어·요약. 막히는 개념은 옆의 [문서 §] 링크로 바로 이동해 다시 읽고, 마지막에 허브에서 문제로 마무리.</div>
 <hr>
-<h3>[오늘의 축] — Claude 버전</h3>
+<h3>[오늘의 축]</h3>
 <div class='note'><b>NL 조인 — 바깥(driving) 선택과 진입 인덱스가 Buffers를 결정한다. 판정은 Starts·Buffers.</b></div>
-<p>판단 근거: 모든 실험이 "순서를 바꾸고(leading) 인덱스를 만들며 Buffers를 비교"하는 구조. 강사도 NL 집중을 명시.</p>
-<h3>[개념 제목] — Claude 버전 (수업 등장 순)</h3>
+<p>모든 실험이 "순서를 바꾸고(leading) 인덱스를 만들며 Buffers를 비교"하는 구조였다.</p>
+<h3>[개념 제목] (수업 등장 순)</h3>
 <ol>
 <li><b>batch i/o</b> (nlj_batching) — inner 테이블 접근을 일괄 처리 · <a href='../assets/sql_tuning.html#join' class='cmp-link'>문서 §7.8</a></li>
 <li><b>table prefetch</b> (nlj_prefetch) — 곧 읽을 블록을 미리 캐시 적재 · <a href='../assets/sql_tuning.html#join' class='cmp-link'>문서 §7.8</a></li>
@@ -39,7 +38,7 @@ ul,ol{padding-left:22px}
 <li><b>driving 잘못 선택의 비용</b> — 126 vs 35 · full 강제 232 vs 95 · <a href='../assets/sql_tuning.html#join' class='cmp-link'>문서 §7.7</a></li>
 </ol>
 <div class='note'>플랜 읽기가 막히면 → <a href='../assets/sql_tuning.html#plan' class='cmp-link'>§2.6 혼자 읽는 5단계 루틴</a></div>
-<h3>[실습 명령어 정리] — Claude 버전 (실행 순서 + 결과 요지)</h3>
+<h3>[실습 명령어 정리] (실행 순서 + 결과 요지)</h3>
 <table><tr><th>#</th><th>명령</th><th>결과 요지</th></tr>
 <tr><td>1</td><td><code>select ... /*+ gather_plan_statistics */</code> + <code>dbms_xplan.display_cursor(null,null,'allstats last')</code></td><td>모든 실험의 실측 도구 — Starts·A-Rows·Buffers</td></tr>
 <tr><td>2</td><td><code>optimizer_features_enable('10.2.0.5' / '10.1.0')</code> + <code>no_nlj_prefetch</code></td><td>같은 NL이 batched → prefetch → classic 모양으로 바뀜</td></tr>
@@ -52,7 +51,7 @@ ul,ol{padding-left:22px}
 <tr><td>9</td><td>필터 없는 emp⋈dept, <code>leading(e,d)</code> vs <code>leading(d,e)</code> (+<code>no_nlj_prefetch</code>)</td><td>Starts 107 vs 27 → <b>126 vs 35</b></td></tr>
 <tr><td>10</td><td>같은 실험 + <code>full(e) full(d)</code></td><td>안쪽까지 full → <b>232 vs 95</b> (Starts×full = 최악)</td></tr>
 </table>
-<h3>[5줄 요약] — Claude 버전</h3>
+<h3>[5줄 요약]</h3>
 <ol>
 <li>NL 비용 ≈ <b>바깥 1회 + (바깥 행 수 × 안쪽 1회)</b> — 바깥(명단)을 최소로: 필터 센 쪽, 없으면 작은 쪽.</li>
 <li><b>인덱스가 없으면 힌트를 줘도</b> 옵티마이저는 hash·cartesian으로 짠다 — 도구가 선택지를 만든다 (오타 힌트는 조용히 무시).</li>
@@ -60,18 +59,18 @@ ul,ol{padding-left:22px}
 <li>그래도 <b>작은 테이블은 full+hash가 이길 수 있다</b> (9 vs 18, 8 vs 12) — 판정은 항상 Buffers 총점.</li>
 <li>NL 플랜은 버전 최적화로 <b>모양이 3가지</b>(classic·prefetch·batch i/o) — 모양이 나와도 항상 작동한다는 뜻은 아니다.</li>
 </ol>
-<h3>[건너뛴 것 — 매뉴얼 대비] — Claude 버전</h3>
+<h3>[건너뛴 것 — 매뉴얼 대비]</h3>
 <table><tr><th>안 다룬 것</th><th>추정 이유</th><th>공부하러 가기</th></tr>
 <tr><td>Sort Merge·Hash Join 내부 단계</td><td>① 뒤 차시</td><td>다음 수업 대기 · <a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/' class='cmp-link'>매뉴얼(Concepts)</a></td></tr>
 <tr><td>outer join의 NL 처리</td><td>①/②</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/' class='cmp-link'>매뉴얼(Concepts)</a></td></tr>
 <tr><td>prefetch 실제 작동 확인 방법</td><td>? → 강사 질문</td><td>질문 후 <a href='../assets/sql_tuning.html#join' class='cmp-link'>문서 §7.8</a>에 답 기록</td></tr>
 </table>
 <hr>
-<h3>대조하는 법 (자습 후 2분)</h3>
+<h3>복습 동선 (10분)</h3>
 <ol>
-<li>내 review.md와 위 항목을 나란히 놓고 <b>○(일치)·△(부분)·×(놓침)</b> 표시</li>
-<li><b>×가 나온 항목 = 오늘의 복습 우선순위</b> — 위 개념 옆 <b>[문서 §] 링크로 바로 이동</b>해 그 부분만 다시 읽기</li>
-<li>결과를 review.md 맨 아래 <code>[대조 결과]</code>에 한 줄로 (예: "축 ○ · 개념 8/10 · 명령어 △ — cartesian 놓침")</li>
+<li><b>[오늘의 축]</b> 한 줄을 소리 내어 설명해보기 — 막히면 큰그림부터 다시</li>
+<li><b>[개념 제목]</b> 을 훑으며 설명 안 되는 것만 [문서 §] 링크로 이동해 그 부분 재독</li>
+<li><b>[실습 명령어]</b> 표에서 결과 숫자(227·72·18·9 / 126·35)를 가리고 떠올려보기</li>
 <li>마무리 — <a href='../assets/study_hub_full.html' class='cmp-link'>허브에서 73일차 문제 풀기</a> (날짜칩 73 필터)</li>
 </ol>
 </div><a class="back" href="../index.html">&larr; 자료실</a></body></html>
