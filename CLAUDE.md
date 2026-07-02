@@ -13,6 +13,7 @@ PPT는 HTML에서 파생하되 **새 사실을 지어내지 않는다.**
 | `new_day.py`         | **하루치 스캐폴드** — `days/<N>/` 에 복습 노트(review.md)·문제 뼈대(quiz.json) 생성(멱등). 자습 시작 준비. |
 | `make_day.py`        | **일차 파이프라인** — 동기화·검증 → 문제 주입 → 일차 덱 + 문서 덱 + QA + 대시보드 + 자료실 |
 | `docs/STUDY_ROUTINE.md` | **자습 1시간 복습 루틴** + 매일 남길 양식 + 양식→파이프라인 지도. 복사용 원본: `days/TEMPLATE.md`. |
+| `docs/SYSTEM_OVERVIEW.md` | **AI 핸드오프 문서** — 시스템 목적·구조·워크플로·규칙 전체를 한 문서로(다른 AI에게 설명용). |
 | `build_dashboard.py` | 관리 대시보드 생성 → `assets/dashboard.html` (검토·정확성·난이도·린트 한 눈에) |
 | `build_library.py`   | **자료실 생성** → 루트 `index.html` + `out/` 덱·대본을 `files/`로 복사(멱등). GitHub Pages(루트)로 공유·다운로드. |
 | `review.py`          | 검토/정확성 상태 관리 CLI → `review_status.json` (사람 소유, git 추적) |
