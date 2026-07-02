@@ -29,14 +29,14 @@ h1{font-size:24px;font-weight:800;letter-spacing:-.02em;margin:7px 0 3px}
 .chip.d62.on{background:var(--d62);border-color:var(--d62)}.chip.d63.on{background:var(--d63);border-color:var(--d63)}
 .chip.d64.on{background:var(--d64);border-color:var(--d64)}.chip.d65.on{background:var(--d65);border-color:var(--d65)}
 .chip.d66.on{background:var(--d66);border-color:var(--d66)}.chip.d67.on{background:var(--d67);border-color:var(--d67)}
-.chip.d68.on{background:var(--d68);border-color:var(--d68)}.chip.d69.on{background:var(--d69);border-color:var(--d69)}.chip.d70.on{background:var(--d70);border-color:var(--d70)}.chip.d71.on{background:var(--d71);border-color:var(--d71)}.chip.dsim.on{background:var(--dsim);border-color:var(--dsim)}.chip.d72.on{background:var(--d72);border-color:var(--d72)}
+.chip.d68.on{background:var(--d68);border-color:var(--d68)}.chip.d69.on{background:var(--d69);border-color:var(--d69)}.chip.d70.on{background:var(--d70);border-color:var(--d70)}.chip.d71.on{background:var(--d71);border-color:var(--d71)}.chip.dsim.on{background:var(--dsim);border-color:var(--dsim)}.chip.d72.on{background:var(--d72);border-color:var(--d72)}.chip.d73.on{background:var(--d73);border-color:var(--d73)}
 .bar{height:7px;background:var(--line);border-radius:99px;overflow:hidden;margin:10px 0 2px}
 .bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
 .meta{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:12px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:17px;margin:11px 0;box-shadow:0 1px 2px rgba(0,0,0,.03)}
 .daytag{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;margin-bottom:8px}
 .dt62{background:#efeafc;color:var(--d62)}.dt63{background:#e2f6f3;color:var(--d63)}.dt64{background:#fbeedd;color:var(--d64)}
-.dt65{background:#e8edf6;color:var(--d65)}.dt66{background:#f9e7f0;color:var(--d66)}.dt67{background:#f0e9dd;color:var(--d67)}.dt68{background:#e7f1e9;color:var(--d68)}.dt69{background:#f4e3ef;color:var(--d69)}.dt70{background:#e4f1ea;color:var(--d70)}.dt71{background:#f6e9dd;color:var(--d71)}.dt72{background:#fbe7de;color:var(--d72)}.dtsim{background:#e1f0f5;color:var(--dsim)}
+.dt65{background:#e8edf6;color:var(--d65)}.dt66{background:#f9e7f0;color:var(--d66)}.dt67{background:#f0e9dd;color:var(--d67)}.dt68{background:#e7f1e9;color:var(--d68)}.dt69{background:#f4e3ef;color:var(--d69)}.dt70{background:#e4f1ea;color:var(--d70)}.dt71{background:#f6e9dd;color:var(--d71)}.dt72{background:#fbe7de;color:var(--d72)}.dt73{background:var(--d73);color:#fff}.dtsim{background:#e1f0f5;color:var(--dsim)}
 .q{font-size:17px;font-weight:700;margin:2px 0 14px;line-height:1.45}
 .q code,.opt code,.ex code,.model code,.def code{font-family:var(--mono);font-size:.85em;background:#eef1f5;padding:1px 5px;border-radius:5px}
 .opt{display:block;width:100%;text-align:left;padding:14px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--panel);margin:8px 0;font-size:15px;cursor:pointer;font-family:inherit;color:inherit;line-height:1.4;transition:.12s}
@@ -324,7 +324,7 @@ details.acc .body th{font-family:var(--mono);font-size:11px;color:var(--muted);t
 <style>
 :root{
   --bg:#F6F7F9; --panel:#FFFFFF; --ink:#161B22; --muted:#5A6472; --line:#E4E8EE;
-  --d62:#6E56CF; --d63:#0E9F8C; --d64:#DB7B2B; --d65:#34528C; --d66:#B23A6F; --d67:#8C6A43; --d68:#4E8A57; --alert:#D6453D; --add:#2D6FE0;
+  --d62:#6E56CF; --d63:#0E9F8C; --d64:#DB7B2B; --d65:#34528C; --d66:#B23A6F; --d67:#8C6A43; --d68:#4E8A57;--d73:#0563C1; --alert:#D6453D; --add:#2D6FE0;
   --d62-t:#efeafc; --d63-t:#e2f6f3; --d64-t:#fbeedd; --d65-t:#e8edf6; --d66-t:#f9e7f0; --d67-t:#f0e9dd; --d68-t:#e7f1e9; --alert-t:#fbe6e4; --add-t:#e7f0fd;
   --term:#10151E; --term-ink:#D6DEEA; --term-dim:#7E8BA0;
   --mono:'JetBrains Mono',ui-monospace,monospace;
@@ -1618,6 +1618,28 @@ Predicate Information:
   ① 큰 테이블에 <code class="inl">TABLE ACCESS FULL</code>인데 소량만 찾나? → 인덱스 기회. ② 핵심 조건이 <code class="inl">filter</code>로만 처리되나? → 인덱스 기회. ③ <b>E-Rows ≪ A-Rows</b>로 추정이 크게 빗나갔나? → 통계 갱신·카디널리티 문제. ④ 소량인데 HASH JOIN, 대량인데 NESTED LOOPS? → 조인 방식 의심.</div>
 
   <div class="tip"><b>홈랩에서 바로</b> — ora19c에서 <code class="inl">set autotrace on</code> 또는 위 <code class="inl">gather_plan_statistics</code> + <code class="inl">display_cursor</code>로 직접 찍어보세요. 자료를 읽는 것보다 내 쿼리의 계획을 눈으로 보는 게 훨씬 빨리 늡니다.</div>
+
+  <h3 class="blk"><span class="ix">2.6</span>혼자 읽는 5단계 루틴 <span class="db add">73일차</span></h3>
+  <p>어떤 플랜이 와도 이 순서로만 본다. 외울 것은 순서 하나 — <b class="k">깊은 줄부터 → Starts → A-Rows → 견적 → Predicate</b>. 플랜은 조직도다: 들여쓰기가 깊을수록 말단이고, <b>말단이 먼저 일해서 결과를 상사에게 올린다.</b></p>
+  <table>
+    <tr><th>단계</th><th>보는 것</th><th>질문</th></tr>
+    <tr><td><b>① 실행 순서</b></td><td>들여쓰기</td><td>가장 깊은 줄부터, 같은 깊이면 위→아래</td></tr>
+    <tr><td><b>② Starts</b></td><td>반복 횟수</td><td>어디서 반복이 터졌나? NL 안쪽에서만 커진다 — 크면 바깥(driving) 선택을 의심</td></tr>
+    <tr><td><b>③ A-Rows</b></td><td>행의 여정</td><td>실행 순서대로 읽으면 어디서 불어나고 어디서 잘리나가 보인다</td></tr>
+    <tr><td><b>④ E-Rows</b></td><td>견적 확인</td><td><b class="k">E-Rows는 1회 실행 기준</b> — Starts 있는 줄은 E×Starts로 A-Rows와 비교. 10배↑ 벌어지면 통계 의심</td></tr>
+    <tr><td><b>⑤ Predicate</b></td><td>access/filter</td><td>그 테이블에 <b>처음 들어가는 조건</b>이 filter면 인덱스 기회. "진입 후 확인" filter는 정상</td></tr>
+  </table>
+  <p style="margin-top:12px"><b class="k">연습 — 실측 플랜에 실행 순서를 매기면</b> (73일차 AD_VP all-NL, 아래 §7.6):</p>
+  <pre class="term"><span class="out">| 1 |  NESTED LOOPS                            | Buffers 12 |</span> <span class="cm">⑨ 최종</span>
+<span class="out">| 2 |   NESTED LOOPS                           |         10 |</span> <span class="cm">⑦</span>
+<span class="out">| 3 |    NESTED LOOPS                          |          8 |</span> <span class="cm">⑤</span>
+<span class="out">| 4 |     EMP  BY INDEX ROWID    Starts 1      |          4 |</span> <span class="cm">② 행 꺼냄</span>
+<span class="hl">|*5 |      EMP_JOB_IDX RANGE     Starts 1      |          2 |</span> <span class="cm">① 시작 — 가장 깊다</span>
+<span class="out">| 6 |     DEPT BY INDEX ROWID    Starts 2      |          4 |</span> <span class="cm">④</span>
+<span class="out">|*7 |      DEPT_IDX UNIQUE       Starts 2      |          2 |</span> <span class="cm">③</span>
+<span class="out">|*8 |    LOC_IDX UNIQUE          Starts 2      |          2 |</span> <span class="cm">⑥</span>
+<span class="out">|*9 |   LOC  BY INDEX ROWID      Starts 2      |          2 |</span> <span class="cm">⑧ city 확인(정상 filter)</span></pre>
+  <div class="tip"><b>판정은 맨 윗줄 Buffers</b> — Buffers는 누적(자식 포함)이라 맨 윗줄이 총점이다. 다섯 걸음이 끝나면 계획끼리 총점으로 비교한다. Id 9처럼 조인키로 이미 행을 집은 뒤(access는 Id 8) 그 행에서 조건만 확인하는 filter는 <b>정상</b>이니 겁먹지 말 것 — 나쁜 filter는 "그 테이블에 처음 들어가는 조건"이 filter일 때다.</div>
 </section>
 
 <section class="part" id="p2">
@@ -2120,6 +2142,80 @@ Predicate Information:
 <span class="out">-----------------------------------------------------------------------</span></pre>
   <div class="why"><span class="h">Starts=5가 곧 다섯 번 반복</span>
   Id 6(사원 행 읽기)의 <b>Starts=5</b>는 안쪽을 다섯 번 실행했다는 뜻이다. 그래서 실행 순서가 ①처럼 3→2→5→4→1에서 끝나지 않고 <b>3 → 2 → 5 → 4 → 5 → 4 … → 1</b>로 안쪽을 5번 반복하며 길어진다. ①(emp_id=100)에선 사원이 바깥이었는데 여기선 뒤집혔다 — <b class="k">먼저 걸러지는 쪽이 driving이고, 그 건수가 안쪽 반복(Starts)을 정한다.</b> 실행 순서가 헷갈리면 순서를 세지 말고 <b>Starts부터 봐라</b> — 안쪽이 몇 번 돌았는지가 거기 다 있다.</div>
+
+  <h3 class="blk"><span class="ix">7.4</span>인덱스가 조인 방법을 바꾼다 — PK를 하나씩 만들며 <span class="db add">73일차</span></h3>
+  <p>emp·dept·loc를 <b>인덱스 없이</b> 새로 만들고(CTAS), 같은 쿼리(<code class="inl">employee_id=100</code> 3테이블 조인)를 PK를 하나씩 만들어 가며 4번 돌렸다.</p>
+  <pre class="term"><span class="cm">-- 인덱스 0개일 때 — NL을 힌트로 시켜도 이렇게 짠다</span>
+<span class="out">|  1 |  HASH JOIN            |      | Buffers 8 |</span>
+<span class="hl">|  2 |   MERGE JOIN CARTESIAN|      |         5 |</span>
+<span class="out">|  3 |    TABLE ACCESS FULL  | EMP  |         3 |  filter(EMPLOYEE_ID=100)</span>
+<span class="out">|  5 |     TABLE ACCESS FULL | LOC  |         2 |</span>
+<span class="out">|  6 |   TABLE ACCESS FULL   | DEPT |         3 |</span></pre>
+  <table>
+    <tr><th>단계</th><th>플랜 모양</th><th>Buffers</th></tr>
+    <tr><td>인덱스 없음</td><td>MERGE JOIN CARTESIAN + HASH</td><td>8</td></tr>
+    <tr><td>+ EMP_IDX(PK)</td><td>EMP만 인덱스 — DEPT·LOC은 full·hash</td><td>7</td></tr>
+    <tr><td>+ DEPT_IDX(PK)</td><td>NL·NL — LOC만 full</td><td>7</td></tr>
+    <tr><td>+ LOC_IDX(PK)</td><td><b>NL 3단, 전부 UNIQUE SCAN</b></td><td><b>6</b></td></tr>
+  </table>
+  <div class="why"><span class="h">옵티마이저는 "있는 도구"로만 짠다</span>
+  인덱스가 없으면 NL 안쪽을 매번 full로 돌아야 하니, 옵티마이저는 hash·cartesian이 낫다고 판단한다(emp가 1행으로 걸러지니 1행×loc 23행 조합도 싸다고 본 것). <b>인덱스가 생길 때마다 선택지가 열려 플랜 모양이 바뀐다.</b> 이 실험은 바깥이 1행이라 Buffers 차이는 작지만(8→6), 모양의 변화가 포인트다.</div>
+  <div class="tip"><b>"힌트를 줬는데 무시됐다?"의 진상</b> — <code class="inl">leading(e,d,l) use_nl(d) nse_nl(l)</code> — 세 힌트 중 무엇이 적용됐는지 플랜으로 따져보자. <b>leading과 use_nl(d)은 전부 먹혔다</b>(순서 e→d→l 유지, d는 NL로 — 단 인덱스가 없어 안쪽 full). 무시된 건 <code class="inl">nse_nl(l)</code> 하나 — <b>use_nl의 오타</b>다. <b class="k">잘못된 힌트는 에러 없이 조용히 무시된다.</b> 힌트가 안 먹은 것 같으면 오타부터 확인하라.</div>
+
+  <h3 class="blk"><span class="ix">7.5</span>순서·진입 인덱스가 Buffers를 가른다 — Seattle 실험 <span class="db add">73일차</span></h3>
+  <p>같은 쿼리(<code class="inl">l.city='Seattle'</code>, 3테이블)를 네 방식으로 돌렸다. 결과는 모두 같은 18행.</p>
+  <table>
+    <tr><th>방식</th><th>무슨 일이 났나</th><th>Buffers</th></tr>
+    <tr><td><code class="inl">leading(e,d,l)</code> 강제</td><td>필터 반대편에서 출발 — EMP 107행이 명단, DEPT Starts <b>107</b></td><td><b style="color:var(--alert)">227</b></td></tr>
+    <tr><td><code class="inl">leading(l,d,e)</code></td><td>방향은 맞지만 진입 인덱스 없음 — 매 반복이 full(filter 3줄)</td><td>72</td></tr>
+    <tr><td>l→d→e + <b>진입 인덱스 3개</b></td><td>filter 3줄이 전부 <b>access</b>로</td><td><b>18</b></td></tr>
+    <tr><td>옵티마이저 기본</td><td>MERGE+HASH 혼합, 작은 테이블 full</td><td><b style="color:var(--tune)">9</b></td></tr>
+  </table>
+  <pre class="term"><span class="cm">-- 진입 인덱스 3개 = 각 테이블에 "들어가는 문"을 낸 것</span>
+<span class="pr">SYS&gt;</span> create index hr.loc_city_idx  on hr.loc(city);           <span class="cm">-- 필터 진입</span>
+<span class="pr">SYS&gt;</span> create index hr.dept_loc_idx  on hr.dept(location_id);   <span class="cm">-- d 조인 진입</span>
+<span class="pr">SYS&gt;</span> create index hr.emp_dept_idx  on hr.emp(department_id);  <span class="cm">-- e 조인 진입</span>
+<span class="cm">-- 실측(Buffers 18): Predicate 5·7·8 전부 access — Starts 21(부서)·18(사원)</span>
+<span class="hl">   5 - access("L"."CITY"='Seattle')          ← filter였던 것</span>
+<span class="hl">   7 - access("D"."LOCATION_ID"=...)         ← filter였던 것</span>
+<span class="hl">   8 - access("E"."DEPARTMENT_ID"=...)       ← filter였던 것</span></pre>
+  <div class="why"><span class="h">그런데 최저는 여전히 옵티마이저(9)</span>
+  순서도 맞추고 인덱스도 다 줬는데 18 — 기본 계획 9를 못 이겼다. 테이블이 몇 블록짜리로 작으면 <b>full+hash로 한 번에 쓸어담는 쪽이 반복 접근보다 싸다.</b> "풀 스캔 = 나쁨"이 아니다 — <b class="k">판정은 항상 Buffers 총점</b>이고, 이 실습의 목적은 힌트로 계획을 제어하고 숫자로 판정하는 훈련이다.</div>
+
+  <h3 class="blk"><span class="ix">7.6</span>필터가 양끝이면 — 더 세게 걸러지는 쪽에서 출발 <span class="db add">73일차</span></h3>
+  <p>조건을 하나 더: <code class="inl">e.job_id='AD_VP'</code>. 이제 필터가 <b>양끝</b>에 있다 — city(loc 1행) vs job_id(emp 2행). 조인 체인 <code class="inl">e—d—l</code>은 어느 끝에서 출발하든 진입 인덱스만 있으면 NL이 성립한다.</p>
+  <pre class="term"><span class="pr">SYS&gt;</span> create index hr.emp_job_idx on hr.emp(job_id);
+<span class="cm">-- leading(e,d,l) all-NL 실측: 바깥 = AD_VP 2행</span>
+<span class="hl">|* 5 |  EMP_JOB_IDX RANGE SCAN  | Starts 1 | A-Rows 2 |</span>
+<span class="out">|* 7 |  DEPT_IDX UNIQUE         | Starts 2 |          |</span>
+<span class="out">|* 8 |  LOC_IDX  UNIQUE         | Starts 2 |          |</span>
+<span class="cm">-- 총 Buffers: all-NL 12  vs  옵티마이저(hash + EMP full 1회) 8</span></pre>
+  <div class="tip"><b>목표 달성, 판정은 hash 승</b> — 풀 스캔 0·전부 NL·Starts 2로 변환은 성공. 그래도 총점은 hash 8이 더 싸다 — EMP가 5블록짜리라 한 번 쓸기가 워낙 싸서다. NL의 강점은 <b>바깥이 몇 행 안 될 때 첫 행을 바로 내는 것</b>이고, 어느 쪽이 이기는지는 실측이 정한다.</div>
+
+  <h3 class="blk"><span class="ix">7.7</span>driving을 잘못 잡으면 — 반복 승수의 실측 <span class="db add">73일차</span></h3>
+  <p>필터 없는 <code class="inl">emp(107행) ⋈ dept(27행)</code>(결과 106행)에서 <b>바깥만 바꿔</b> 비교했다. (교과서 모양을 보려고 <code class="inl">optimizer_features_enable('10.1.0')</code> + <code class="inl">no_nlj_prefetch</code>로 최신 최적화를 껐다.)</p>
+  <table>
+    <tr><th>실험</th><th>안쪽 반복</th><th>Buffers</th></tr>
+    <tr><td>EMP(107) 바깥 → DEPT 안쪽</td><td>DEPT를 <b>107번</b> (unique scan)</td><td><b style="color:var(--alert)">126</b></td></tr>
+    <tr><td>DEPT(27) 바깥 → EMP 안쪽</td><td>EMP를 <b>27번</b> (range scan)</td><td><b style="color:var(--tune)">35</b></td></tr>
+    <tr><td>EMP 바깥 + <code class="inl">full(d)</code> 강제</td><td>DEPT <b>full×107</b> = 222</td><td><b style="color:var(--alert)">232</b></td></tr>
+    <tr><td>DEPT 바깥 + <code class="inl">full(e)</code> 강제</td><td>EMP <b>full×27</b> = 88</td><td>95</td></tr>
+  </table>
+  <div class="why"><span class="h">전화 돌리기 — NL 비용의 구조</span>
+  <b>NL 총비용 ≈ 바깥 1회 읽기 + (바깥 행 수 × 안쪽 1회 비용)</b>. 바깥은 한 번뿐이라 10이든 7이든 큰 차이가 없고, 진짜 비용은 <b>반복 승수(바깥 행 수)</b>다. 주목 — ①의 안쪽은 UNIQUE SCAN(가장 좋은 스캔)인데도 107번 곱해지니 116, ②는 RANGE SCAN인데 27번이라 28. <b class="k">probe 한 번의 질보다 probe 횟수가 지배한다.</b> 안쪽 인덱스까지 빼앗으면(full 강제) 매 반복이 full이 되어 232 — <b>NL 최악 = 큰 바깥 × 안쪽 인덱스 부재</b>다.</div>
+  <div class="tip"><b>driving 선택 원칙(완성)</b> — driving = <b class="k">바깥 행 수를 최소로 만드는 쪽</b>. 필터가 있으면 가장 세게 걸러지는 쪽(Seattle 1행·AD_VP 2행), 없으면 그냥 작은 테이블(27&lt;107). 그리고 <b>E-Rows는 1회 기준</b>이라 Starts 있는 줄은 E×Starts로 A-Rows와 비교한다(② Id 4: 10×27=270이 아니라 Id 3 기준 4×27=108≈106 ✓).</div>
+
+  <h3 class="blk"><span class="ix">7.8</span>같은 NL, 세 가지 그림 — table prefetch와 batch i/o <span class="db add">73일차</span></h3>
+  <p>요즘 버전의 NL 플랜은 I/O 최적화 때문에 <b>모양이 다르게 그려진다</b>. <code class="inl">optimizer_features_enable('버전')</code>으로 옵티마이저를 버전별로 고정해 같은 쿼리를 비교했다(유효 버전은 <code class="inl">v$parameter_valid_values</code>에서 조회).</p>
+  <table>
+    <tr><th>모양</th><th>알아보는 법</th><th>힌트</th></tr>
+    <tr><td><b>classic</b> (10.1)</td><td>NL 아래에 인덱스·테이블이 나란히 — 교과서 모양</td><td><code class="inl">no_nlj_prefetch</code></td></tr>
+    <tr><td><b>table prefetch</b> (10.2)</td><td>inner <b>테이블 접근이 NL 위쪽</b>에 표시</td><td><code class="inl">nlj_prefetch / no_nlj_prefetch</code></td></tr>
+    <tr><td><b>batch i/o</b> (11g~)</td><td>NL이 <b>두 겹</b> + 테이블 접근에 <code class="inl">BATCHED</code></td><td><code class="inl">nlj_batching / no_nlj_batching</code></td></tr>
+  </table>
+  <div class="why"><span class="h">둘 다 목적은 디스크 I/O 절감</span>
+  <b>table prefetch</b> — 디스크 I/O call은 비싸니, 곧이어 읽을 가능성 높은 블록들을 <b>한 번의 I/O call로 미리</b> 버퍼 캐시에 적재한다(여러 single block 동시 수행, <span class="we">db file sequential read</span>). inner 쪽 <b>non-unique 인덱스 range scan</b>에서 발생하고, inner 행들의 <b>clustering factor가 나쁠 때</b> 효과적이다. <b>batch i/o</b> — inner 인덱스와 조인해 <b>중간 결과집합을 만든 뒤</b>, inner 테이블 접근을 <b>일괄(fetch call 단위)</b> 처리해 디스크 I/O를 줄인다(prefetch에 이어 추가 도입). 주의 — <b class="k">prefetch 모양이 그려져 있다고 항상 작동하는 건 아니다</b>. 기능이 활성화됐다는 표시일 뿐이다.</div>
+  <div class="tip"><b>optimizer_features_enable</b> — 옵티마이저 동작을 특정 버전으로 고정하는 힌트/파라미터. 실무에선 업그레이드 회귀 비교, 학습에선 이번처럼 <b>버전별 플랜 모양 비교</b>에 쓴다. §7.7 실험에서 교과서 모양(10.1)을 만든 것도 이것.</div>
 </section>
 
 <section class="part" id="road">
@@ -2634,7 +2730,12 @@ const MCQ=[
   {id:"m72b",d:72,q:"버퍼 캐시 히트율(BCHR)이 99%로 매우 높은데 쿼리가 느리다. 가장 그럴듯한 원인은?",o:["물리 I/O가 너무 많아서", "나쁜 실행계획으로 논리 읽기(query)가 폭증해 오히려 히트율이 올라간 것", "캐시가 부족해 자주 밀려나서", "히트율이 높으면 항상 빠르므로 다른 원인이다"],a:1,e:"BCHR = (1 - disk/(query+current))*100. 논리 읽기(query)가 폭증하면 분모가 커져 disk 비중이 0에 수렴 → 히트율은 오히려 100%에 근접한다. 봐야 할 것은 히트율이 아니라 논리 I/O(Buffers) 절대량이다."},
   {id:"m72c",d:72,q:"같은 쿼리(dept=80 AND salary=10000)에서 and_equal 힌트가 Buffers 10으로 단일 인덱스(4~5)보다 오히려 나쁜 이유는?",o:["두 인덱스를 각각 스캔(5, 3)해 rowid를 AND-EQUAL로 교집합(8)한 뒤 테이블까지 접근해서", "인덱스를 전혀 타지 못하고 full scan으로 빠져서", "옵티마이저가 통계를 잘못 읽어서", "bitmap 변환 비용이 추가돼서"],a:0,e:"and_equal은 EMP_SAL_IDX(5)와 EMP_DEPT_IDX(3)를 따로 훑어 rowid를 교집합(AND-EQUAL 8)하고 테이블 접근까지 10이 된다. 인덱스 하나만 타면 4~5인데 둘을 합치니 더 많다. index_combine은 같은 교집합을 4로 더 싸게 처리한다."},
   {id:"m72d",d:72,q:"bitmap 인덱스가 걸린 gender 컬럼에서, 세션1이 (1,'m'), 세션2가 (3,'m')을 insert하자 세션2가 enq: TX - row lock contention으로 막혔다. 이유는?",o:["같은 행을 동시에 수정해서", "서로 다른 행이지만 gender='m'이 같아 같은 bitmap 조각을 두고 경합해서", "bitmap 인덱스는 insert 자체가 금지돼서", "테이블 전체가 잠기기 때문에"],a:1,e:"bitmap은 한 값(gender='m')이 그 값을 가진 여러 행을 한 조각으로 덮는다. 행이 달라도 같은 값이면 같은 조각을 잠그므로 경합한다. B*tree라면 행 단위 잠금이라 안 부딪친다 — 그래서 bitmap은 동시 DML 잦은 OLTP엔 독이다."},
-  {id:"m72e",d:72,q:"NL 조인 실행계획에서 안쪽 테이블 접근 operation의 Starts가 5로 찍혔다. 무슨 뜻인가?",o:["그 operation이 5개 블록을 읽었다", "바깥(driving)에서 나온 행이 5건이라 안쪽을 5번 반복 실행했다", "5초가 걸렸다", "A-Rows가 5라는 뜻과 무관하다"],a:1,e:"Starts는 그 operation을 몇 번 반복했는지다. NL 안쪽이면 바깥 행 수만큼 반복한다. location_id=1400 → 부서 60 → 사원 5명이라 바깥이 5행, 그래서 안쪽 Starts=5. 실행순서가 길어지는 것도 이 반복 때문이다."}
+  {id:"m72e",d:72,q:"NL 조인 실행계획에서 안쪽 테이블 접근 operation의 Starts가 5로 찍혔다. 무슨 뜻인가?",o:["그 operation이 5개 블록을 읽었다", "바깥(driving)에서 나온 행이 5건이라 안쪽을 5번 반복 실행했다", "5초가 걸렸다", "A-Rows가 5라는 뜻과 무관하다"],a:1,e:"Starts는 그 operation을 몇 번 반복했는지다. NL 안쪽이면 바깥 행 수만큼 반복한다. location_id=1400 → 부서 60 → 사원 5명이라 바깥이 5행, 그래서 안쪽 Starts=5. 실행순서가 길어지는 것도 이 반복 때문이다."},
+  {id:"m73a",d:73,q:"NL 조인에서 바깥(driving) 테이블을 고르는 기준으로 옳은 것은?",o:["무조건 큰 테이블 — 한 번에 많이 처리되니까", "바깥 행 수를 최소로 — 필터로 세게 걸러지는 쪽, 필터가 없으면 작은 테이블", "무조건 PK 인덱스가 있는 테이블", "FROM 절에 먼저 쓴 테이블"],a:1,e:"NL 비용 ≈ 바깥 1회 + (바깥 행 수 × 안쪽 1회). 바깥 행 수가 반복 승수다. Seattle(1행)·AD_VP(2행)처럼 필터 쪽에서 출발하고, 필터가 없으면 작은 테이블(27 vs 107 → Buffers 35 vs 126)."},
+  {id:"m73b",d:73,q:"필터 없는 emp(107행)⋈dept(27행)에서 EMP를 바깥으로 하면 Buffers 126, DEPT를 바깥으로 하면 35였다. 차이의 직접 원인은?",o:["안쪽 스캔 종류 (unique vs range)", "안쪽 Starts — 107번 vs 27번 반복", "DEPT가 캐시에 이미 있어서", "E-Rows 추정 오차"],a:1,e:"바깥 행 수 = 안쪽 반복 횟수(Starts). ①의 안쪽은 UNIQUE SCAN(더 좋은 스캔)인데도 107번 곱해져 총점에서 진다 — probe 한 번의 질보다 횟수가 지배한다."},
+  {id:"m73c",d:73,q:"table prefetch의 목적으로 맞는 것은?",o:["정렬을 생략한다", "곧 읽을 가능성 높은 블록을 미리 버퍼 캐시에 적재 — 한 번의 I/O call로 여러 single block", "바인드 변수 값을 추적파일에 남긴다", "실행계획을 버전에 고정한다"],a:1,e:"디스크 I/O call이 비싸서, 이어 읽을 블록들을 미리 캐시에 올린다. inner 쪽 non-unique 인덱스 range scan에서 발생, clustering factor가 나쁠 때 효과적. 플랜에 prefetch 모양이 나와도 항상 작동하는 건 아니고 '활성화' 표시다."},
+  {id:"m73d",d:73,q:"optimizer_features_enable('10.1.0') 힌트의 용도는?",o:["10.1 버전의 SQL 문법만 허용한다", "옵티마이저 동작을 특정 버전으로 고정한다 — 버전별 플랜 모양 비교·학습·회귀 확인용", "통계를 10.1 형식으로 수집한다", "클라이언트 결과 포맷을 바꾼다"],a:1,e:"유효한 버전 값은 v$parameter_valid_values에서 조회한다. 수업에선 classic(10.1)·table prefetch(10.2.0.5)·batch i/o(기본)의 플랜 모양을 비교하는 데 썼다."},
+  {id:"m73e",d:73,q:"힌트를 nse_nl(l)처럼 잘못 쓰면 어떻게 되나?",o:["SQL이 에러난다", "경고 메시지가 출력된다", "에러 없이 조용히 무시된다 — 나머지 유효한 힌트는 그대로 적용", "그 문장의 힌트 전체가 무효가 된다"],a:2,e:"잘못된 힌트는 조용히 무시된다. 수업에서 leading(e,d,l)·use_nl(d)은 먹혔고 nse_nl(l)만 무시돼 l이 hash로 붙었다 — 힌트가 안 먹은 것 같으면 오타부터 확인."}
 ];
 
 const ESSAY=[
@@ -2662,7 +2763,9 @@ const ESSAY=[
  {id:'e22',d:71,q:"clustering factor가 좋고 나쁨이 같은 쿼리 성능에 어떤 차이를 만드는지, 71일차 실측(약 24배)과 함께 설명하라.",a:"clustering factor는 인덱스 leaf를 훑으며 rowid의 테이블 블록이 직전과 바뀔 때마다 +1로 계산된다. 블록 수에 가까우면 좋음(뭉침), 행 수에 가까우면 나쁨(흩어짐)이다. 실습에서 같은 71,332행을 세는데 object_id(정렬돼 clustering 좋음) 인덱스는 Buffers 1,548, object_name(흩어져 나쁨) 인덱스는 36,516으로 약 24배 차이가 났다. 나쁜 쪽은 행마다 다른 블록이라 버퍼 피닝이 풀려 재사용이 안 되기 때문이다. 단 테이블은 한 순서로만 정렬할 수 있어, 가장 자주 범위 조회하는 컬럼 기준으로만 좋게 만들 수 있다.",k:["블록수 근접=좋음/행수 근접=나쁨","leaf 훑으며 블록 바뀔 때 +1","1548 vs 36516 (24배)","한 순서로만 정렬 가능"]},
  {id:'e23',d:71,q:"SQL TRACE/tkprof 결과에서 SELECT와 DML의 성능을 각각 어디서 보는지 설명하라.",a:"tkprof는 SQL마다 Parse/Execute/Fetch 세 줄의 통계를 보여준다. SELECT는 행을 가져오는 Fetch 줄에서 query(consistent gets, 일관성 읽기 논리 I/O)와 disk(물리 I/O)를 본다. DML은 Execute 줄에서 current(db block gets, current 모드 논리 I/O)와 disk를 본다. Row Source Operation 줄의 cr(논리 블록)·pr(물리 블록)·pw(쓰기)도 같은 지표이며, display_cursor의 Buffers/Reads를 파일 관점에서 본 것이다.",k:["Parse/Execute/Fetch 3줄","SELECT=Fetch의 query·disk","DML=Execute의 current·disk","cr/pr/pw"]},
   {id:"e72a",d:72,q:"and_equal로 두 인덱스를 합쳤더니 Buffers가 단일 인덱스보다 커졌다. 실제 플랜의 숫자(5·3·8·10)를 근거로, 왜 합치는 게 손해가 될 수 있는지 설명하라.",a:"and_equal은 EMP_SAL_IDX를 스캔해 Buffers 5, EMP_DEPT_IDX를 스캔해 3을 쓴다. 두 인덱스가 각각 준 rowid 집합을 AND-EQUAL 단계에서 교집합하며 8, 최종적으로 그 rowid로 테이블에 접근해 총 10이 된다. 단일 인덱스로 한 컬럼만 좁혀도 4~5면 끝나는데, 두 인덱스를 따로 완주해 합치는 비용이 더해지므로 오히려 손해다. 즉 '인덱스를 더 쓰면 빠르다'가 아니라, 각 인덱스 스캔 비용의 합 + 교집합 비용이 단일 경로를 넘어서면 나빠진다. 그래서 힌트를 실측 없이 믿으면 안 되고, 같은 교집합도 index_combine(비트맵 변환)이 4로 더 싸게 처리할 수 있다.",k:["EMP_SAL_IDX 5", "EMP_DEPT_IDX 3", "AND-EQUAL 8 교집합", "테이블 접근 10", "단일 인덱스 4~5", "실측/힌트 맹신 금지", "index_combine 4"]},
-  {id:"e72b",d:72,q:"NL 조인에서 '바깥(driving) 테이블은 고정이 아니다'라는 말의 뜻을, employee_id=100과 location_id=1400 두 경우의 Starts 차이로 설명하라.",a:"NL의 바깥은 쿼리 조건이 먼저 걸러내는 쪽이 된다. employee_id=100이면 사원이 딱 1행으로 걸러져 EMPLOYEES가 바깥이 되고, 안쪽 DEPARTMENTS도 한 번만 조회하므로 모든 Starts=1, 실행순서는 3→2→5→4→1로 단순하다. 반면 location_id=1400은 위치로 부서를 먼저 1행(60번)으로 걸러 DEPARTMENTS가 바깥이 되고, 그 부서에 사원이 5명이라 안쪽 EMPLOYEES를 5번 반복한다 — 안쪽 operation의 Starts=5로 찍힌다. 같은 두 테이블이라도 어느 쪽이 먼저 걸러지느냐로 driving이 뒤집히고, 그 걸러진 건수가 안쪽 반복(Starts)을 정한다. 그래서 실행순서가 길고 헷갈릴 땐 순서를 세지 말고 Starts부터 보면 안쪽이 몇 번 돌았는지 바로 안다.",k:["driving=먼저 걸러지는 쪽", "emp_id=100 → 사원 바깥 Starts 1", "location 1400 → 부서 바깥", "사원 5명 → 안쪽 Starts 5", "driving 뒤집힘", "Starts로 반복 읽기"]}
+  {id:"e72b",d:72,q:"NL 조인에서 '바깥(driving) 테이블은 고정이 아니다'라는 말의 뜻을, employee_id=100과 location_id=1400 두 경우의 Starts 차이로 설명하라.",a:"NL의 바깥은 쿼리 조건이 먼저 걸러내는 쪽이 된다. employee_id=100이면 사원이 딱 1행으로 걸러져 EMPLOYEES가 바깥이 되고, 안쪽 DEPARTMENTS도 한 번만 조회하므로 모든 Starts=1, 실행순서는 3→2→5→4→1로 단순하다. 반면 location_id=1400은 위치로 부서를 먼저 1행(60번)으로 걸러 DEPARTMENTS가 바깥이 되고, 그 부서에 사원이 5명이라 안쪽 EMPLOYEES를 5번 반복한다 — 안쪽 operation의 Starts=5로 찍힌다. 같은 두 테이블이라도 어느 쪽이 먼저 걸러지느냐로 driving이 뒤집히고, 그 걸러진 건수가 안쪽 반복(Starts)을 정한다. 그래서 실행순서가 길고 헷갈릴 땐 순서를 세지 말고 Starts부터 보면 안쪽이 몇 번 돌았는지 바로 안다.",k:["driving=먼저 걸러지는 쪽", "emp_id=100 → 사원 바깥 Starts 1", "location 1400 → 부서 바깥", "사원 5명 → 안쪽 Starts 5", "driving 뒤집힘", "Starts로 반복 읽기"]},
+  {id:"e73a",d:73,q:"Seattle 쿼리가 227 → 72 → 18로 줄어든 과정을 각 단계의 원인과 함께 설명하라. 마지막에 옵티마이저 기본(9)이 여전히 최저였던 이유도 덧붙여라.",a:"227은 leading(e,d,l)로 필터(Seattle) 반대편에서 출발한 값이다 — 바깥 EMP 107행이 명단이 되어 DEPT를 107번(Starts 107) 조회하고, city는 맨 끝에서야 확인된다. 72는 leading(l,d,e)로 방향을 바로잡은 값 — Seattle이 loc을 1행으로 걸러 명단은 짧아졌지만, dept(location_id)·emp(department_id)에 진입 인덱스가 없어 매 반복이 full scan(Predicate filter 3줄)이었다. 18은 loc(city)·dept(location_id)·emp(department_id) 진입 인덱스 3개를 만든 값 — filter 세 줄이 전부 access로 바뀌었다. 그런데 옵티마이저 기본은 9 — 테이블이 몇 블록짜리로 작아 full+hash/merge로 한 번에 쓸어담는 게 반복 접근보다 싸다. 풀 스캔 제거가 항상 최선이 아니며, 판정은 Buffers 총점이다.",k:["leading(e,d,l) 바깥 107행", "Starts 107", "필터 쪽에서 출발", "진입 인덱스 3개", "filter→access", "옵티마이저 9", "판정은 Buffers"]},
+  {id:"e73b",d:73,q:"optimizer_features_enable('10.1.0') 상태에서 full(e) full(d)까지 강제하자 e→d 순서는 232, d→e 순서는 95가 나왔다. 이 실험이 보여주는 NL 최악의 조건과 처방을 설명하라.",a:"NL 안쪽은 바깥 행 수만큼 반복 조회된다. full 힌트로 안쪽 인덱스를 빼앗으면 매 반복이 full scan이 된다 — e→d는 4블록짜리 DEPT full을 107번 반복해 안쪽에서만 222, 총 232. d→e는 EMP full을 27번 반복해 88, 총 95. 같은 최악 조건에서도 바깥이 작은 쪽(27)이 2.4배 싸다. 즉 NL 최악 = 큰 바깥(반복 승수) × 안쪽 인덱스 부재(반복마다 full)이고, 처방은 ①바깥 행 수 최소화(필터 쪽·작은 쪽에서 출발) ②driven 조인키에 진입 인덱스다.",k:["Starts × full", "DEPT full×107=222", "EMP full×27=88", "반복 승수", "진입 인덱스", "바깥 최소화"]}
 ];
 
 const PLANQ=[
@@ -2699,7 +2802,9 @@ const PLANQ=[
   a:"last_name 단일 인덱스라 last_name만 access로 좁히고 first_name은 테이블에서 filter로 거른다. King이 많으면 그만큼 테이블 접근이 늘어 비효율이다. (last_name, first_name) 결합 인덱스를 만들면 두 조건이 한 번의 access로 처리돼 테이블 접근이 줄어든다.",
   k:["first_name이 filter","결합 인덱스","access로 전환","테이블 접근↓"]},
   {id:"pl72a",q:"and_equal 힌트로 dept=80 AND salary=10000을 돌린 아래 플랜에서, 최종 Buffers 10이 어떻게 나오는지 각 Id의 숫자로 설명하라.",plan:"| Id | Operation                        | Name         | Buffers |\n|* 1 |  TABLE ACCESS BY INDEX ROWID EMP |              |    10 |\n|  2 |   AND-EQUAL                      |              |     8 |\n|* 3 |    INDEX RANGE SCAN              | EMP_SAL_IDX  |     5 |\n|* 4 |    INDEX RANGE SCAN              | EMP_DEPT_IDX |     3 |",a:"Id 3에서 EMP_SAL_IDX를 스캔해 5, Id 4에서 EMP_DEPT_IDX를 스캔해 3을 쓴다. Id 2 AND-EQUAL이 이 두 rowid 집합을 교집합하며 누적 8, Id 1에서 그 rowid로 테이블 행을 읽어 최종 10이 된다. 인덱스 하나만 탔다면 4~5로 끝났을 것을, 두 인덱스를 각각 완주해 합쳤기에 더 커졌다."},
-  {id:"pl72b",q:"location_id=1400 NL 조인의 아래 플랜에서 Id 6의 Starts=5가 의미하는 바와, 실행 순서가 길어지는 이유를 설명하라.",plan:"-- location 1400 → 부서 60 (1행) → 사원 5명\n| Id | Operation                           | Buffers | Starts | A-Rows |\n|  3 |   DEPARTMENTS (BY INDEX ROWID)       |    2    |    1   |    1   |\n|  5 |   INDEX RANGE SCAN EMP_DEPARTMENT_IX |    2    |    1   |    5   |\n|  6 |  EMPLOYEES  (BY INDEX ROWID)         |    2    |    5   |    5   |",a:"location_id=1400이 부서를 먼저 1행(60번)으로 걸러 DEPARTMENTS가 바깥(driving)이 된다. 그 부서에 사원이 5명(Id 5의 A-Rows=5)이므로 안쪽 EMPLOYEES 행 읽기(Id 6)를 5번 반복 → Starts=5. 그래서 실행 순서가 3→2→5→4에서 끝나지 않고 안쪽(5→4)을 5번 반복해 3→2→5→4→5→4…→1로 길어진다. 반복 횟수는 Starts 한 숫자로 드러난다."}
+  {id:"pl72b",q:"location_id=1400 NL 조인의 아래 플랜에서 Id 6의 Starts=5가 의미하는 바와, 실행 순서가 길어지는 이유를 설명하라.",plan:"-- location 1400 → 부서 60 (1행) → 사원 5명\n| Id | Operation                           | Buffers | Starts | A-Rows |\n|  3 |   DEPARTMENTS (BY INDEX ROWID)       |    2    |    1   |    1   |\n|  5 |   INDEX RANGE SCAN EMP_DEPARTMENT_IX |    2    |    1   |    5   |\n|  6 |  EMPLOYEES  (BY INDEX ROWID)         |    2    |    5   |    5   |",a:"location_id=1400이 부서를 먼저 1행(60번)으로 걸러 DEPARTMENTS가 바깥(driving)이 된다. 그 부서에 사원이 5명(Id 5의 A-Rows=5)이므로 안쪽 EMPLOYEES 행 읽기(Id 6)를 5번 반복 → Starts=5. 그래서 실행 순서가 3→2→5→4에서 끝나지 않고 안쪽(5→4)을 5번 반복해 3→2→5→4→5→4…→1로 길어진다. 반복 횟수는 Starts 한 숫자로 드러난다."},
+  {id:"pl73a",q:"같은 쿼리(emp⋈dept, 필터 없음, 결과 106행)의 두 플랜이다. Buffers가 126 vs 35로 갈린 이유를 Starts로 설명하라.",plan:"-- ① leading(e,d)\n| 2 | TABLE ACCESS FULL EMP   | Starts 1   | Buffers 10  |\n| 3 | DEPT BY INDEX ROWID     | Starts 107 | Buffers 116 |\n-- 총 126\n\n-- ② leading(d,e)\n| 2 | TABLE ACCESS FULL DEPT  | Starts 1   | Buffers 7   |\n| 3 | EMP BY INDEX ROWID      | Starts 27  | Buffers 28  |\n-- 총 35",a:"NL 안쪽 Starts = 바깥 행 수. ①은 EMP 107행이 바깥이라 DEPT 쪽 작업을 107번 반복(Starts 107)해 안쪽에서만 116을 썼다. ②는 DEPT 27행이 바깥이라 EMP 쪽 반복이 27번(Starts 27), 안쪽 28. 바깥 읽기 자체(10 vs 7)는 미미하고, 반복 승수(107 vs 27)가 총점 126 vs 35를 만들었다. ①의 안쪽이 UNIQUE SCAN으로 더 좋은 스캔인데도 진다 — probe의 질보다 횟수. 필터가 없으면 작은 테이블을 바깥으로."},
+  {id:"pl73b",q:"풀 스캔 제거 후의 Seattle 플랜(Buffers 18)이다. 5단계 루틴(실행순서→Starts→A-Rows→E×Starts→Predicate)으로 읽어라.",plan:"| 4 | LOC BY INDEX ROWID BATCHED  | Starts 1  | E 1  | A 1  |\n|*5 |  LOC_CITY_IDX RANGE         | Starts 1  | E 1  | A 1  |\n| 6 | DEPT BY INDEX ROWID BATCHED | Starts 1  | E 4  | A 21 |\n|*7 |  DEPT_LOC_IDX RANGE         | Starts 1  | E 4  | A 21 |\n|*8 | EMP_DEPT_IDX RANGE          | Starts 21 | E 10 | A 18 |\n| 9 | EMP BY INDEX ROWID          | Starts 18 | E 4  | A 18 |\n-- 총 Buffers 18 · Predicate: 5·7·8 전부 access",a:"①실행순서: 가장 깊은 5부터 — 5→4→7→6→8→9. ②Starts: Id 8이 21(부서 21개만큼 emp 인덱스를 반복), Id 9가 18. ③A-Rows 여정: Seattle 1행 → 부서 21행 → 사원 18행 — 어디서 불어나는지 그대로 보인다. ④견적: Id 7은 E 4×1=4 vs A 21로 과소, Id 8은 E 10×21=210 vs A 18로 과대 — 결과엔 무해하지만 통계가 거친 상태임을 읽을 수 있다. ⑤Predicate: 5·7·8 전부 access — 세 테이블 진입이 모두 인덱스 문으로 바뀐 것(72→18의 원인). 판정: 맨 윗줄 Buffers 18."}
 ];
 function findQ(id){return ESSAY.find(x=>x.id===id)||PLANQ.find(x=>x.id===id);}
 
@@ -2821,10 +2926,15 @@ const TERMS=[
   {t:"Starts",e:"실행계획에서 그 operation을 반복 실행한 횟수.",d:"display_cursor(allstats last)의 컬럼. NL 안쪽이면 바깥 행 수만큼 찍힌다. location_id=1400에서 바깥 부서 사원이 5명이면 안쪽 EMPLOYEES의 Starts=5. 실행순서가 길고 헷갈릴 때 Starts부터 보면 안쪽이 몇 번 돌았는지 바로 안다."},
   {t:"bitmap 인덱스",e:"저선택도 컬럼용. AND/OR에 강하지만 OLTP엔 부적합.",d:"값 종류가 적은(중복 많은) 컬럼에 유리하며 AND/OR을 싸게 처리(index_combine)해 DW·DSS용이다. 단점: 키 하나가 여러 행을 한 조각으로 덮어, 다른 행이라도 같은 값을 넣으면 같은 조각을 두고 enq: TX - row lock contention이 난다. 동시 DML 잦은 OLTP엔 독."},
   {t:"driving 테이블",e:"NL 조인에서 먼저(바깥) 도는 테이블. 조건이 먼저 거르는 쪽.",d:"고정이 아니라 쿼리 조건이 먼저 걸러내는 쪽이 driving이 된다. 그 걸러진 건수가 안쪽 반복(Starts)을 정하므로, 바깥이 작을수록 NL이 싸다. 순서는 ordered/leading 힌트로 지정한다."},
-  {t:"driven 테이블",e:"NL 조인에서 안쪽(inner)에서 반복 조회당하는 테이블.",d:"이중 for문의 안쪽 루프. driving이 주는 행 수만큼 끌려서 매번 조인키로 lookup된다(수동태 driven=몰린다). outer 행마다 반복되므로 조인 컬럼에 인덱스가 없으면 Starts번 × full scan으로 터진다 — 그래서 driven엔 인덱스가 필수. outer 테이블(=driving)과 outer join(외부 조인)은 이름만 같은 다른 개념이다."}
+  {t:"driven 테이블",e:"NL 조인에서 안쪽(inner)에서 반복 조회당하는 테이블.",d:"이중 for문의 안쪽 루프. driving이 주는 행 수만큼 끌려서 매번 조인키로 lookup된다(수동태 driven=몰린다). outer 행마다 반복되므로 조인 컬럼에 인덱스가 없으면 Starts번 × full scan으로 터진다 — 그래서 driven엔 인덱스가 필수. outer 테이블(=driving)과 outer join(외부 조인)은 이름만 같은 다른 개념이다."},
+  {t:"batch i/o (nlj_batching)",e:"NL inner 테이블 접근을 모아서 일괄 처리하는 최적화.",d:"inner 쪽 인덱스와 조인해 중간 결과집합을 만든 뒤, inner 테이블 접근을 일정량씩(fetch call 단위) 나눠 일괄(batch) 처리해 디스크 I/O를 줄인다. table prefetch에 이어 추가 도입. 플랜에선 NL이 두 겹 + 테이블 접근에 BATCHED 표시. 힌트 nlj_batching / no_nlj_batching."},
+  {t:"table prefetch (nlj_prefetch)",e:"곧 읽을 블록을 미리 버퍼 캐시에 올리는 NL 최적화.",d:"디스크 I/O call이 비싸서, I/O가 필요한 시점에 이어 읽을 가능성 높은 블록들을 한 번의 I/O call로 미리 적재한다(여러 single block 동시, db file sequential read). inner 쪽 non-unique 인덱스 range scan에서 발생하고 clustering factor가 나쁠 때 효과적. 플랜에선 inner 테이블 접근이 NL 위쪽에 표시 — 단 모양이 나와도 항상 작동하는 건 아니다(활성화 표시). 힌트 nlj_prefetch / no_nlj_prefetch."},
+  {t:"optimizer_features_enable",e:"옵티마이저 동작을 특정 버전으로 고정하는 힌트/파라미터.",d:"예: optimizer_features_enable('10.1.0'). 버전별 플랜 모양 비교(classic/prefetch/batch i/o)나 업그레이드 회귀 확인에 쓴다. 유효 버전 값은 v$parameter_valid_values에서 조회."},
+  {t:"MERGE JOIN CARTESIAN",e:"조인 조건 없이 두 집합의 모든 조합을 만드는 조인.",d:"보통은 조인 조건 누락 신호지만, 옵티마이저가 의도적으로 쓸 때도 있다 — 인덱스가 없던 첫 실험에서 emp(1행으로 걸러짐)×loc(23행)을 카티션으로 조합(BUFFER SORT 동반)한 뒤 dept와 hash로 붙였다. 1행×소량이면 싸다고 본 것."},
+  {t:"진입 인덱스",e:"그 테이블에 '들어가는 문'(필터 컬럼·조인키)에 만든 인덱스.",d:"NL driven은 바깥 행마다 반복 조회되므로, 들어가는 조건(필터 컬럼 또는 조인키)에 인덱스가 없으면 Starts × full scan이 된다. Seattle 실험에서 loc(city)·dept(location_id)·emp(department_id) 3개를 만들자 Predicate의 filter 3줄이 전부 access로 바뀌며 72→18."}
 ];
 
-const DAYS=[62,63,64,65,66,67,68,69,70,71,72,'심화'];
+const DAYS=[62,63,64,65,66,67,68,69,70,71,72,73,'심화'];
 const dcls=d=>d==='심화'?'dsim':'d'+d;
 const dlab=d=>d==='심화'?'심화':d+'일차';
 

@@ -1,0 +1,126 @@
+{
+  "MCQ": [
+    {
+      "id": "m73a",
+      "d": 73,
+      "q": "NL 조인에서 바깥(driving) 테이블을 고르는 기준으로 옳은 것은?",
+      "o": [
+        "무조건 큰 테이블 — 한 번에 많이 처리되니까",
+        "바깥 행 수를 최소로 — 필터로 세게 걸러지는 쪽, 필터가 없으면 작은 테이블",
+        "무조건 PK 인덱스가 있는 테이블",
+        "FROM 절에 먼저 쓴 테이블"
+      ],
+      "a": 1,
+      "e": "NL 비용 ≈ 바깥 1회 + (바깥 행 수 × 안쪽 1회). 바깥 행 수가 반복 승수다. Seattle(1행)·AD_VP(2행)처럼 필터 쪽에서 출발하고, 필터가 없으면 작은 테이블(27 vs 107 → Buffers 35 vs 126)."
+    },
+    {
+      "id": "m73b",
+      "d": 73,
+      "q": "필터 없는 emp(107행)⋈dept(27행)에서 EMP를 바깥으로 하면 Buffers 126, DEPT를 바깥으로 하면 35였다. 차이의 직접 원인은?",
+      "o": [
+        "안쪽 스캔 종류 (unique vs range)",
+        "안쪽 Starts — 107번 vs 27번 반복",
+        "DEPT가 캐시에 이미 있어서",
+        "E-Rows 추정 오차"
+      ],
+      "a": 1,
+      "e": "바깥 행 수 = 안쪽 반복 횟수(Starts). ①의 안쪽은 UNIQUE SCAN(더 좋은 스캔)인데도 107번 곱해져 총점에서 진다 — probe 한 번의 질보다 횟수가 지배한다."
+    },
+    {
+      "id": "m73c",
+      "d": 73,
+      "q": "table prefetch의 목적으로 맞는 것은?",
+      "o": [
+        "정렬을 생략한다",
+        "곧 읽을 가능성 높은 블록을 미리 버퍼 캐시에 적재 — 한 번의 I/O call로 여러 single block",
+        "바인드 변수 값을 추적파일에 남긴다",
+        "실행계획을 버전에 고정한다"
+      ],
+      "a": 1,
+      "e": "디스크 I/O call이 비싸서, 이어 읽을 블록들을 미리 캐시에 올린다. inner 쪽 non-unique 인덱스 range scan에서 발생, clustering factor가 나쁠 때 효과적. 플랜에 prefetch 모양이 나와도 항상 작동하는 건 아니고 '활성화' 표시다."
+    },
+    {
+      "id": "m73d",
+      "d": 73,
+      "q": "optimizer_features_enable('10.1.0') 힌트의 용도는?",
+      "o": [
+        "10.1 버전의 SQL 문법만 허용한다",
+        "옵티마이저 동작을 특정 버전으로 고정한다 — 버전별 플랜 모양 비교·학습·회귀 확인용",
+        "통계를 10.1 형식으로 수집한다",
+        "클라이언트 결과 포맷을 바꾼다"
+      ],
+      "a": 1,
+      "e": "유효한 버전 값은 v$parameter_valid_values에서 조회한다. 수업에선 classic(10.1)·table prefetch(10.2.0.5)·batch i/o(기본)의 플랜 모양을 비교하는 데 썼다."
+    },
+    {
+      "id": "m73e",
+      "d": 73,
+      "q": "힌트를 nse_nl(l)처럼 잘못 쓰면 어떻게 되나?",
+      "o": [
+        "SQL이 에러난다",
+        "경고 메시지가 출력된다",
+        "에러 없이 조용히 무시된다 — 나머지 유효한 힌트는 그대로 적용",
+        "그 문장의 힌트 전체가 무효가 된다"
+      ],
+      "a": 2,
+      "e": "잘못된 힌트는 조용히 무시된다. 수업에서 leading(e,d,l)·use_nl(d)은 먹혔고 nse_nl(l)만 무시돼 l이 hash로 붙었다 — 힌트가 안 먹은 것 같으면 오타부터 확인."
+    }
+  ],
+  "ESSAY": [
+    {
+      "id": "e73a",
+      "d": 73,
+      "q": "Seattle 쿼리가 227 → 72 → 18로 줄어든 과정을 각 단계의 원인과 함께 설명하라. 마지막에 옵티마이저 기본(9)이 여전히 최저였던 이유도 덧붙여라.",
+      "a": "227은 leading(e,d,l)로 필터(Seattle) 반대편에서 출발한 값이다 — 바깥 EMP 107행이 명단이 되어 DEPT를 107번(Starts 107) 조회하고, city는 맨 끝에서야 확인된다. 72는 leading(l,d,e)로 방향을 바로잡은 값 — Seattle이 loc을 1행으로 걸러 명단은 짧아졌지만, dept(location_id)·emp(department_id)에 진입 인덱스가 없어 매 반복이 full scan(Predicate filter 3줄)이었다. 18은 loc(city)·dept(location_id)·emp(department_id) 진입 인덱스 3개를 만든 값 — filter 세 줄이 전부 access로 바뀌었다. 그런데 옵티마이저 기본은 9 — 테이블이 몇 블록짜리로 작아 full+hash/merge로 한 번에 쓸어담는 게 반복 접근보다 싸다. 풀 스캔 제거가 항상 최선이 아니며, 판정은 Buffers 총점이다.",
+      "k": ["leading(e,d,l) 바깥 107행", "Starts 107", "필터 쪽에서 출발", "진입 인덱스 3개", "filter→access", "옵티마이저 9", "판정은 Buffers"]
+    },
+    {
+      "id": "e73b",
+      "d": 73,
+      "q": "optimizer_features_enable('10.1.0') 상태에서 full(e) full(d)까지 강제하자 e→d 순서는 232, d→e 순서는 95가 나왔다. 이 실험이 보여주는 NL 최악의 조건과 처방을 설명하라.",
+      "a": "NL 안쪽은 바깥 행 수만큼 반복 조회된다. full 힌트로 안쪽 인덱스를 빼앗으면 매 반복이 full scan이 된다 — e→d는 4블록짜리 DEPT full을 107번 반복해 안쪽에서만 222, 총 232. d→e는 EMP full을 27번 반복해 88, 총 95. 같은 최악 조건에서도 바깥이 작은 쪽(27)이 2.4배 싸다. 즉 NL 최악 = 큰 바깥(반복 승수) × 안쪽 인덱스 부재(반복마다 full)이고, 처방은 ①바깥 행 수 최소화(필터 쪽·작은 쪽에서 출발) ②driven 조인키에 진입 인덱스다.",
+      "k": ["Starts × full", "DEPT full×107=222", "EMP full×27=88", "반복 승수", "진입 인덱스", "바깥 최소화"]
+    }
+  ],
+  "TERMS": [
+    {
+      "t": "batch i/o (nlj_batching)",
+      "e": "NL inner 테이블 접근을 모아서 일괄 처리하는 최적화.",
+      "d": "inner 쪽 인덱스와 조인해 중간 결과집합을 만든 뒤, inner 테이블 접근을 일정량씩(fetch call 단위) 나눠 일괄(batch) 처리해 디스크 I/O를 줄인다. table prefetch에 이어 추가 도입. 플랜에선 NL이 두 겹 + 테이블 접근에 BATCHED 표시. 힌트 nlj_batching / no_nlj_batching."
+    },
+    {
+      "t": "table prefetch (nlj_prefetch)",
+      "e": "곧 읽을 블록을 미리 버퍼 캐시에 올리는 NL 최적화.",
+      "d": "디스크 I/O call이 비싸서, I/O가 필요한 시점에 이어 읽을 가능성 높은 블록들을 한 번의 I/O call로 미리 적재한다(여러 single block 동시, db file sequential read). inner 쪽 non-unique 인덱스 range scan에서 발생하고 clustering factor가 나쁠 때 효과적. 플랜에선 inner 테이블 접근이 NL 위쪽에 표시 — 단 모양이 나와도 항상 작동하는 건 아니다(활성화 표시). 힌트 nlj_prefetch / no_nlj_prefetch."
+    },
+    {
+      "t": "optimizer_features_enable",
+      "e": "옵티마이저 동작을 특정 버전으로 고정하는 힌트/파라미터.",
+      "d": "예: optimizer_features_enable('10.1.0'). 버전별 플랜 모양 비교(classic/prefetch/batch i/o)나 업그레이드 회귀 확인에 쓴다. 유효 버전 값은 v$parameter_valid_values에서 조회."
+    },
+    {
+      "t": "MERGE JOIN CARTESIAN",
+      "e": "조인 조건 없이 두 집합의 모든 조합을 만드는 조인.",
+      "d": "보통은 조인 조건 누락 신호지만, 옵티마이저가 의도적으로 쓸 때도 있다 — 인덱스가 없던 첫 실험에서 emp(1행으로 걸러짐)×loc(23행)을 카티션으로 조합(BUFFER SORT 동반)한 뒤 dept와 hash로 붙였다. 1행×소량이면 싸다고 본 것."
+    },
+    {
+      "t": "진입 인덱스",
+      "e": "그 테이블에 '들어가는 문'(필터 컬럼·조인키)에 만든 인덱스.",
+      "d": "NL driven은 바깥 행마다 반복 조회되므로, 들어가는 조건(필터 컬럼 또는 조인키)에 인덱스가 없으면 Starts × full scan이 된다. Seattle 실험에서 loc(city)·dept(location_id)·emp(department_id) 3개를 만들자 Predicate의 filter 3줄이 전부 access로 바뀌며 72→18."
+    }
+  ],
+  "PLANQ": [
+    {
+      "id": "pl73a",
+      "q": "같은 쿼리(emp⋈dept, 필터 없음, 결과 106행)의 두 플랜이다. Buffers가 126 vs 35로 갈린 이유를 Starts로 설명하라.",
+      "plan": "-- ① leading(e,d)\n| 2 | TABLE ACCESS FULL EMP   | Starts 1   | Buffers 10  |\n| 3 | DEPT BY INDEX ROWID     | Starts 107 | Buffers 116 |\n-- 총 126\n\n-- ② leading(d,e)\n| 2 | TABLE ACCESS FULL DEPT  | Starts 1   | Buffers 7   |\n| 3 | EMP BY INDEX ROWID      | Starts 27  | Buffers 28  |\n-- 총 35",
+      "a": "NL 안쪽 Starts = 바깥 행 수. ①은 EMP 107행이 바깥이라 DEPT 쪽 작업을 107번 반복(Starts 107)해 안쪽에서만 116을 썼다. ②는 DEPT 27행이 바깥이라 EMP 쪽 반복이 27번(Starts 27), 안쪽 28. 바깥 읽기 자체(10 vs 7)는 미미하고, 반복 승수(107 vs 27)가 총점 126 vs 35를 만들었다. ①의 안쪽이 UNIQUE SCAN으로 더 좋은 스캔인데도 진다 — probe의 질보다 횟수. 필터가 없으면 작은 테이블을 바깥으로."
+    },
+    {
+      "id": "pl73b",
+      "q": "풀 스캔 제거 후의 Seattle 플랜(Buffers 18)이다. 5단계 루틴(실행순서→Starts→A-Rows→E×Starts→Predicate)으로 읽어라.",
+      "plan": "| 4 | LOC BY INDEX ROWID BATCHED  | Starts 1  | E 1  | A 1  |\n|*5 |  LOC_CITY_IDX RANGE         | Starts 1  | E 1  | A 1  |\n| 6 | DEPT BY INDEX ROWID BATCHED | Starts 1  | E 4  | A 21 |\n|*7 |  DEPT_LOC_IDX RANGE         | Starts 1  | E 4  | A 21 |\n|*8 | EMP_DEPT_IDX RANGE          | Starts 21 | E 10 | A 18 |\n| 9 | EMP BY INDEX ROWID          | Starts 18 | E 4  | A 18 |\n-- 총 Buffers 18 · Predicate: 5·7·8 전부 access",
+      "a": "①실행순서: 가장 깊은 5부터 — 5→4→7→6→8→9. ②Starts: Id 8이 21(부서 21개만큼 emp 인덱스를 반복), Id 9가 18. ③A-Rows 여정: Seattle 1행 → 부서 21행 → 사원 18행 — 어디서 불어나는지 그대로 보인다. ④견적: Id 7은 E 4×1=4 vs A 21로 과소, Id 8은 E 10×21=210 vs A 18로 과대 — 결과엔 무해하지만 통계가 거친 상태임을 읽을 수 있다. ⑤Predicate: 5·7·8 전부 access — 세 테이블 진입이 모두 인덱스 문으로 바뀐 것(72→18의 원인). 판정: 맨 윗줄 Buffers 18."
+    }
+  ]
+}

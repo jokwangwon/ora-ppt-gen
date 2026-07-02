@@ -41,6 +41,7 @@ DOCS = {
 DECK_LABELS = {
     "day68.pptx": "68일차 — row migration · ITL · full scan",
     "day72.pptx": "72일차 — 실행계획 숫자 읽기 · 조인 · 인덱스",
+    "day73.pptx": "73일차 — NL 조인 · 조인 순서와 진입 인덱스",
     "sql_tuning.pptx": "SQL 튜닝편 (문서 전체 덱)",
     "guide_62_68.pptx": "내부구조편 (문서 전체 덱)",
     "buffer_cache_dbwr_checkpoint.pptx": "버퍼 캐시·DBWR (문서 전체 덱)",

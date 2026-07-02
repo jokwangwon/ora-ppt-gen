@@ -1,0 +1,467 @@
+{
+  "deck_id": "day73",
+  "title": "NL 조인 — 바깥을 줄이고, 안쪽에 문을 낸다",
+  "subtitle": "73일차 — 조인 순서·진입 인덱스·플랜 모양, 전부 실측으로",
+  "source": "assets/sql_tuning.html §2.6·§7.4~7.8",
+  "slides": [
+    {
+      "type": "title"
+    },
+    {
+      "type": "section",
+      "num": "00",
+      "title": "오늘의 큰 그림",
+      "subtitle": "공식 하나로 하루가 정리된다"
+    },
+    {
+      "type": "content",
+      "title": "NL은 전화 돌리기 — 명단 길이가 곧 비용이다",
+      "notes": "73일차 시작합니다. 오늘은 강사님이 짚어주신 대로 NL 조인 하루예요. 그림 하나만 기억하시면 됩니다. NL은 전화 돌리기예요. 바깥 테이블이 명단이고, 명단 한 줄마다 안쪽에 전화를 겁니다. 그러니 비용은 바깥 1회 읽기 더하기, 바깥 행 수 곱하기 안쪽 1회 비용. 오늘 실험 전부가 이 공식 하나로 정리됩니다. 명단을 줄이는 게 조인 순서 선택이고, 전화를 빨리 받게 하는 게 진입 인덱스, 그리고 확인하는 눈이 Starts와 Buffers예요.",
+      "blocks": [
+        {
+          "kind": "svg",
+          "maxw": 8.2,
+          "svg": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 250' font-family='sans-serif'><defs><marker id='g73' markerWidth='9' markerHeight='9' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 Z' fill='#94A3B8'/></marker></defs><rect x='40' y='55' width='300' height='120' rx='10' fill='#FBE3DD' stroke='#C74634' stroke-width='1.5'/><text x='190' y='88' text-anchor='middle' font-size='16' font-weight='700' fill='#1E293B'>바깥 (driving) = 명단</text><text x='190' y='114' text-anchor='middle' font-size='12' fill='#64748B'>행 수만큼 전화를 건다</text><text x='190' y='138' text-anchor='middle' font-size='12' fill='#C74634'>행 수 = 반복 승수 (Starts)</text><rect x='560' y='55' width='300' height='120' rx='10' fill='#F1F5F9' stroke='#16803d' stroke-width='1.5'/><text x='710' y='88' text-anchor='middle' font-size='16' font-weight='700' fill='#1E293B'>안쪽 (driven) = 받는 곳</text><text x='710' y='114' text-anchor='middle' font-size='12' fill='#64748B'>조인키로 매번 조회당한다</text><text x='710' y='138' text-anchor='middle' font-size='12' fill='#16803d'>진입 인덱스 = 빨리 받기</text><path d='M340 100 C 440 75, 460 75, 558 100' fill='none' stroke='#94A3B8' stroke-width='1.6' marker-end='url(#g73)'/><text x='450' y='72' text-anchor='middle' font-size='12' fill='#64748B'>바깥 각 행마다 (loop)</text><text x='450' y='226' text-anchor='middle' font-size='15' font-weight='700' fill='#C74634'>NL 비용 ≈ 바깥 1회 + (바깥 행 수 × 안쪽 1회 비용)</text></svg>",
+          "caption": null
+        },
+        {
+          "kind": "callout",
+          "tone": "why",
+          "head": "오늘의 축",
+          "body": "명단(바깥)을 줄이는 게 순서 선택, 빨리 받게 하는 게 진입 인덱스, 확인하는 눈이 Starts·Buffers. 오늘 실험 다섯 개가 전부 이 공식의 변주다."
+        }
+      ]
+    },
+    {
+      "type": "content",
+      "title": "어제 Starts를 읽었다 — 오늘은 그 반복을 직접 조작한다",
+      "notes": "어제 72일차에 emp_id 100번과 location 1400 플랜으로 Starts 읽는 법을 배웠죠. 안쪽이 몇 번 돌았는지가 거기 다 있다고요. 오늘은 한 발 더 갑니다. 같은 쿼리를 놓고 leading과 use_nl 힌트로 그 반복을 우리가 직접 만들어보고, 인덱스를 하나씩 만들어가며 숫자가 실제로 어떻게 움직이는지 확인합니다. 해석에서 설계로 넘어가는 날이에요.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": [
+            "어제 (72일차)",
+            "오늘 (73일차)"
+          ],
+          "rows": [
+            [
+              "Starts로 반복을 읽었다",
+              "leading·use_nl로 반복을 만든다"
+            ],
+            [
+              "driving은 조건이 정했다",
+              "driving을 우리가 고른다"
+            ],
+            [
+              "플랜을 해석했다",
+              "플랜을 설계하고 실측으로 판정한다"
+            ]
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "tip",
+          "head": "이어지는 질문",
+          "body": "순서를 반대로 잡으면 얼마나 나빠지나? 인덱스가 없으면 힌트는 어떻게 되나? 그 답이 오늘 전부 숫자로 나온다."
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "num": "01",
+      "title": "인덱스가 조인을 바꾼다",
+      "subtitle": "PK를 하나씩 만들며 4번 실행"
+    },
+    {
+      "type": "content",
+      "title": "인덱스가 없으면 NL을 시켜도 옵티마이저는 다른 길로 간다",
+      "notes": "emp, dept, loc를 인덱스 없이 새로 만들고 시작했어요. NL 힌트를 줬는데도 첫 플랜이 이겁니다. 해시 조인에 심지어 머지 조인 카티션까지 나와요. 왜냐, emp가 employee_id 100으로 1행으로 걸러지니까, 1행 곱하기 loc 23행 조합은 싸다고 본 거예요. 인덱스가 없으면 NL 안쪽을 매번 full로 돌아야 하니 옵티마이저 입장에선 이쪽이 낫다고 판단한 겁니다.",
+      "blocks": [
+        {
+          "kind": "code",
+          "lines": [
+            "-- 인덱스 0개 (CTAS 직후) · emp_id=100 3테이블 조인",
+            "|  1 |  HASH JOIN            |      | Buffers 8 |",
+            "|  2 |   MERGE JOIN CARTESIAN|      |         5 |",
+            "|  3 |    TABLE ACCESS FULL  | EMP  |  filter(EMPLOYEE_ID=100)",
+            "|  5 |     TABLE ACCESS FULL | LOC  |",
+            "|  6 |   TABLE ACCESS FULL   | DEPT |"
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "why",
+          "head": "카티션이 나온 이유",
+          "body": "emp가 1행으로 걸러지니 1행×loc 23행 조합(카티션)이 싸다고 본 것. 인덱스가 없으면 옵티마이저는 '있는 도구'로만 짠다 — NL 힌트보다 hash·cartesian이 낫다는 판단."
+        }
+      ]
+    },
+    {
+      "type": "content",
+      "title": "PK를 하나 만들 때마다 플랜 모양이 바뀐다 — 8→7→7→6",
+      "notes": "그다음 PK를 하나씩 만들면서 같은 쿼리를 다시 돌렸어요. EMP에 만드니 EMP만 인덱스를 타고, DEPT에 만드니 NL이 두 겹 생기고, LOC까지 만드니 NL 3단에 전부 유니크 스캔. 버퍼는 8에서 6으로요. 바깥이 1행이라 차이는 작지만, 도구가 생길 때마다 옵티마이저 선택지가 열리는 게 보이죠. 그리고 수업 중에 힌트를 줬는데 옵티마이저가 알아서 하네? 하는 의문이 있었는데요 — 사실 leading하고 use_nl(d)는 다 먹혔어요. 무시된 건 nse_nl 오타 하나. 잘못된 힌트는 에러 없이 조용히 무시됩니다. 힌트가 안 먹은 것 같으면 오타부터 보세요.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": [
+            "단계",
+            "플랜 모양",
+            "Buffers"
+          ],
+          "rows": [
+            [
+              "인덱스 없음",
+              "MERGE JOIN CARTESIAN + HASH",
+              "8"
+            ],
+            [
+              "+ EMP_IDX",
+              "EMP만 인덱스 — DEPT·LOC full",
+              "7"
+            ],
+            [
+              "+ DEPT_IDX",
+              "NL·NL — LOC만 full",
+              "7"
+            ],
+            [
+              "+ LOC_IDX",
+              "NL 3단, 전부 UNIQUE SCAN",
+              "6"
+            ]
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "tip",
+          "head": "'힌트가 무시됐다'의 진상",
+          "body": "leading(e,d,l)·use_nl(d)은 전부 먹혔다. 무시된 건 오타 nse_nl(l) 하나 — 잘못된 힌트는 에러 없이 조용히 무시된다. 힌트가 안 먹은 것 같으면 오타부터 확인."
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "num": "02",
+      "title": "순서 실험 — Seattle",
+      "subtitle": "같은 쿼리, 네 방식, 227 → 9"
+    },
+    {
+      "type": "content",
+      "title": "순서를 잘못 잡으면 227 — 바깥 107행이 안쪽을 107번 돌린다",
+      "notes": "이제 Seattle 쿼리입니다. 필터는 loc 쪽에 있는데, 일부러 emp부터 출발시켜 봤어요. 그러면 EMP 107행 전부가 명단이 됩니다. DEPT 쪽 Starts 보세요, 107이죠. 107번 전화 걸고, city 확인은 맨 마지막에야 해서 18행만 남아요. 총 버퍼 227. 필터에서 먼 쪽에서 출발하면 이렇게 됩니다.",
+      "blocks": [
+        {
+          "kind": "code",
+          "lines": [
+            "-- leading(e,d,l): 필터(Seattle)가 맨 끝에서야 적용",
+            "|  4 |  TABLE ACCESS FULL EMP    | 107행     | Buffers   5 |",
+            "|  5 |  DEPT (BY INDEX ROWID)    | Starts 107|         111 |",
+            "|  8 |  LOC 행에서 city 확인      | Starts 106|         106 |",
+            "--                                 총 Buffers 227"
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "why",
+          "head": "필터에서 멀수록 비싸진다",
+          "body": "Seattle은 loc에 있는데 emp에서 출발하면 107행 전부가 명단. 106번 전화 걸고 마지막에 18행만 남긴다 — 걸러주는 필터 쪽에서 출발해야 명단이 짧다."
+        }
+      ]
+    },
+    {
+      "type": "content",
+      "title": "같은 쿼리 네 방식 — 227 · 72 · 18 · 9",
+      "notes": "네 방식을 한 표로 보죠. 방향을 바꾸면 227이 72로, 진입 인덱스 3개를 만들면 18로 떨어집니다. 그런데 최저는 여전히 옵티마이저 기본 9예요. 테이블이 몇 블록 안 되니 full과 해시로 한 번에 쓸어담는 게 반복 접근보다 싼 거죠. 풀 스캔이 나쁜 게 아니라, 판정은 언제나 버퍼 총점이라는 것. 이 실습의 목적은 힌트로 계획을 제어하고 숫자로 판정하는 훈련입니다.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": [
+            "방식",
+            "무슨 일이 났나",
+            "Buffers"
+          ],
+          "rows": [
+            [
+              "leading(e,d,l)",
+              "필터 반대편 출발 — DEPT Starts 107",
+              "227"
+            ],
+            [
+              "leading(l,d,e)",
+              "방향은 맞지만 진입 인덱스 없음 — 매 반복 full",
+              "72"
+            ],
+            [
+              "l→d→e + 진입 인덱스 3개",
+              "filter 3줄 전부 access로",
+              "18"
+            ],
+            [
+              "옵티마이저 기본",
+              "MERGE+HASH 혼합, 작은 테이블 full",
+              "9"
+            ]
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "tip",
+          "head": "최저는 여전히 옵티마이저",
+          "body": "순서·인덱스를 다 갖춰도 18 — 기본 9를 못 이겼다. 작은 테이블은 full+hash가 최선일 수 있다. '풀 스캔=나쁨'이 아니라 판정은 Buffers 총점."
+        }
+      ]
+    },
+    {
+      "type": "content",
+      "title": "풀 스캔 제거의 증거 — filter 세 줄이 전부 access로 바뀐다",
+      "notes": "혼자 해보기 과제였던 풀 스캔 제거요. 각 테이블에 들어가는 문, 그러니까 필터 컬럼과 조인키에 인덱스 세 개를 만들었습니다. loc은 city, dept는 location_id, emp는 department_id. 그러자 Predicate에서 filter였던 세 줄이 전부 access로 바뀌었어요. 이게 성공 판정 기준입니다. Starts 21, 18로 반복 자체는 그대로지만 매 반복이 인덱스라 싸진 거예요. 72가 18로.",
+      "blocks": [
+        {
+          "kind": "code",
+          "lines": [
+            "create index hr.loc_city_idx  on hr.loc(city);          -- 필터 진입",
+            "create index hr.dept_loc_idx  on hr.dept(location_id);  -- d 조인 진입",
+            "create index hr.emp_dept_idx  on hr.emp(department_id); -- e 조인 진입",
+            "--  5 - access(CITY='Seattle')       <- filter였던 것",
+            "--  7 - access(D.LOCATION_ID=...)    <- filter였던 것",
+            "--  8 - access(E.DEPARTMENT_ID=...)  <- filter였던 것   72 -> 18"
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "why",
+          "head": "진입 인덱스 = 들어가는 문",
+          "body": "각 테이블에 '들어가는 조건'(필터 컬럼·조인키)에 문을 낸 것. Starts 21·18로 반복은 그대로지만 매 반복이 인덱스 probe라 싸졌다."
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "num": "03",
+      "title": "양끝 필터",
+      "subtitle": "city 1행 vs job_id 2행 — 어디서 출발?"
+    },
+    {
+      "type": "content",
+      "title": "필터가 양끝이면 — 더 세게 걸러지는 쪽(2행)에서 출발한다",
+      "notes": "조건을 하나 더 얹었어요. job_id가 AD_VP, 딱 2명입니다. 이제 필터가 양끝이에요. city는 loc 쪽 1행, job_id는 emp 쪽 2행. 조인 체인이 e, d, l 일직선이라 어느 끝에서 출발하든 진입 인덱스만 있으면 NL이 됩니다. emp_job_idx를 만들고 emp에서 출발시켰더니 바깥이 2행, 이후 전부 유니크 스캔에 Starts 2. 전부 NL로 바꾸는 데 성공했어요. 그런데 총점은 12고, 옵티마이저의 해시 계획이 8이었죠. 변환은 성공, 판정은 해시 승. EMP가 5블록짜리라 한 번 쓸기가 워낙 싸거든요.",
+      "blocks": [
+        {
+          "kind": "code",
+          "lines": [
+            "create index hr.emp_job_idx on hr.emp(job_id);",
+            "-- leading(e,d,l) all-NL 실측: 바깥 = AD_VP 2행",
+            "|* 5 |  EMP_JOB_IDX RANGE SCAN  | Starts 1 | A-Rows 2 |",
+            "|* 7 |  DEPT_IDX UNIQUE         | Starts 2 |",
+            "|* 8 |  LOC_IDX  UNIQUE         | Starts 2 |",
+            "--  all-NL 12  vs  옵티마이저(hash + EMP full 1회) 8"
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "tip",
+          "head": "목표 달성, 판정은 hash 승",
+          "body": "풀 스캔 0·전부 NL·Starts 2 — 변환은 성공. 그래도 총점은 hash 8이 더 싸다(EMP가 5블록이라 한 번 쓸기가 쌈). 힌트 제어를 익히되 선택은 숫자로."
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "num": "04",
+      "title": "driving을 잘못 잡으면",
+      "subtitle": "필터가 없을 때의 반복 승수"
+    },
+    {
+      "type": "content",
+      "title": "바깥이 107행이면 안쪽이 107번 돈다 — 126 vs 35",
+      "notes": "이번엔 필터가 아예 없는 조인이에요. emp 107행과 dept 27행, 결과는 106행으로 같습니다. 바깥만 바꿔봤어요. EMP를 바깥으로 하면 DEPT를 107번 두드려서 126, DEPT를 바깥으로 하면 EMP를 27번 두드려서 35. 3.6배 차이입니다. 재밌는 건, 107번 도는 쪽 안쪽이 유니크 스캔으로 더 좋은 스캔이라는 거예요. 그런데도 져요. probe 한 번의 질보다 횟수가 지배한다 — 이게 오늘의 핵심 문장입니다. 필터가 없으면 그냥 작은 테이블이 명단이에요.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": [
+            "바깥(명단)",
+            "안쪽 반복",
+            "Buffers"
+          ],
+          "rows": [
+            [
+              "EMP 107행",
+              "DEPT를 107번 (UNIQUE scan)",
+              "126"
+            ],
+            [
+              "DEPT 27행",
+              "EMP를 27번 (RANGE scan)",
+              "35"
+            ]
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "why",
+          "head": "probe의 질보다 횟수",
+          "body": "①의 안쪽은 UNIQUE SCAN(최상급)인데도 107번 곱해지니 116. ②는 RANGE SCAN인데 27번이라 28. 반복 승수는 스캔 종류로 못 이긴다. 필터가 없으면 작은 테이블이 명단."
+        }
+      ]
+    },
+    {
+      "type": "content",
+      "title": "안쪽 인덱스까지 없으면 Starts × full — 232가 나온다",
+      "notes": "마지막으로 최악을 일부러 만들어봤어요. full 힌트로 안쪽 인덱스까지 빼앗은 겁니다. 그러면 매 반복이 full scan이에요. EMP 바깥이면 4블록짜리 DEPT를 107번 통째로 쓸어서 232. DEPT 바깥이면 EMP full을 27번이라 95. 같은 최악에서도 바깥 작은 쪽이 2.4배 쌉니다. NL 최악의 공식이 여기서 나와요 — 큰 바깥 곱하기 안쪽 인덱스 부재. 처방은 반대로, 바깥 최소화와 driven 조인키 인덱스입니다.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": [
+            "실험 (full 강제)",
+            "안쪽 반복",
+            "Buffers"
+          ],
+          "rows": [
+            [
+              "EMP 바깥 + full(d)",
+              "DEPT full × 107 = 222",
+              "232"
+            ],
+            [
+              "DEPT 바깥 + full(e)",
+              "EMP full × 27 = 88",
+              "95"
+            ]
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "why",
+          "head": "NL 최악의 공식",
+          "body": "안쪽 인덱스를 빼앗자 매 반복이 full scan — 4블록짜리 DEPT도 107번 쓸면 222. NL 최악 = 큰 바깥(반복 승수) × 안쪽 인덱스 부재. 'driven엔 진입 인덱스'가 왜 전제인지 숫자로 확인된다."
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "num": "05",
+      "title": "같은 NL, 세 가지 그림",
+      "subtitle": "classic · prefetch · batch i/o"
+    },
+    {
+      "type": "content",
+      "title": "그림이 달라도 다 NL이다 — prefetch와 batch i/o",
+      "notes": "마지막 개념입니다. 요즘 버전 NL 플랜은 모양이 다르게 그려져요. optimizer_features_enable로 버전을 고정해서 비교했습니다. 10.1은 교과서 모양, 10.2부터는 inner 테이블 접근이 NL 위로 올라가는 prefetch 모양, 11g부터는 NL 두 겹에 BATCHED가 붙는 batch i/o 모양. 둘 다 목적은 디스크 I/O 절감이에요. prefetch는 곧 읽을 블록을 한 번의 I/O call로 미리 캐시에 올리는 거고, inner가 non-unique range scan이고 클러스터링 팩터가 나쁠 때 효과적입니다. batch i/o는 인덱스로 중간 결과를 모은 다음 테이블 접근을 fetch call 단위로 일괄 처리하는 거고요. 중요한 건, 모양이 나와 있다고 항상 작동하는 게 아니라 활성화됐다는 표시라는 점입니다.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": [
+            "모양",
+            "알아보는 법",
+            "힌트"
+          ],
+          "rows": [
+            [
+              "classic (10.1)",
+              "NL 아래 인덱스·테이블 나란히",
+              "no_nlj_prefetch"
+            ],
+            [
+              "table prefetch (10.2)",
+              "inner 테이블 접근이 NL 위쪽에",
+              "nlj_prefetch / no_nlj_prefetch"
+            ],
+            [
+              "batch i/o (11g~)",
+              "NL 두 겹 + BATCHED 표시",
+              "nlj_batching / no_nlj_batching"
+            ]
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "why",
+          "head": "둘 다 목적은 디스크 I/O 절감",
+          "body": "prefetch: 곧 읽을 블록을 한 I/O call로 미리 캐시에(inner non-unique range scan·CF 나쁠 때 효과). batch i/o: 인덱스로 중간 결과를 모아 테이블 접근을 일괄(fetch call 단위). 모양이 나와도 항상 작동은 아님 — 활성화 표시."
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "num": "06",
+      "title": "혼자 읽는 루틴",
+      "subtitle": "어떤 플랜이 와도 다섯 걸음"
+    },
+    {
+      "type": "content",
+      "title": "플랜은 다섯 걸음으로 읽는다 — 순서·Starts·A-Rows·견적·Predicate",
+      "notes": "오늘 배운 걸 혼자서도 쓸 수 있게 루틴으로 정리합니다. 어떤 플랜이 와도 이 순서예요. 하나, 가장 깊이 들여쓰긴 줄부터 실행 순서를 매긴다. 둘, Starts로 반복이 터진 곳을 찾는다. 셋, A-Rows로 행이 어디서 불어나고 잘리는지 여정을 읽는다. 넷, E-Rows는 1회 기준이니까 Starts 있는 줄은 곱해서 A-Rows와 비교한다. 다섯, Predicate에서 그 테이블에 처음 들어가는 조건이 filter인 놈을 찾는다. 그리고 판정은 맨 윗줄 Buffers. 문서 2.6절에 실측 플랜에 번호 매긴 연습판을 넣어뒀으니 복습 때 그걸로 훈련하세요.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": [
+            "걸음",
+            "보는 것",
+            "질문"
+          ],
+          "rows": [
+            [
+              "①",
+              "실행 순서",
+              "가장 깊은 줄부터, 같은 깊이면 위→아래"
+            ],
+            [
+              "②",
+              "Starts",
+              "반복이 터진 곳 — NL 안쪽에서만 커진다"
+            ],
+            [
+              "③",
+              "A-Rows",
+              "행이 어디서 불어나고 어디서 잘리나"
+            ],
+            [
+              "④",
+              "E×Starts",
+              "E-Rows는 1회 기준 — 곱해서 A-Rows와 비교"
+            ],
+            [
+              "⑤",
+              "Predicate",
+              "처음 들어가는 조건이 filter면 인덱스 기회"
+            ]
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "tip",
+          "head": "판정은 맨 윗줄 Buffers",
+          "body": "Buffers는 누적이라 맨 윗줄이 총점. '진입 후 확인 filter'는 정상이니 겁먹지 말 것."
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "num": "07",
+      "title": "빈틈 & 궁금한 점",
+      "subtitle": "확인하고 넘어가면 좋은 것들"
+    },
+    {
+      "type": "content",
+      "title": "여기서 남는 질문 — 확인하고 넘어가면 좋은 것들",
+      "notes": "마지막으로 오늘 안 다뤄졌거나 확인이 필요한 것들입니다. Sort Merge와 Hash Join의 내부 단계는 오늘 안 나왔어요. 커리큘럼상 다음 차시로 추정됩니다. prefetch가 항상 작동하는 게 아니라면 실제 작동 여부는 어디서 확인하는지, 이건 강사님께 질문거리예요. batch i/o가 fetch call 단위라면 array size 설정이 버퍼 수치에 영향을 줄지도 궁금하고요. 그리고 오늘 오타 교훈 — 힌트가 유효했는지 확인하는 방법이 있는지도 확인해볼 만합니다.",
+      "blocks": [
+        {
+          "kind": "bullets",
+          "items": [
+            "Sort Merge·Hash Join의 내부 단계는 오늘 안 다룸 — 다음 차시 추정(①뒤차시)",
+            "prefetch '항상 작동은 아님' — 실제 작동 여부는 어디서 확인하나? (? → 강사 질문)",
+            "batch i/o가 fetch call 단위라면 array size가 Buffers에 영향 줄까? (확인 권장)",
+            "잘못된 힌트가 조용히 무시된다면 — 힌트 유효성 확인 방법은? (확인 권장)"
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "tip",
+          "head": "매뉴얼 대비 건너뛴 것",
+          "body": "outer join의 NL 처리·cluster join 등은 다루지 않음(추정: ②비중 낮음·①뒤차시). 이유는 추정이므로 확인 권장 — 지어내지 않는다."
+        }
+      ]
+    }
+  ]
+}
