@@ -97,6 +97,14 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(f"\n■ 2) 문제 주입 — 건너뜀 (없음: {quiz})")
 
+    # 2c) 복습 시트 내장 (compare.md → 허브 '복습' 탭)
+    cmp = day_dir / "compare.md"
+    if cmp.exists():
+        print(f"\n■ 2c) 복습 시트 내장")
+        run([sys.executable, "inject_compare.py", "--day", str(args.day), "--hub", str(hub)])
+        if not hub_js_ok(hub):
+            print("✗ 복습 시트 주입 후 허브 JS 깨짐 — 중단."); return 1
+
     # 3) 일차 덱
     day_spec = day_dir / f"{args.day}.slides.json"
     if day_spec.exists():

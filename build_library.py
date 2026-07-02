@@ -19,16 +19,63 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 from datetime import datetime, timezone
 from html import escape
 from pathlib import Path
 
+from inject_compare import md2html
+
 ROOT = Path(__file__).resolve().parent
 ASSETS = ROOT / "assets"
 OUT = ROOT / "out"
 FILES = ROOT / "files"
+REVIEWS = ROOT / "reviews"
 STATUS_FILE = ROOT / "review_status.json"
+
+# 일일 복습 페이지(자료실 하단 일지) 템플릿
+REVIEW_PAGE = """<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{day}일차 복습 시트</title>
+<style>
+body{{margin:0;background:#f6f8fa;color:#34343c;font-family:'Lato','Noto Sans KR',-apple-system,sans-serif;line-height:1.7}}
+.wrap{{max-width:820px;margin:0 auto;padding:36px 22px 80px}}
+.top{{font-size:12px;color:#7c828a;margin-bottom:6px}}
+h2{{color:#1b1b1f;font-size:22px;margin:4px 0 14px}}
+h3{{color:#1b1b1f;font-size:16px;margin:26px 0 8px;padding-top:14px;border-top:1px solid #e7ebef}}
+h4{{font-size:14px;color:#7c828a;margin:16px 0 4px}}
+table{{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(23,32,50,.05)}}
+th{{text-align:left;font-size:12px;color:#7c828a;padding:9px 12px;border-bottom:2px solid #e7ebef;background:#fbfcfd}}
+td{{padding:8px 12px;border-bottom:1px solid #eef1f4;vertical-align:top}}
+code{{font-family:ui-monospace,monospace;font-size:.85em;background:#eef1f4;padding:1px 6px;border-radius:5px}}
+.note{{background:#e9f2fb;border:1px solid #cfe0fb;border-radius:11px;padding:11px 14px;font-size:13px;color:#1f4f9e;margin:10px 0}}
+hr{{border:none;border-top:1px dashed #e7ebef;margin:18px 0}}
+ul,ol{{padding-left:22px}}
+.back{{position:fixed;right:16px;bottom:16px;background:#1d7dcc;color:#fff;font:700 13px/1 system-ui;text-decoration:none;padding:11px 15px;border-radius:24px;box-shadow:0 4px 14px rgba(0,0,0,.22)}}
+</style></head><body><div class="wrap">
+<div class="top">Oracle DBA 학습 자료실 · 일일 복습</div>
+{body}
+</div><a class="back" href="../index.html">&larr; 자료실</a></body></html>
+"""
+
+
+def build_review_pages() -> list[tuple[int, str]]:
+    """days/*/compare.md → reviews/dayN.html. (일차, 축 한 줄) 목록 반환."""
+    REVIEWS.mkdir(exist_ok=True)
+    out = []
+    for p in sorted((ROOT / "days").glob("*/compare.md")):
+        if not p.parent.name.isdigit():
+            continue
+        day = int(p.parent.name)
+        md = p.read_text(encoding="utf-8")
+        m = re.search(r"\[오늘의 축\][^\n]*\n+>\s*\*\*(.+?)\*\*", md)
+        axis = m.group(1) if m else ""
+        body = md2html(md).replace("href='assets/", "href='../assets/")  # reviews/에서의 상대경로
+        (REVIEWS / f"day{day}.html").write_text(
+            REVIEW_PAGE.format(day=day, body=body), encoding="utf-8")
+        out.append((day, axis))
+    return out
 
 # 문서 → (주제 배지, 사람이 읽는 제목)
 DOCS = {
@@ -93,7 +140,7 @@ def pill(text: str, fg: str, bg: str) -> str:
     return f'<span class="pill" style="color:{fg};background:{bg}">{escape(text)}</span>'
 
 
-def render(status: dict) -> str:
+def render(status: dict, recaps: list[tuple[int, str]] | None = None) -> str:
     docs_status = status.get("docs", {})
 
     # --- 문서 카드 ---
@@ -147,6 +194,19 @@ def render(status: dict) -> str:
         misc_html = (f'<details class="misc"><summary>그 외 발표 덱 '
                      f'<span class="pill mini warn">미검토 · 참고용</span> · {len(misc_rows)}개</summary>'
                      f'<ul class="misc-list">{"".join(misc_rows)}</ul></details>')
+
+    # --- 일일 복습 (reviews/dayN.html) ---
+    daily_cards = []
+    for day, axis in sorted(recaps or [], reverse=True):
+        daily_cards.append(f"""
+        <article class="card">
+          <div class="tags"><span class="pill topic">📅 {day}일차</span></div>
+          <h3 class="ctitle">{escape(axis) if axis else f'{day}일차 복습 시트'}</h3>
+          <div class="acts">
+            <a class="btn" href="reviews/day{day}.html">복습 시트 열기</a>
+          </div>
+        </article>""")
+    daily_html = "".join(daily_cards) or '<div class="empty">아직 복습 시트가 없습니다 — 수업 노트가 오면 days/N/compare.md 로 생성됩니다.</div>'
 
     updated = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
     return f"""<!doctype html>
@@ -268,6 +328,7 @@ footer .inner{{padding:0;max-width:940px}}
     <a href="#hub"><span class="ic">📚</span>학습 허브</a>
     <a href="#docs"><span class="ic">📄</span>학습 문서</a>
     <a href="#decks"><span class="ic">🎞️</span>발표 자료</a>
+    <a href="#daily"><span class="ic">🗓️</span>일일 복습</a>
     <a href="assets/dashboard.html"><span class="ic">📊</span>대시보드</a>
   </nav>
   <div class="side-bottom">
@@ -306,6 +367,11 @@ footer .inner{{padding:0;max-width:940px}}
     <div class="grid">{featured_html}
     </div>
     {misc_html}
+
+    <h2 class="sec" id="daily"><span class="n">04</span>일일 복습</h2>
+    <div class="sub">하루치 요약 일지 — 그날의 축·개념·명령어·5줄 요약을 한 장으로. 관련 문서 섹션으로 바로 이동합니다.</div>
+    <div class="grid">{daily_html}
+    </div>
   </div>
   <footer><div class="inner">자동 생성 · 최종 갱신 {updated} · <code>build_library.py</code> — 파일 추가 후 재실행하면 목록이 갱신됩니다.</div></footer>
 </main>
@@ -338,8 +404,11 @@ def main(argv: list[str] | None = None) -> int:
     if not args.no_copy:
         copied = copy_artifacts()
         print(f"[library] files/ 로 복사: {len(copied)}개")
+    recaps = build_review_pages()
+    if recaps:
+        print(f"[library] 일일 복습 페이지: {len(recaps)}개 → reviews/")
     status = load_status()
-    args.out.write_text(render(status), encoding="utf-8")
+    args.out.write_text(render(status, recaps), encoding="utf-8")
     print(f"[library] → {args.out}")
     return 0
 
