@@ -13,16 +13,18 @@
 
 ## [개념 제목] — Claude 버전 (수업 등장 순)
 
-1. **batch i/o** (nlj_batching) — inner 테이블 접근을 일괄 처리
-2. **table prefetch** (nlj_prefetch) — 곧 읽을 블록을 미리 캐시 적재
-3. **optimizer_features_enable** — 옵티마이저 버전 고정 (버전별 플랜 모양 비교)
-4. NL 플랜의 **세 가지 모양** (classic / prefetch / BATCHED)
-5. **인덱스가 조인 방법을 바꾼다** — CTAS 재생성 + PK 점진 생성 실험
-6. **MERGE JOIN CARTESIAN** — 인덱스 없을 때 옵티마이저의 선택
-7. **조인 순서(leading)** — Seattle 실험 (227 → 72)
-8. **진입 인덱스** — 풀 스캔 제거 (혼자 해보기, 72 → 18)
-9. **양끝 필터** — job_id 추가, NL 변환 (hash 8 vs NL 12)
-10. **driving 잘못 선택의 비용** — 126 vs 35 · full 강제 232 vs 95
+1. **batch i/o** (nlj_batching) — inner 테이블 접근을 일괄 처리 · [문서 §7.8](assets/sql_tuning.html#join)
+2. **table prefetch** (nlj_prefetch) — 곧 읽을 블록을 미리 캐시 적재 · [문서 §7.8](assets/sql_tuning.html#join)
+3. **optimizer_features_enable** — 옵티마이저 버전 고정 · [문서 §7.8](assets/sql_tuning.html#join)
+4. NL 플랜의 **세 가지 모양** (classic / prefetch / BATCHED) · [문서 §7.8](assets/sql_tuning.html#join)
+5. **인덱스가 조인 방법을 바꾼다** — CTAS 재생성 + PK 점진 생성 실험 · [문서 §7.4](assets/sql_tuning.html#join)
+6. **MERGE JOIN CARTESIAN** — 인덱스 없을 때 옵티마이저의 선택 · [문서 §7.4](assets/sql_tuning.html#join)
+7. **조인 순서(leading)** — Seattle 실험 (227 → 72) · [문서 §7.5](assets/sql_tuning.html#join)
+8. **진입 인덱스** — 풀 스캔 제거 (혼자 해보기, 72 → 18) · [문서 §7.5](assets/sql_tuning.html#join)
+9. **양끝 필터** — job_id 추가, NL 변환 (hash 8 vs NL 12) · [문서 §7.6](assets/sql_tuning.html#join)
+10. **driving 잘못 선택의 비용** — 126 vs 35 · full 강제 232 vs 95 · [문서 §7.7](assets/sql_tuning.html#join)
+
+> 플랜 읽기가 막히면 → [§2.6 혼자 읽는 5단계 루틴](assets/sql_tuning.html#plan)
 
 ## [실습 명령어 정리] — Claude 버전 (실행 순서 + 결과 요지)
 
@@ -49,16 +51,17 @@
 
 ## [건너뛴 것 — 매뉴얼 대비] — Claude 버전
 
-| 안 다룬 것 | 추정 이유 |
-|-----------|----------|
-| Sort Merge·Hash Join 내부 단계 | ① 뒤 차시 |
-| outer join의 NL 처리 | ①/② |
-| prefetch 실제 작동 확인 방법 | ? → 강사 질문 |
+| 안 다룬 것 | 추정 이유 | 공부하러 가기 |
+|-----------|----------|--------------|
+| Sort Merge·Hash Join 내부 단계 | ① 뒤 차시 | 다음 수업 대기 · [매뉴얼(Concepts)](https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/) |
+| outer join의 NL 처리 | ①/② | [매뉴얼(Concepts)](https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/) |
+| prefetch 실제 작동 확인 방법 | ? → 강사 질문 | 질문 후 [문서 §7.8](assets/sql_tuning.html#join)에 답 기록 |
 
 ---
 
 ## 대조하는 법 (자습 후 2분)
 
 1. 내 review.md와 위 항목을 나란히 놓고 **○(일치)·△(부분)·×(놓침)** 표시
-2. **×가 나온 항목 = 오늘의 복습 우선순위** — 특히 [축]이 다르면 왜 다른지 생각해보기 (다르다고 틀린 게 아님 — 근거를 비교)
+2. **×가 나온 항목 = 오늘의 복습 우선순위** — 위 개념 옆 **[문서 §] 링크로 바로 이동**해 그 부분만 다시 읽기
 3. 결과를 review.md 맨 아래 `[대조 결과]`에 한 줄로 (예: "축 ○ · 개념 8/10 · 명령어 △ — cartesian 놓침")
+4. 마무리 — [허브에서 73일차 문제 풀기](assets/study_hub_full.html) (날짜칩 73 필터)

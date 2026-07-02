@@ -80,6 +80,13 @@ textarea:focus{outline:none;border-color:var(--accent);background:#fff}
 .tface.back{transform:rotateY(180deg);background:#fbfcfd}.tface .lab{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);position:absolute;top:13px;left:15px}
 .tface .tterm{font-size:21px;font-weight:800;font-family:var(--mono);line-height:1.4}.tface.back .tdef{font-size:15px;font-weight:500;line-height:1.65}
 .fnav{display:flex;gap:7px;margin-top:4px}.fnav .btn{flex:1}
+.cmpbody{padding:18px 20px;line-height:1.7;font-size:14px}
+.cmpbody h2{font-size:18px;margin:4px 0 10px}
+.cmpbody h3{font-size:15px;margin:20px 0 6px;padding-top:12px;border-top:1px solid var(--line)}
+.cmpbody h4{font-size:13.5px;margin:14px 0 4px;color:var(--muted)}
+.cmpbody table{font-size:13px}
+.cmpbody code{font-family:var(--mono);font-size:.85em;background:#eef1f5;padding:1px 5px;border-radius:5px}
+.cmpbody hr{border:none;border-top:1px dashed var(--line);margin:16px 0}
 .tsearch{margin:10px 0 2px}
 .tsearch input{width:100%;box-sizing:border-box;border:1.5px solid var(--line);border-radius:11px;padding:11px 13px;font-family:inherit;font-size:14.5px;background:var(--panel);color:var(--ink)}
 .tsearch input:focus{outline:none;border-color:var(--accent);background:#fff}
@@ -141,6 +148,7 @@ details.acc .body th{font-family:var(--mono);font-size:11px;color:var(--muted);t
   <div class="tab" data-m="plan" onclick="tab('plan')">실행계획</div>
   <div class="tab" data-m="term" onclick="tab('term')">용어</div>
   <div class="tab" data-m="wrong" onclick="tab('wrong')">오답노트</div>
+  <div class="tab" data-m="cmp" onclick="tab('cmp')">복습</div>
   <div class="tab" data-m="docs" onclick="tab('docs')">문서</div>
   <div class="tab" data-m="notes" onclick="tab('notes')">내 노트</div>
 </div>
@@ -185,6 +193,13 @@ details.acc .body th{font-family:var(--mono);font-size:11px;color:var(--muted);t
 <div id="wrongArea" class="hidden">
   <div class="statusbar"><span id="wstatus">오답 0</span><button onclick="clearWrong()">오답노트 비우기</button></div>
   <div id="wlist"></div>
+</div>
+
+<!-- CMP (일일 복습 시트) -->
+<div id="cmpArea" class="hidden">
+  <div class="note">📖 자습이 끝난 뒤 여세요 — 내 review와 ○△× 대조하는 Claude 비교 시트입니다.</div>
+  <div id="cmppick" class="chips"></div>
+  <div class="card cmpbody" id="cmpbody"></div>
 </div>
 
 <!-- DOCS -->
@@ -2958,13 +2973,14 @@ function rerender(){if(mode==='mcq')startMcq();else if(mode==='essay')renderEssa
 function tab(m){
   mode=m;
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.m===m));
-  ['mcq','essay','plan','term','wrong','docs','notes'].forEach(x=>document.getElementById(x+'Area').classList.toggle('hidden',x!==m));
+  ['mcq','essay','plan','term','wrong','cmp','docs','notes'].forEach(x=>document.getElementById(x+'Area').classList.toggle('hidden',x!==m));
   renderChips();
   if(m==='mcq')showMcq();
   else if(m==='essay')renderEssay();
   else if(m==='plan')renderPlan();
   else if(m==='term'){if(!tlist.length)startTerms();}
   else if(m==='wrong')renderWrong();
+  else if(m==='cmp')renderCompare();
   else if(m==='docs')renderDocs();
   else if(m==='notes')renderNotes();
 }
@@ -3209,6 +3225,18 @@ function renderMatches(hits,q){
 }
 function jumpTerm(i){if(i<0||i>=tlist.length)return;ti=i;renderT();document.getElementById('tflip').scrollIntoView({block:'center',behavior:'smooth'});}
 
+/* ===== 복습(일일 비교 시트) ===== */
+let cmpDay=null;
+function renderCompare(){
+  const list=[...document.querySelectorAll('script[id^="cmp-"]')].map(s=>Number(s.id.slice(4))).filter(n=>!isNaN(n)).sort((a,b)=>a-b);
+  const pick=document.getElementById('cmppick'), body=document.getElementById('cmpbody');
+  if(!list.length){pick.innerHTML='';body.innerHTML='<div class="empty">아직 내장된 복습 시트가 없어요.</div>';return;}
+  if(cmpDay===null||!list.includes(cmpDay))cmpDay=list[list.length-1];
+  pick.innerHTML=list.map(d=>`<span class="chip d${d} ${d===cmpDay?'on':''}" onclick="cmpDay=${d};renderCompare()">${d}일</span>`).join('');
+  const el=document.getElementById('cmp-'+cmpDay);
+  body.innerHTML=el?el.textContent:'<div class="empty">시트 없음</div>';
+}
+
 /* ===== 오답노트 ===== */
 function renderWrong(){
   const ids=getWrong();const items=MCQ.filter(x=>ids.includes(x.id));
@@ -3244,5 +3272,61 @@ function renderNotes(){
 renderChips();startMcq();
 </script>
 <a href="../index.html" class="back-to-lib" style="position:fixed;right:16px;bottom:16px;z-index:99999;background:#c74634;color:#fff;font:700 13px/1 system-ui,-apple-system,sans-serif;text-decoration:none;padding:11px 15px;border-radius:24px;box-shadow:0 4px 14px rgba(0,0,0,.25)">&larr; 자료실</a>
+<script type="text/plain" id="cmp-73"><h2>73일차 비교 시트 (Claude 버전)</h2>
+<div class='note'>⚠ <b>자습이 끝나기 전엔 열지 마세요.</b> 내 review.md를 다 쓴 뒤, 항목별로 대조해 ○(일치)·△(부분)·×(놓침)를 매기는 용도.</div>
+<div class='note'>Claude가 수업 노트만 보고 독립적으로 작성한 버전입니다 — 정답지가 아니라 <b>대조 상대</b>입니다.</div>
+<hr>
+<h3>[오늘의 축] — Claude 버전</h3>
+<div class='note'><b>NL 조인 — 바깥(driving) 선택과 진입 인덱스가 Buffers를 결정한다. 판정은 Starts·Buffers.</b></div>
+<p>판단 근거: 모든 실험이 "순서를 바꾸고(leading) 인덱스를 만들며 Buffers를 비교"하는 구조. 강사도 NL 집중을 명시.</p>
+<h3>[개념 제목] — Claude 버전 (수업 등장 순)</h3>
+<ol>
+<li><b>batch i/o</b> (nlj_batching) — inner 테이블 접근을 일괄 처리 · <a href='sql_tuning.html#join' class='cmp-link'>문서 §7.8</a></li>
+<li><b>table prefetch</b> (nlj_prefetch) — 곧 읽을 블록을 미리 캐시 적재 · <a href='sql_tuning.html#join' class='cmp-link'>문서 §7.8</a></li>
+<li><b>optimizer_features_enable</b> — 옵티마이저 버전 고정 · <a href='sql_tuning.html#join' class='cmp-link'>문서 §7.8</a></li>
+<li>NL 플랜의 <b>세 가지 모양</b> (classic / prefetch / BATCHED) · <a href='sql_tuning.html#join' class='cmp-link'>문서 §7.8</a></li>
+<li><b>인덱스가 조인 방법을 바꾼다</b> — CTAS 재생성 + PK 점진 생성 실험 · <a href='sql_tuning.html#join' class='cmp-link'>문서 §7.4</a></li>
+<li><b>MERGE JOIN CARTESIAN</b> — 인덱스 없을 때 옵티마이저의 선택 · <a href='sql_tuning.html#join' class='cmp-link'>문서 §7.4</a></li>
+<li><b>조인 순서(leading)</b> — Seattle 실험 (227 → 72) · <a href='sql_tuning.html#join' class='cmp-link'>문서 §7.5</a></li>
+<li><b>진입 인덱스</b> — 풀 스캔 제거 (혼자 해보기, 72 → 18) · <a href='sql_tuning.html#join' class='cmp-link'>문서 §7.5</a></li>
+<li><b>양끝 필터</b> — job_id 추가, NL 변환 (hash 8 vs NL 12) · <a href='sql_tuning.html#join' class='cmp-link'>문서 §7.6</a></li>
+<li><b>driving 잘못 선택의 비용</b> — 126 vs 35 · full 강제 232 vs 95 · <a href='sql_tuning.html#join' class='cmp-link'>문서 §7.7</a></li>
+</ol>
+<div class='note'>플랜 읽기가 막히면 → <a href='sql_tuning.html#plan' class='cmp-link'>§2.6 혼자 읽는 5단계 루틴</a></div>
+<h3>[실습 명령어 정리] — Claude 버전 (실행 순서 + 결과 요지)</h3>
+<table><tr><th>#</th><th>명령</th><th>결과 요지</th></tr>
+<tr><td>1</td><td><code>select ... /*+ gather_plan_statistics */</code> + <code>dbms_xplan.display_cursor(null,null,'allstats last')</code></td><td>모든 실험의 실측 도구 — Starts·A-Rows·Buffers</td></tr>
+<tr><td>2</td><td><code>optimizer_features_enable('10.2.0.5' / '10.1.0')</code> + <code>no_nlj_prefetch</code></td><td>같은 NL이 batched → prefetch → classic 모양으로 바뀜</td></tr>
+<tr><td>3</td><td><code>drop table purge</code> + <code>create table ... as select</code>(CTAS)</td><td>인덱스 0개인 emp·dept·loc 재생성 (실험 초기화)</td></tr>
+<tr><td>4</td><td><code>create unique index</code> + <code>alter table add constraint ... primary key using index</code> ×3 (emp→dept→loc)</td><td>플랜이 CARTESIAN+HASH → NL 부분 → <b>NL 3단 전부 unique scan</b>으로 진화 (8→7→7→6)</td></tr>
+<tr><td>5</td><td><code>dba_constraints</code>/<code>dba_cons_columns</code> · <code>dba_indexes</code>/<code>dba_ind_columns</code> 조회</td><td>만든 제약·인덱스 상태 확인 (blevel·leaf_blocks·clustering_factor)</td></tr>
+<tr><td>6</td><td>Seattle 쿼리 + <code>leading(e,d,l)</code> vs <code>leading(l,d,e)</code></td><td>순서 반대면 Starts 107 → <b>227</b>, 방향 맞추면 <b>72</b></td></tr>
+<tr><td>7</td><td><code>create index</code> — loc(city)·dept(location_id)·emp(department_id)</td><td>filter 3줄 → <b>access</b> 전환, 72 → <b>18</b> (옵티마이저 기본 9)</td></tr>
+<tr><td>8</td><td>job_id='AD_VP' 추가 + <code>emp_job_idx</code> + <code>leading(e,d,l) use_nl(d) use_nl(l)</code></td><td>바깥 2행 all-NL <b>12</b> vs 옵티마이저 hash <b>8</b></td></tr>
+<tr><td>9</td><td>필터 없는 emp⋈dept, <code>leading(e,d)</code> vs <code>leading(d,e)</code> (+<code>no_nlj_prefetch</code>)</td><td>Starts 107 vs 27 → <b>126 vs 35</b></td></tr>
+<tr><td>10</td><td>같은 실험 + <code>full(e) full(d)</code></td><td>안쪽까지 full → <b>232 vs 95</b> (Starts×full = 최악)</td></tr>
+</table>
+<h3>[5줄 요약] — Claude 버전</h3>
+<ol>
+<li>NL 비용 ≈ <b>바깥 1회 + (바깥 행 수 × 안쪽 1회)</b> — 바깥(명단)을 최소로: 필터 센 쪽, 없으면 작은 쪽.</li>
+<li><b>인덱스가 없으면 힌트를 줘도</b> 옵티마이저는 hash·cartesian으로 짠다 — 도구가 선택지를 만든다 (오타 힌트는 조용히 무시).</li>
+<li><b>진입 인덱스</b>(필터 컬럼·조인키)가 filter를 access로 바꾼다 — Seattle 72→18.</li>
+<li>그래도 <b>작은 테이블은 full+hash가 이길 수 있다</b> (9 vs 18, 8 vs 12) — 판정은 항상 Buffers 총점.</li>
+<li>NL 플랜은 버전 최적화로 <b>모양이 3가지</b>(classic·prefetch·batch i/o) — 모양이 나와도 항상 작동한다는 뜻은 아니다.</li>
+</ol>
+<h3>[건너뛴 것 — 매뉴얼 대비] — Claude 버전</h3>
+<table><tr><th>안 다룬 것</th><th>추정 이유</th><th>공부하러 가기</th></tr>
+<tr><td>Sort Merge·Hash Join 내부 단계</td><td>① 뒤 차시</td><td>다음 수업 대기 · <a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/' class='cmp-link'>매뉴얼(Concepts)</a></td></tr>
+<tr><td>outer join의 NL 처리</td><td>①/②</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/' class='cmp-link'>매뉴얼(Concepts)</a></td></tr>
+<tr><td>prefetch 실제 작동 확인 방법</td><td>? → 강사 질문</td><td>질문 후 <a href='sql_tuning.html#join' class='cmp-link'>문서 §7.8</a>에 답 기록</td></tr>
+</table>
+<hr>
+<h3>대조하는 법 (자습 후 2분)</h3>
+<ol>
+<li>내 review.md와 위 항목을 나란히 놓고 <b>○(일치)·△(부분)·×(놓침)</b> 표시</li>
+<li><b>×가 나온 항목 = 오늘의 복습 우선순위</b> — 위 개념 옆 <b>[문서 §] 링크로 바로 이동</b>해 그 부분만 다시 읽기</li>
+<li>결과를 review.md 맨 아래 <code>[대조 결과]</code>에 한 줄로 (예: "축 ○ · 개념 8/10 · 명령어 △ — cartesian 놓침")</li>
+<li>마무리 — <a href='study_hub_full.html' class='cmp-link'>허브에서 73일차 문제 풀기</a> (날짜칩 73 필터)</li>
+</ol></script>
 </body>
 </html>
