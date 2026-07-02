@@ -81,9 +81,14 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\n■ 1c) 얼버무림 검사")
     run([sys.executable, "lint_vagueness.py", str(doc)])
 
-    # 2) 문제 주입
+    # 2) 문제 검수 → 주입
     quiz = day_dir / "quiz.json"
     if quiz.exists():
+        print(f"\n■ 2a) 문제 검수 (출제자 검수 시트)")
+        rc = run([sys.executable, "check_quiz.py", str(quiz), "--doc", str(doc), "--day", str(args.day)])
+        if rc != 0 and not args.force:
+            print("✗ 문제 구조 오류 — 주입 중단(--force 로 진행 가능).")
+            return 1
         print(f"\n■ 2) 문제 주입")
         if run([sys.executable, "inject_quiz.py", str(quiz), "--day", str(args.day), "--hub", str(hub)]) != 0:
             print("✗ 문제 주입 실패"); return 1
