@@ -96,33 +96,41 @@ def add_day(hub: str, day: int, rep: list[str]) -> str:
 
 def add_day_chip(hub: str, day: int, rep: list[str]) -> str:
     # 변수·배지·필터칩을 각각 독립 체크 — 하나만 빠져도 그것만 채운다(중복/누락 방지).
-    have_var = bool(re.search(r"--d" + str(day) + r"\s*:", hub))
-    have_badge = bool(re.search(r"\.dt" + str(day) + r"\s*\{", hub))          # 카드 배지 .dtNN
-    have_filter = bool(re.search(r"\.chip\.d" + str(day) + r"\.on\s*\{", hub))  # 필터 버튼 .chip.dNN.on
+    # ⚠ 반드시 메인 <style> 범위(hub[:style_end]) 안에서만 찾고/넣는다 —
+    #   허브에는 docsrc(내장 문서)의 CSS도 통째로 들어 있어, 전체 검색은
+    #   내장 문서 쪽(무효 영역)에 주입되는 사고가 난다(73일차 --d73 버그).
+    style_end = hub.find("</style>")
+    region = hub[:style_end] if style_end != -1 else hub
+
+    have_var = bool(re.search(r"--d" + str(day) + r"\s*:", region))
+    have_badge = bool(re.search(r"\.dt" + str(day) + r"\s*\{", region))          # 카드 배지 .dtNN
+    have_filter = bool(re.search(r"\.chip\.d" + str(day) + r"\.on\s*\{", region))  # 필터 버튼 .chip.dNN.on
     if have_var and have_badge and have_filter:
         rep.append(f"· 날짜 칩 이미 존재: {day}")
         return hub
-    used = set(re.findall(r"--d\d+\s*:\s*(#[0-9A-Fa-f]{6})", hub))
+    used = set(re.findall(r"--d\d+\s*:\s*(#[0-9A-Fa-f]{6})", region))
     color = next((c for c in CHIP_COLORS if c not in used), CHIP_COLORS[day % len(CHIP_COLORS)])
 
-    # --dNN 색 변수: 없을 때만, 마지막 --dNN 정의 뒤에 추가
+    # --dNN 색 변수: 없을 때만, (메인 style 내) 마지막 --dNN 정의 뒤에 추가
     if not have_var:
-        var_matches = list(re.finditer(r"--d\d+\s*:\s*#[0-9A-Fa-f]{6};", hub))
+        var_matches = list(re.finditer(r"--d\d+\s*:\s*#[0-9A-Fa-f]{6};", region))
         if var_matches:
             last = var_matches[-1]
             hub = hub[:last.end()] + f"--d{day}:{color};" + hub[last.end():]
             rep.append(f"+ 색 변수 --d{day}:{color}")
-    # .dtNN 배지: 없을 때만, 마지막 .dtNN 정의 뒤에 추가 (배경=색, 글자=흰색 → 항상 대비 확보)
+    # .dtNN 배지: 없을 때만, (메인 style 내) 마지막 .dtNN 정의 뒤에 추가
     if not have_badge:
-        chip_matches = list(re.finditer(r"\.dt\d+\s*\{[^}]*\}", hub))
+        region = hub[:hub.find("</style>")]
+        chip_matches = list(re.finditer(r"\.dt\d+\s*\{[^}]*\}", region))
         if chip_matches:
             last = chip_matches[-1]
             hub = hub[:last.end()] + f".dt{day}{{background:var(--d{day});color:#fff}}" + hub[last.end():]
             rep.append(f"+ 배지 .dt{day}")
-    # .chip.dNN.on 필터 버튼: 없을 때만, 마지막 .chip.dX.on 뒤에 추가
+    # .chip.dNN.on 필터 버튼: 없을 때만, (메인 style 내) 마지막 .chip.dX.on 뒤에 추가
     # (없으면 선택 시 .chip.on{color:#fff}만 걸려 흰 배경+흰 글자로 안 보임)
     if not have_filter:
-        filt_matches = list(re.finditer(r"\.chip\.d\w+\.on\s*\{[^}]*\}", hub))
+        region = hub[:hub.find("</style>")]
+        filt_matches = list(re.finditer(r"\.chip\.d\w+\.on\s*\{[^}]*\}", region))
         if filt_matches:
             last = filt_matches[-1]
             hub = hub[:last.end()] + f".chip.d{day}.on{{background:var(--d{day});border-color:var(--d{day})}}" + hub[last.end():]
