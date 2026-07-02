@@ -11,6 +11,7 @@ PPT는 HTML에서 파생하되 **새 사실을 지어내지 않는다.**
 | `sync_and_verify.py` | 동기화(한글→ASCII) · 재주입(docsrc-*) · 검증. **검증 실패 시 멈춤**(`--force`로 무시). |
 | `inject_quiz.py`     | 하루치 문제(JSON)를 허브 JS 배열(MCQ/ESSAY/TERMS/PLANQ)·DAYS·날짜칩에 주입(멱등) |
 | `new_day.py`         | **하루치 스캐폴드** — `days/<N>/` 에 복습 노트(review.md)·문제 뼈대(quiz.json) 생성(멱등). 자습 시작 준비. |
+| `check_quiz.py`      | **출제자 검수** — quiz.json 구조 검증(정답 인덱스 등, 실패 시 주입 차단) + 검수 시트(✔정답 표시) + 원문 근거 대조. `--warmup`=어제 문제 3개. make_day가 주입 전 자동 실행. |
 | `make_day.py`        | **일차 파이프라인** — 동기화·검증 → 문제 주입 → 일차 덱 + 문서 덱 + QA + 대시보드 + 자료실 |
 | `docs/STUDY_ROUTINE.md` | **자습 1시간 복습 루틴** + 매일 남길 양식 + 양식→파이프라인 지도. 복사용 원본: `days/TEMPLATE.md`. |
 | `docs/SYSTEM_OVERVIEW.md` | **AI 핸드오프 문서** — 시스템 목적·구조·워크플로·규칙 전체를 한 문서로(다른 AI에게 설명용). |
