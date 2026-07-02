@@ -95,10 +95,11 @@ def add_day(hub: str, day: int, rep: list[str]) -> str:
 
 
 def add_day_chip(hub: str, day: int, rep: list[str]) -> str:
-    # 변수·칩을 각각 독립 체크 — 하나만 빠져도 그것만 채운다(중복/누락 방지).
+    # 변수·배지·필터칩을 각각 독립 체크 — 하나만 빠져도 그것만 채운다(중복/누락 방지).
     have_var = bool(re.search(r"--d" + str(day) + r"\s*:", hub))
-    have_chip = bool(re.search(r"\.dt" + str(day) + r"\s*\{", hub))
-    if have_var and have_chip:
+    have_badge = bool(re.search(r"\.dt" + str(day) + r"\s*\{", hub))          # 카드 배지 .dtNN
+    have_filter = bool(re.search(r"\.chip\.d" + str(day) + r"\.on\s*\{", hub))  # 필터 버튼 .chip.dNN.on
+    if have_var and have_badge and have_filter:
         rep.append(f"· 날짜 칩 이미 존재: {day}")
         return hub
     used = set(re.findall(r"--d\d+\s*:\s*(#[0-9A-Fa-f]{6})", hub))
@@ -111,14 +112,21 @@ def add_day_chip(hub: str, day: int, rep: list[str]) -> str:
             last = var_matches[-1]
             hub = hub[:last.end()] + f"--d{day}:{color};" + hub[last.end():]
             rep.append(f"+ 색 변수 --d{day}:{color}")
-    # .dtNN 칩: 없을 때만, 마지막 .dtNN 정의 뒤에 추가 (배경=색, 글자=흰색 → 항상 대비 확보)
-    if not have_chip:
+    # .dtNN 배지: 없을 때만, 마지막 .dtNN 정의 뒤에 추가 (배경=색, 글자=흰색 → 항상 대비 확보)
+    if not have_badge:
         chip_matches = list(re.finditer(r"\.dt\d+\s*\{[^}]*\}", hub))
         if chip_matches:
             last = chip_matches[-1]
-            chip_css = f".dt{day}{{background:var(--d{day});color:#fff}}"
-            hub = hub[:last.end()] + chip_css + hub[last.end():]
-            rep.append(f"+ 칩 .dt{day}")
+            hub = hub[:last.end()] + f".dt{day}{{background:var(--d{day});color:#fff}}" + hub[last.end():]
+            rep.append(f"+ 배지 .dt{day}")
+    # .chip.dNN.on 필터 버튼: 없을 때만, 마지막 .chip.dX.on 뒤에 추가
+    # (없으면 선택 시 .chip.on{color:#fff}만 걸려 흰 배경+흰 글자로 안 보임)
+    if not have_filter:
+        filt_matches = list(re.finditer(r"\.chip\.d\w+\.on\s*\{[^}]*\}", hub))
+        if filt_matches:
+            last = filt_matches[-1]
+            hub = hub[:last.end()] + f".chip.d{day}.on{{background:var(--d{day});border-color:var(--d{day})}}" + hub[last.end():]
+            rep.append(f"+ 필터칩 .chip.d{day}.on")
     return hub
 
 
