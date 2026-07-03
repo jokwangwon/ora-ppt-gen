@@ -1,0 +1,131 @@
+{
+  "MCQ": [
+    {
+      "id": "m74a",
+      "d": 74,
+      "q": "Sort Merge Join이 NL보다 유리해지는 대표 상황은?",
+      "o": [
+        "소량 결과 + driven 조인키 인덱스가 있을 때",
+        "조인 건수가 많아 건건이 버퍼 캐시를 오가는 random access가 부담일 때 (sort 부하는 감수)",
+        "조인 조건이 부등호가 아닐 때만",
+        "정렬 메모리가 부족할 때"
+      ],
+      "a": 1,
+      "e": "SM은 양쪽을 조인 키로 정렬한 뒤 merge한다. 건수가 많을 때 유리하고, 대신 sort 부하를 감수한다. 정렬은 PGA의 sort area에서 하므로 SGA 경유 접근보다 빠르다."
+    },
+    {
+      "id": "m74b",
+      "d": 74,
+      "q": "SM 기본 플랜에서 SORT JOIN의 Starts가 27인데, 그 자식 EMP full scan의 Starts는 1이었다. 올바른 해석은?",
+      "o": [
+        "EMP를 27번 정렬했다",
+        "정렬은 1번 해두고, 바깥 27행이 짝을 찾을 때마다 정렬된 결과를 재사용해 탐색만 27번",
+        "통계 수집 오류다",
+        "27개 파티션을 각각 정렬했다"
+      ],
+      "a": 1,
+      "e": "자식(EMP full) Starts=1 = 읽기·정렬은 한 번. SORT JOIN의 Starts 27은 정렬 '결과'에 대한 탐색 시작 횟수다. Starts가 커도 정렬 반복이 아니다."
+    },
+    {
+      "id": "m74c",
+      "d": 74,
+      "q": "Hash Join에서 build table을 고르는 기준으로 옳은 것은?",
+      "o": [
+        "항상 FROM 절의 첫 테이블",
+        "두 집합 중 작은 쪽 — 그리고 해시 키 컬럼에 중복(충돌)이 적을수록 유리",
+        "항상 인덱스가 있는 쪽",
+        "정렬이 이미 되어 있는 쪽"
+      ],
+      "a": 1,
+      "e": "작은 집합을 hash area에 해시 테이블(build)로 올리고 큰 쪽이 probe한다. 해시 키 값에 충돌이 없을수록 좋다. 또 hash join은 = 조건에서만 쓸 수 있다."
+    },
+    {
+      "id": "m74d",
+      "d": 74,
+      "q": "where e.department_id = d.department_id(+) 인 outer join에 leading(d,e)를 줬더니 EMP가 선행(build)인 플랜이 나왔다. 이유는?",
+      "o": [
+        "힌트 오타 때문",
+        "(+)가 붙지 않은 테이블이 항상 선행(outer·first·build)으로 강제된다 — 문법 규칙이 힌트보다 우선",
+        "EMP가 더 커서",
+        "adaptive plan이 임의로 바꿔서"
+      ],
+      "a": 1,
+      "e": "outer join에서는 (+) 없는 쪽(모든 행을 보존해야 하는 쪽)이 항상 선행 테이블로 선택된다. leading은 무시된다. 뒤집으려면 swap_join_inputs(d) → HASH JOIN RIGHT OUTER."
+    },
+    {
+      "id": "m74e",
+      "d": 74,
+      "q": "Index Join(index$_join$)이 작동하기 위한 조건은?",
+      "o": [
+        "테이블에 PK가 있을 것",
+        "SELECT 절의 컬럼이 전부 사용되는 인덱스들 안에 포함될 것 — 그래야 테이블 접근 없이 rowid로 인덱스끼리 조인",
+        "조인 상대 테이블이 작을 것",
+        "인덱스가 유니크할 것"
+      ],
+      "a": 1,
+      "e": "한 테이블의 여러 인덱스를 각각 fast full scan해 rowid로 해시 조인(access(ROWID=ROWID))한다. 필요한 컬럼이 인덱스 밖에 있으면 테이블에 가야 하므로 성립하지 않는다."
+    }
+  ],
+  "ESSAY": [
+    {
+      "id": "e74a",
+      "d": 74,
+      "q": "같은 emp⋈dept(필터 없음)에서 NL(batch) 35, hash 13, SM full 강제 5가 나왔다. 'Buffers가 가장 낮은 SM이 항상 최선'이라는 결론이 왜 위험한지, 세 방법의 비용이 각각 어디에 숨는지로 설명하라.",
+      "a": "Buffers는 논리 I/O(블록 읽기)만 센다. SM full의 5는 두 full scan(2+3)뿐이라 낮지만, 정렬 비용은 Buffers에 찍히지 않고 PGA 메모리(Used-Mem 16K)와 CPU로 치른다. hash의 13도 build 해시 테이블 메모리(Used-Mem 1.5M)는 별도다. NL의 35는 반복 probe가 그대로 Buffers에 드러난다. 즉 세 방법의 비용 위치가 다르다 — NL은 random access 반복(Buffers), SM은 정렬(메모리·CPU, 대용량이면 Used-Tmp로 디스크), hash는 build 메모리. 테이블이 커지면 각자의 급소(반복 폭증 / temp 넘침 / build 메모리 초과)가 달라지므로, 판정은 Buffers + 메모리 컬럼(OMem·Used-Mem·Used-Tmp)을 같이 보고 건수·등호·인덱스 유무로 고른다.",
+      "k": ["Buffers=논리 I/O만", "정렬은 PGA·CPU", "Used-Mem", "Used-Tmp=temp 넘침", "build 메모리", "NL=반복", "비용 위치가 다르다"]
+    },
+    {
+      "id": "e74b",
+      "d": 74,
+      "q": "SM 기본 플랜에서 DEPT 쪽에는 SORT JOIN이 없고 INDEX FULL SCAN이 있었다. 이것이 의미하는 바와, 이 원리가 이전에 배운 어떤 내용의 재등장인지 설명하라.",
+      "a": "SM은 양쪽을 조인 키로 정렬해야 하는데, DEPT_IDX(department_id PK 인덱스)를 INDEX FULL SCAN으로 읽으면 이미 department_id 순서로 나온다. 정렬된 순서를 인덱스가 공짜로 제공하므로 옵티마이저가 DEPT 쪽 SORT JOIN을 생략했다. 이는 §5.5에서 배운 'INDEX FULL SCAN은 정렬된 결과라 ORDER BY를 흡수(sort 생략)한다'는 원리가 조인 정렬에서 재등장한 것이다. 반대로 full(d)를 강제하면 인덱스를 못 쓰니 DEPT 쪽에도 SORT JOIN이 생긴다.",
+      "k": ["인덱스가 정렬 대체", "INDEX FULL SCAN=정렬된 순서", "SORT JOIN 생략", "ORDER BY 흡수의 재등장", "full 강제 시 SORT JOIN 부활"]
+    }
+  ],
+  "TERMS": [
+    {
+      "t": "Sort Merge Join",
+      "e": "양쪽을 조인 키로 정렬한 뒤 병합(merge)하는 조인.",
+      "d": "건수 많을 때 유리, sort 부하 감수. 정렬은 PGA sort area에서(SGA 경유보다 빠름). 인덱스가 조인 키 순서를 제공하면 그쪽 SORT JOIN은 생략된다. SORT JOIN의 Starts가 커도 정렬은 1번(재사용). 힌트 use_merge."
+    },
+    {
+      "t": "Hash Join (build/probe)",
+      "e": "작은 쪽을 해시 테이블(build)로 만들고 큰 쪽이 찾아가는(probe) 조인.",
+      "d": "build는 hash_area_size 영역에 생성. 해시 키 중복(충돌)이 적을수록 유리, = 조건 전용. 대량 처리에서 NL의 random access 부담과 SM의 정렬 부담을 동시에 피한다. 힌트 use_hash."
+    },
+    {
+      "t": "OMem/1Mem/Used-Mem/Used-Tmp",
+      "e": "플랜의 정렬·해시 작업영역 컬럼.",
+      "d": "OMem=optimal(메모리 한 번에) 예상 크기, 1Mem=one-pass 예상 크기, Used-Mem=실제 사용량(끝의 (0)=optimal), Used-Tmp=메모리 부족으로 temp를 쓴 크기(KB). Used-Tmp가 보이면 정렬/해시가 디스크로 넘친 신호."
+    },
+    {
+      "t": "swap_join_inputs",
+      "e": "해시 조인의 build/probe를 맞바꾸는 힌트.",
+      "d": "옵티마이저는 leading 순서를 유지하면서도 build만 더 작은 쪽으로 스스로 바꿀 수 있다(3테이블 실습에서 LOC이 build로 승격). 고정하려면 no_swap_join_inputs, 강제로 바꾸려면 swap_join_inputs. outer join을 뒤집을 때도 사용(→ HASH JOIN RIGHT OUTER)."
+    },
+    {
+      "t": "outer join 순서 규칙",
+      "e": "(+)가 붙지 않은 테이블이 항상 선행(outer·first·build).",
+      "d": "모든 행을 보존해야 하는 쪽이 선행으로 강제되는 문법 규칙 — leading 힌트보다 우선한다(실습에서 leading(d,e) 무시됨, 결과 107행). swap_join_inputs로만 build를 뒤집을 수 있다."
+    },
+    {
+      "t": "Index Join (index$_join$)",
+      "e": "한 테이블의 여러 인덱스를 rowid로 조인해 테이블 접근을 생략.",
+      "d": "SELECT 컬럼이 전부 인덱스에 포함될 때만 작동. 각 인덱스를 fast full scan한 뒤 rowid를 키로 해시 조인(access(ROWID=ROWID)) — 같은 행의 컬럼들을 rowid로 맞춰 붙인다. random access가 없다."
+    }
+  ],
+  "PLANQ": [
+    {
+      "id": "pl74a",
+      "q": "옵티마이저 기본으로 실행된 emp⋈dept의 Sort Merge 플랜이다. ① DEPT 쪽에 SORT JOIN이 없는 이유 ② Id 4의 Starts=27인데 Id 5의 Starts=1인 이유를 설명하라.",
+      "plan": "| 1 |  MERGE JOIN                  |          | Starts 1  | Buffers 15 |\n| 2 |   TABLE ACCESS BY INDEX ROWID| DEPT     | Starts 1  | Buffers 12 |\n| 3 |    INDEX FULL SCAN           | DEPT_IDX | Starts 1  | Buffers  6 |\n|*4 |   SORT JOIN                  |          | Starts 27 | Buffers  3 | Used-Mem 16K |\n| 5 |    TABLE ACCESS FULL         | EMP      | Starts 1  | Buffers  3 |",
+      "a": "① DEPT_IDX를 INDEX FULL SCAN으로 읽으면 department_id 순서로 나온다 — SM에 필요한 '조인 키 정렬'을 인덱스가 이미 제공하므로 DEPT 쪽 SORT JOIN이 생략됐다(§5.5 ORDER BY 흡수의 조인 버전). ② EMP는 Id 5에서 한 번만(Starts 1) 읽혀 한 번만 정렬된다. Id 4 SORT JOIN의 Starts 27은 바깥(DEPT 27행)이 각자 짝을 찾을 때마다 정렬된 결과를 재사용해 탐색을 시작한 횟수다 — 정렬 27번이 아니다. Used-Mem 16K(0)은 정렬이 메모리에서 optimal로 끝났다는 뜻."
+    },
+    {
+      "id": "pl74b",
+      "q": "outer join(e.department_id = d.department_id(+))에 leading(d,e) use_nl(e)를 줬는데 아래 플랜이 나왔다. ① 힌트가 반영되지 않은 부분과 그 이유 ② A-Rows가 106이 아니라 107인 이유를 설명하라.",
+      "plan": "|*1 |  HASH JOIN OUTER   |      | Starts 1 | A-Rows 107 | Buffers 10 |\n| 2 |   TABLE ACCESS FULL| EMP  | Starts 1 | A-Rows 107 | Buffers  3 |\n| 3 |   TABLE ACCESS FULL| DEPT | Starts 1 | A-Rows  27 | Buffers  7 |",
+      "a": "① leading(d,e)가 무시되고 EMP가 선행(build)이다 — outer join에서는 (+)가 붙지 않은 테이블(모든 행을 보존해야 하는 EMP)이 항상 선행으로 강제되는 문법 규칙이 힌트보다 우선한다. use_nl도 반영되지 않고 HASH JOIN OUTER가 됐다. 뒤집으려면 swap_join_inputs(d)로 HASH JOIN RIGHT OUTER를 만든다. ② 일반 조인은 부서 없는 사원이 탈락해 106행이지만, outer join은 짝 없는 EMP 행도 NULL을 붙여 보존하므로 107행 전부가 나온다."
+    }
+  ]
+}
