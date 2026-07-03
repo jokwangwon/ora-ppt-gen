@@ -21,6 +21,7 @@ PPT는 HTML에서 파생하되 **새 사실을 지어내지 않는다.**
 | `review.py`          | 검토/정확성 상태 관리 CLI → `review_status.json` (사람 소유, git 추적) |
 | `.claude/skills/study` | `/study` — 모르는 걸 물으면 설명 + 문서/PPT 담기 선택 + 오류 시 교정 제안 |
 | `.claude/skills/review-doc` | `/review-doc` — 문서 사실 오류를 LLM 정독으로 검증·최소 교정 |
+| `.claude/skills/plan-drill` | `/plan-drill` — 실행계획 해석 문제 출제·채점(완성된 플랜 제시→말로 해석, Q1사실·Q2인과·Q3판단, 오독 진단·공식·비유·질문 포착함). 단계·약점은 `days/drill_log.md`. |
 | `extract_slides.py`  | HTML 문서 → 슬라이드 스펙 JSON (추출) |
 | `svg_snippets.py`    | 인라인 SVG 다이어그램 생성기(정의된 클래스만 → 검은박스 0) |
 | `lint_authoring.py`  | 저작 품질 린터 — 개념(h3.blk)별 다이어그램·실측·서사 점수화 |
