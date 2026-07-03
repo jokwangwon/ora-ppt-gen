@@ -35,7 +35,7 @@ ul,ol{padding-left:22px}
 <li><b>swap_join_inputs</b> — 옵티마이저가 build/probe를 맞바꿈, no_swap_join_inputs로 고정 · <a href='../assets/sql_tuning.html#join' class='cmp-link'>문서 §7.11</a></li>
 <li><b>outer join 순서 규칙</b> — (+) 없는 쪽이 항상 선행(build), leading보다 우선 · <a href='../assets/sql_tuning.html#join' class='cmp-link'>문서 §7.11</a></li>
 <li><b>오타 사례 2탄</b> — gather_plan_statistcs → 플랜 Note에 통계 경고 · <a href='../assets/sql_tuning.html#join' class='cmp-link'>문서 §7.11</a></li>
-<li><b>Index Join</b> — 한 테이블의 여러 인덱스를 rowid로 해시 조인, SELECT 컬럼 전부 인덱스에 있을 때만 · <a href='../assets/sql_tuning.html#join' class='cmp-link'>문서 §7.12</a></li>
+<li><b>Index Join</b> — 한 테이블의 여러 인덱스를 rowid로 해시 조인, SELECT 컬럼 전부 인덱스에 있을 때만. <code>index_join</code> 힌트로 <b>filter까지 access로</b>(4→3), 단 만능 아님(16 vs full 11) · <a href='../assets/sql_tuning.html#join' class='cmp-link'>문서 §7.12</a></li>
 <li><b>3형제 선택 기준</b> — 건수·등호·인덱스·메모리 · <a href='../assets/sql_tuning.html#join' class='cmp-link'>문서 §7.13</a></li>
 </ol>
 <h3>[실습 명령어 정리] (실행 순서 + 결과 요지)</h3>
@@ -50,6 +50,8 @@ ul,ol{padding-left:22px}
 <tr><td>8</td><td>outer: <code>where e.department_id = d.department_id(+)</code></td><td><code>leading(d,e)</code> <b>무시</b> — (+) 없는 EMP가 선행, HASH JOIN OUTER, <b>107행</b></td></tr>
 <tr><td>9</td><td><code>swap_join_inputs(d)</code></td><td>HASH JOIN <b>RIGHT OUTER</b> — DEPT를 build로</td></tr>
 <tr><td>10</td><td>3테이블 + 인덱스 있는 상태 재실행</td><td><b>index$_join$</b> 등장 — LOC_CITY_IDX ⋈ LOC_IDX 를 rowid로 해시 조인(테이블 안 감)</td></tr>
+<tr><td>11</td><td><code>select employee_id, job_id from hr.emp</code> (힌트 없음)</td><td>옵티마이저가 <b>스스로 index join</b> 선택(16) — 그런데 <code>full(e)</code> 강제가 <b>11</b>로 더 쌈</td></tr>
+<tr><td>12</td><td><code>employee_id&lt;110 and job_id='IT_PROG'</code> → <code>index_join</code> 힌트</td><td>기본 4(JOB_IDX access + 테이블 filter) → <b>3</b> (두 인덱스 RANGE SCAN, <b>두 조건 모두 access</b>, 테이블 접근 0)</td></tr>
 </table>
 <h3>[5줄 요약]</h3>
 <ol>

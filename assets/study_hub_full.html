@@ -2286,6 +2286,15 @@ Predicate Information:
 <span class="out">| 6 |      INDEX FAST FULL SCAN| LOC_IDX          |  4 |</span></pre>
   <div class="why"><span class="h">rowid로 자기 자신과 조인</span>
   두 인덱스를 각각 fast full scan해서 <b>rowid를 키로 해시 조인</b>(<code class="inl">access(ROWID=ROWID)</code>) — 같은 행의 city와 location_id를 rowid로 맞춰 붙이니 테이블 블록엔 갈 필요가 없다. §5.2 "인덱스만으로 충당되면 테이블 안 간다"의 조인 버전.</div>
+  <p style="margin-top:14px"><b class="k">심화 실측 — 조건 두 개가 서로 다른 인덱스에 있을 때</b> (<code class="inl">employee_id&lt;110 AND job_id='IT_PROG'</code>):</p>
+  <pre class="term"><span class="cm">-- 기본: EMP_JOB_IDX로 진입 + 테이블에서 employee_id 확인 — Buffers 4</span>
+<span class="out">|*1 |  EMP BY INDEX ROWID BATCHED |             | 4 |  1 - filter(EMPLOYEE_ID&lt;110)</span>
+<span class="out">|*2 |   INDEX RANGE SCAN          | EMP_JOB_IDX | 2 |  2 - access(JOB_ID='IT_PROG')</span>
+<span class="cm">-- index_join(e emp_idx emp_job_idx): 테이블 접근 0 — Buffers 3</span>
+<span class="hl">|*2 |   HASH JOIN                 | ROWID=ROWID | 3 |</span>
+<span class="hl">|*3 |    INDEX RANGE SCAN         | EMP_JOB_IDX | 1 |  3 - access(JOB_ID='IT_PROG')</span>
+<span class="hl">|*4 |    INDEX RANGE SCAN         | EMP_IDX     | 2 |  4 - access(EMPLOYEE_ID&lt;110)</span></pre>
+  <div class="tip"><b>filter까지 access로 — 그러나 만능은 아니다</b> — 기본 플랜에선 employee_id 조건이 "진입 후 확인 filter"였는데, <code class="inl">index_join</code> 힌트를 주자 <b>두 조건이 각자의 인덱스에서 모두 access</b>로 처리되고 rowid 교집합으로 끝났다(4→3). 반면 조건 없는 조회(<code class="inl">select employee_id, job_id</code>)에선 옵티마이저가 스스로 index join(16)을 골랐지만 <b>full 강제가 11로 더 쌌다</b> — 5블록짜리 작은 테이블에선 두 인덱스 합산(4+12)이 오히려 크다. 어제부터 반복되는 결론: <b class="k">판정은 실측</b>.</div>
 
   <h3 class="blk"><span class="ix">7.13</span>조인 3형제 — 언제 무엇을 <span class="db add">74일차</span></h3>
   <table>
@@ -2820,7 +2829,8 @@ const MCQ=[
   {id:"m74b",d:74,q:"SM 기본 플랜에서 SORT JOIN의 Starts가 27인데, 그 자식 EMP full scan의 Starts는 1이었다. 올바른 해석은?",o:["EMP를 27번 정렬했다", "정렬은 1번 해두고, 바깥 27행이 짝을 찾을 때마다 정렬된 결과를 재사용해 탐색만 27번", "통계 수집 오류다", "27개 파티션을 각각 정렬했다"],a:1,e:"자식(EMP full) Starts=1 = 읽기·정렬은 한 번. SORT JOIN의 Starts 27은 정렬 '결과'에 대한 탐색 시작 횟수다. Starts가 커도 정렬 반복이 아니다."},
   {id:"m74c",d:74,q:"Hash Join에서 build table을 고르는 기준으로 옳은 것은?",o:["항상 FROM 절의 첫 테이블", "두 집합 중 작은 쪽 — 그리고 해시 키 컬럼에 중복(충돌)이 적을수록 유리", "항상 인덱스가 있는 쪽", "정렬이 이미 되어 있는 쪽"],a:1,e:"작은 집합을 hash area에 해시 테이블(build)로 올리고 큰 쪽이 probe한다. 해시 키 값에 충돌이 없을수록 좋다. 또 hash join은 = 조건에서만 쓸 수 있다."},
   {id:"m74d",d:74,q:"where e.department_id = d.department_id(+) 인 outer join에 leading(d,e)를 줬더니 EMP가 선행(build)인 플랜이 나왔다. 이유는?",o:["힌트 오타 때문", "(+)가 붙지 않은 테이블이 항상 선행(outer·first·build)으로 강제된다 — 문법 규칙이 힌트보다 우선", "EMP가 더 커서", "adaptive plan이 임의로 바꿔서"],a:1,e:"outer join에서는 (+) 없는 쪽(모든 행을 보존해야 하는 쪽)이 항상 선행 테이블로 선택된다. leading은 무시된다. 뒤집으려면 swap_join_inputs(d) → HASH JOIN RIGHT OUTER."},
-  {id:"m74e",d:74,q:"Index Join(index$_join$)이 작동하기 위한 조건은?",o:["테이블에 PK가 있을 것", "SELECT 절의 컬럼이 전부 사용되는 인덱스들 안에 포함될 것 — 그래야 테이블 접근 없이 rowid로 인덱스끼리 조인", "조인 상대 테이블이 작을 것", "인덱스가 유니크할 것"],a:1,e:"한 테이블의 여러 인덱스를 각각 fast full scan해 rowid로 해시 조인(access(ROWID=ROWID))한다. 필요한 컬럼이 인덱스 밖에 있으면 테이블에 가야 하므로 성립하지 않는다."}
+  {id:"m74e",d:74,q:"Index Join(index$_join$)이 작동하기 위한 조건은?",o:["테이블에 PK가 있을 것", "SELECT 절의 컬럼이 전부 사용되는 인덱스들 안에 포함될 것 — 그래야 테이블 접근 없이 rowid로 인덱스끼리 조인", "조인 상대 테이블이 작을 것", "인덱스가 유니크할 것"],a:1,e:"한 테이블의 여러 인덱스를 각각 fast full scan해 rowid로 해시 조인(access(ROWID=ROWID))한다. 필요한 컬럼이 인덱스 밖에 있으면 테이블에 가야 하므로 성립하지 않는다."},
+  {id:"m74f",d:74,q:"employee_id<110 AND job_id='IT_PROG' 조회의 기본 플랜(Buffers 4)은 EMP_JOB_IDX access + 테이블에서 filter(EMPLOYEE_ID<110)였다. index_join(e emp_idx emp_job_idx) 힌트를 주자 Buffers 3이 된 이유는?",o:["테이블 접근 없이 두 인덱스를 각각 RANGE SCAN해 rowid로 교집합 — 두 조건이 모두 access로 처리됨", "인덱스가 이미 버퍼 캐시에 있어서", "정렬을 생략해서", "해시 조인이 항상 인덱스 접근보다 빨라서"],a:0,e:"index_join은 각 조건을 자기 인덱스에서 access로 좁히고(JOB_IDX·EMP_IDX 각각 RANGE SCAN), rowid 해시 교집합(ROWID=ROWID)으로 붙여 테이블 블록 접근이 0이 된다(4→3). 단 만능은 아니다 — 조건 없는 조회에선 index join 16 vs full 11로 full이 더 쌌다(작은 테이블은 인덱스 둘 합산이 더 큼)."}
 ];
 
 const ESSAY=[
@@ -3424,7 +3434,7 @@ renderChips();startMcq();
 <li><b>swap_join_inputs</b> — 옵티마이저가 build/probe를 맞바꿈, no_swap_join_inputs로 고정 · <a href='sql_tuning.html#join' class='cmp-link'>문서 §7.11</a></li>
 <li><b>outer join 순서 규칙</b> — (+) 없는 쪽이 항상 선행(build), leading보다 우선 · <a href='sql_tuning.html#join' class='cmp-link'>문서 §7.11</a></li>
 <li><b>오타 사례 2탄</b> — gather_plan_statistcs → 플랜 Note에 통계 경고 · <a href='sql_tuning.html#join' class='cmp-link'>문서 §7.11</a></li>
-<li><b>Index Join</b> — 한 테이블의 여러 인덱스를 rowid로 해시 조인, SELECT 컬럼 전부 인덱스에 있을 때만 · <a href='sql_tuning.html#join' class='cmp-link'>문서 §7.12</a></li>
+<li><b>Index Join</b> — 한 테이블의 여러 인덱스를 rowid로 해시 조인, SELECT 컬럼 전부 인덱스에 있을 때만. <code>index_join</code> 힌트로 <b>filter까지 access로</b>(4→3), 단 만능 아님(16 vs full 11) · <a href='sql_tuning.html#join' class='cmp-link'>문서 §7.12</a></li>
 <li><b>3형제 선택 기준</b> — 건수·등호·인덱스·메모리 · <a href='sql_tuning.html#join' class='cmp-link'>문서 §7.13</a></li>
 </ol>
 <h3>[실습 명령어 정리] (실행 순서 + 결과 요지)</h3>
@@ -3439,6 +3449,8 @@ renderChips();startMcq();
 <tr><td>8</td><td>outer: <code>where e.department_id = d.department_id(+)</code></td><td><code>leading(d,e)</code> <b>무시</b> — (+) 없는 EMP가 선행, HASH JOIN OUTER, <b>107행</b></td></tr>
 <tr><td>9</td><td><code>swap_join_inputs(d)</code></td><td>HASH JOIN <b>RIGHT OUTER</b> — DEPT를 build로</td></tr>
 <tr><td>10</td><td>3테이블 + 인덱스 있는 상태 재실행</td><td><b>index$_join$</b> 등장 — LOC_CITY_IDX ⋈ LOC_IDX 를 rowid로 해시 조인(테이블 안 감)</td></tr>
+<tr><td>11</td><td><code>select employee_id, job_id from hr.emp</code> (힌트 없음)</td><td>옵티마이저가 <b>스스로 index join</b> 선택(16) — 그런데 <code>full(e)</code> 강제가 <b>11</b>로 더 쌈</td></tr>
+<tr><td>12</td><td><code>employee_id&lt;110 and job_id='IT_PROG'</code> → <code>index_join</code> 힌트</td><td>기본 4(JOB_IDX access + 테이블 filter) → <b>3</b> (두 인덱스 RANGE SCAN, <b>두 조건 모두 access</b>, 테이블 접근 0)</td></tr>
 </table>
 <h3>[5줄 요약]</h3>
 <ol>

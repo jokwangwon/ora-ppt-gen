@@ -64,6 +64,19 @@
       ],
       "a": 1,
       "e": "한 테이블의 여러 인덱스를 각각 fast full scan해 rowid로 해시 조인(access(ROWID=ROWID))한다. 필요한 컬럼이 인덱스 밖에 있으면 테이블에 가야 하므로 성립하지 않는다."
+    },
+    {
+      "id": "m74f",
+      "d": 74,
+      "q": "employee_id<110 AND job_id='IT_PROG' 조회의 기본 플랜(Buffers 4)은 EMP_JOB_IDX access + 테이블에서 filter(EMPLOYEE_ID<110)였다. index_join(e emp_idx emp_job_idx) 힌트를 주자 Buffers 3이 된 이유는?",
+      "o": [
+        "테이블 접근 없이 두 인덱스를 각각 RANGE SCAN해 rowid로 교집합 — 두 조건이 모두 access로 처리됨",
+        "인덱스가 이미 버퍼 캐시에 있어서",
+        "정렬을 생략해서",
+        "해시 조인이 항상 인덱스 접근보다 빨라서"
+      ],
+      "a": 0,
+      "e": "index_join은 각 조건을 자기 인덱스에서 access로 좁히고(JOB_IDX·EMP_IDX 각각 RANGE SCAN), rowid 해시 교집합(ROWID=ROWID)으로 붙여 테이블 블록 접근이 0이 된다(4→3). 단 만능은 아니다 — 조건 없는 조회에선 index join 16 vs full 11로 full이 더 쌌다(작은 테이블은 인덱스 둘 합산이 더 큼)."
     }
   ],
   "ESSAY": [
@@ -72,14 +85,28 @@
       "d": 74,
       "q": "같은 emp⋈dept(필터 없음)에서 NL(batch) 35, hash 13, SM full 강제 5가 나왔다. 'Buffers가 가장 낮은 SM이 항상 최선'이라는 결론이 왜 위험한지, 세 방법의 비용이 각각 어디에 숨는지로 설명하라.",
       "a": "Buffers는 논리 I/O(블록 읽기)만 센다. SM full의 5는 두 full scan(2+3)뿐이라 낮지만, 정렬 비용은 Buffers에 찍히지 않고 PGA 메모리(Used-Mem 16K)와 CPU로 치른다. hash의 13도 build 해시 테이블 메모리(Used-Mem 1.5M)는 별도다. NL의 35는 반복 probe가 그대로 Buffers에 드러난다. 즉 세 방법의 비용 위치가 다르다 — NL은 random access 반복(Buffers), SM은 정렬(메모리·CPU, 대용량이면 Used-Tmp로 디스크), hash는 build 메모리. 테이블이 커지면 각자의 급소(반복 폭증 / temp 넘침 / build 메모리 초과)가 달라지므로, 판정은 Buffers + 메모리 컬럼(OMem·Used-Mem·Used-Tmp)을 같이 보고 건수·등호·인덱스 유무로 고른다.",
-      "k": ["Buffers=논리 I/O만", "정렬은 PGA·CPU", "Used-Mem", "Used-Tmp=temp 넘침", "build 메모리", "NL=반복", "비용 위치가 다르다"]
+      "k": [
+        "Buffers=논리 I/O만",
+        "정렬은 PGA·CPU",
+        "Used-Mem",
+        "Used-Tmp=temp 넘침",
+        "build 메모리",
+        "NL=반복",
+        "비용 위치가 다르다"
+      ]
     },
     {
       "id": "e74b",
       "d": 74,
       "q": "SM 기본 플랜에서 DEPT 쪽에는 SORT JOIN이 없고 INDEX FULL SCAN이 있었다. 이것이 의미하는 바와, 이 원리가 이전에 배운 어떤 내용의 재등장인지 설명하라.",
       "a": "SM은 양쪽을 조인 키로 정렬해야 하는데, DEPT_IDX(department_id PK 인덱스)를 INDEX FULL SCAN으로 읽으면 이미 department_id 순서로 나온다. 정렬된 순서를 인덱스가 공짜로 제공하므로 옵티마이저가 DEPT 쪽 SORT JOIN을 생략했다. 이는 §5.5에서 배운 'INDEX FULL SCAN은 정렬된 결과라 ORDER BY를 흡수(sort 생략)한다'는 원리가 조인 정렬에서 재등장한 것이다. 반대로 full(d)를 강제하면 인덱스를 못 쓰니 DEPT 쪽에도 SORT JOIN이 생긴다.",
-      "k": ["인덱스가 정렬 대체", "INDEX FULL SCAN=정렬된 순서", "SORT JOIN 생략", "ORDER BY 흡수의 재등장", "full 강제 시 SORT JOIN 부활"]
+      "k": [
+        "인덱스가 정렬 대체",
+        "INDEX FULL SCAN=정렬된 순서",
+        "SORT JOIN 생략",
+        "ORDER BY 흡수의 재등장",
+        "full 강제 시 SORT JOIN 부활"
+      ]
     }
   ],
   "TERMS": [
