@@ -21,7 +21,7 @@
 7. **swap_join_inputs** — 옵티마이저가 build/probe를 맞바꿈, no_swap_join_inputs로 고정 · [문서 §7.11](assets/sql_tuning.html#join)
 8. **outer join 순서 규칙** — (+) 없는 쪽이 항상 선행(build), leading보다 우선 · [문서 §7.11](assets/sql_tuning.html#join)
 9. **오타 사례 2탄** — gather_plan_statistcs → 플랜 Note에 통계 경고 · [문서 §7.11](assets/sql_tuning.html#join)
-10. **Index Join** — 한 테이블의 여러 인덱스를 rowid로 해시 조인, SELECT 컬럼 전부 인덱스에 있을 때만 · [문서 §7.12](assets/sql_tuning.html#join)
+10. **Index Join** — 한 테이블의 여러 인덱스를 rowid로 해시 조인, SELECT 컬럼 전부 인덱스에 있을 때만. `index_join` 힌트로 **filter까지 access로**(4→3), 단 만능 아님(16 vs full 11) · [문서 §7.12](assets/sql_tuning.html#join)
 11. **3형제 선택 기준** — 건수·등호·인덱스·메모리 · [문서 §7.13](assets/sql_tuning.html#join)
 
 ## [실습 명령어 정리] (실행 순서 + 결과 요지)
@@ -38,6 +38,8 @@
 | 8 | outer: `where e.department_id = d.department_id(+)` | `leading(d,e)` **무시** — (+) 없는 EMP가 선행, HASH JOIN OUTER, **107행** |
 | 9 | `swap_join_inputs(d)` | HASH JOIN **RIGHT OUTER** — DEPT를 build로 |
 | 10 | 3테이블 + 인덱스 있는 상태 재실행 | **index$_join$** 등장 — LOC_CITY_IDX ⋈ LOC_IDX 를 rowid로 해시 조인(테이블 안 감) |
+| 11 | `select employee_id, job_id from hr.emp` (힌트 없음) | 옵티마이저가 **스스로 index join** 선택(16) — 그런데 `full(e)` 강제가 **11**로 더 쌈 |
+| 12 | `employee_id<110 and job_id='IT_PROG'` → `index_join` 힌트 | 기본 4(JOB_IDX access + 테이블 filter) → **3** (두 인덱스 RANGE SCAN, **두 조건 모두 access**, 테이블 접근 0) |
 
 ## [5줄 요약]
 
