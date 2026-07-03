@@ -790,6 +790,71 @@ Predicate Information:
   <div class="why"><span class="h">둘 다 목적은 디스크 I/O 절감</span>
   <b>table prefetch</b> — 디스크 I/O call은 비싸니, 곧이어 읽을 가능성 높은 블록들을 <b>한 번의 I/O call로 미리</b> 버퍼 캐시에 적재한다(여러 single block 동시 수행, <span class="we">db file sequential read</span>). inner 쪽 <b>non-unique 인덱스 range scan</b>에서 발생하고, inner 행들의 <b>clustering factor가 나쁠 때</b> 효과적이다. <b>batch i/o</b> — inner 인덱스와 조인해 <b>중간 결과집합을 만든 뒤</b>, inner 테이블 접근을 <b>일괄(fetch call 단위)</b> 처리해 디스크 I/O를 줄인다(prefetch에 이어 추가 도입). 주의 — <b class="k">prefetch 모양이 그려져 있다고 항상 작동하는 건 아니다</b>. 기능이 활성화됐다는 표시일 뿐이다.</div>
   <div class="tip"><b>optimizer_features_enable</b> — 옵티마이저 동작을 특정 버전으로 고정하는 힌트/파라미터. 실무에선 업그레이드 회귀 비교, 학습에선 이번처럼 <b>버전별 플랜 모양 비교</b>에 쓴다. §7.7 실험에서 교과서 모양(10.1)을 만든 것도 이것.</div>
+
+  <h3 class="blk"><span class="ix">7.9</span>Sort Merge Join — 정렬 두 번, 병합 한 번 <span class="db add">74일차</span></h3>
+  <p>NL은 건건이 버퍼 캐시를 오가는 <b>random access 위주</b>라 대용량에서 한계가 있다. <b class="k">Sort Merge</b>는 ① 양쪽 집합을 조인 키로 <b>각각 정렬</b>하고 ② 정렬된 둘을 <b>merge</b>한다. 건수가 많을 때 유리하고, 대신 <b>sort 부하</b>를 감수한다. 정렬은 <b>PGA의 sort area</b>에서 하므로 SGA를 경유하는 접근보다 빠르다. 힌트 <code class="inl">use_merge</code>.</p>
+  <pre class="term"><span class="cm">-- 옵티마이저 기본 (emp⋈dept, 필터 없음) — Buffers 15</span>
+<span class="out">| 1 |  MERGE JOIN                  |          | Buffers 15 |</span>
+<span class="hl">| 2 |   DEPT BY INDEX ROWID        |          |         12 |  ← SORT JOIN이 없다!</span>
+<span class="out">| 3 |    INDEX FULL SCAN DEPT_IDX  |          |          6 |  (인덱스 순서 = 정렬 대체)</span>
+<span class="hl">|*4 |   SORT JOIN   Starts 27      | Used-Mem 16K |      3 |  ← 27번 시작, 정렬은 1번</span>
+<span class="out">| 5 |    TABLE ACCESS FULL EMP     | Starts 1 |          3 |</span></pre>
+  <div class="why"><span class="h">이 플랜의 비밀 둘</span>
+  ① <b>DEPT 쪽엔 SORT JOIN이 없다</b> — <code class="inl">INDEX FULL SCAN</code>이 department_id 순서로 읽어주니 <b>인덱스가 정렬을 대체</b>했다(§5.5의 "ORDER BY 흡수"가 조인에서 재등장). ② <b>SORT JOIN의 Starts=27인데 정렬은 한 번</b> — 자식 EMP full의 Starts는 1이다. 정렬은 처음 한 번 해두고, 바깥 27행이 각자 짝을 찾을 때마다 <b>정렬된 결과를 재사용</b>해 탐색만 27번 한 것. Starts가 커도 놀라지 말 것.</div>
+  <table>
+    <tr><th>컬럼</th><th>뜻</th></tr>
+    <tr><td><b>OMem</b></td><td>optimal sort(메모리에서 한 번에)에 필요한 예상 정렬 영역 크기</td></tr>
+    <tr><td><b>1Mem</b></td><td>one-pass sort에 필요한 예상 크기</td></tr>
+    <tr><td><b>Used-Mem</b></td><td>실제 사용한 정렬 영역 크기 — 끝의 <code class="inl">(0)</code>은 optimal(디스크 안 감)</td></tr>
+    <tr><td><b>Used-Tmp</b></td><td>메모리 부족으로 <b>temp를 쓴</b> 크기(KB) — 보이면 정렬이 디스크로 흘러넘친 것</td></tr>
+  </table>
+  <pre class="term"><span class="cm">-- full 강제(use_merge + full): 양쪽 다 SORT JOIN — Buffers 5 (최저!)</span>
+<span class="out">| 2 |   SORT JOIN → DEPT full  | 2 |   | 4 |   SORT JOIN → EMP full  | 3 |</span></pre>
+  <div class="tip"><b>Buffers 5의 함정</b> — SM full 강제가 NL(35)·hash(13)보다 Buffers가 낮다. 하지만 <b class="k">정렬 비용은 Buffers에 안 찍힌다</b> — CPU와 PGA 메모리(Used-Mem 16K)로 치른다. Buffers만 보고 SM이 최고라 판정하면 오독. <b>Buffers + Used-Mem(정렬량)을 같이</b> 본다. 3테이블 merge(l→d→e)도 같은 원리로 중첩되며 Buffers 7 — 중간 조인 결과를 다시 SORT JOIN으로 정렬해 다음 단계로 넘긴다.</div>
+
+  <h3 class="blk"><span class="ix">7.10</span>Hash Join — 작은 쪽으로 해시 테이블, 큰 쪽으로 probe <span class="db add">74일차</span></h3>
+  <p>NL은 대량에서 random access가 부담, SM은 정렬이 부담 — 그럴 때 <b class="k">Hash Join</b>. <b>작은 집합을 build table(해시 테이블)</b>로 만들어 <code class="inl">hash_area_size</code> 영역에 올리고, <b>큰 집합을 probe</b>하며 해시 탐색으로 조인한다. 해시 키 컬럼에 <b>중복이 적을수록</b>(충돌 없을수록) 유리하고, <b class="k">= 조건에서만</b> 쓸 수 있다. 힌트 <code class="inl">use_hash</code>.</p>
+  <pre class="term"><span class="cm">-- leading(d,e) use_hash(e) — Buffers 13</span>
+<span class="out">|*1 |  HASH JOIN         |      | 13 | Used-Mem 1500K |</span>
+<span class="hl">| 2 |   TABLE ACCESS FULL| DEPT |  2 |  ← build (작은 쪽 27행)</span>
+<span class="hl">| 3 |   TABLE ACCESS FULL| EMP  | 10 |  ← probe (큰 쪽 107행)</span>
+<span class="cm">-- 해시 버킷을 눈으로: ora_hash(department_id, 10)</span>
+<span class="pr">SYS&gt;</span> select ora_hash(department_id,10), department_id, department_name from hr.dept order by 1;
+<span class="out">  1   60  IT          ← dept 60은 버킷 1에</span>
+<span class="out">  1  210  IT Support     (버킷 하나에 여럿 = 충돌도 있다)</span>
+<span class="pr">SYS&gt;</span> select ora_hash(department_id,10), employee_id, last_name from hr.emp order by 1;
+<span class="out">  1   60  103 Hunold  ← emp의 60번 사원들도 같은 버킷 1로 찾아간다</span></pre>
+  <div class="why"><span class="h">동작 그림</span>
+  ① DEPT 27행을 <code class="inl">ora_hash(department_id)</code>류의 해시로 <b>버킷에 분류</b>해 메모리에 올린다(build). ② EMP 107행을 하나씩 읽으며 <b>같은 해시 함수</b>를 통과시켜 해당 버킷만 뒤진다(probe) — 정렬도, 반복 인덱스 탐색도 없다. 조인 자체는 메모리에서 끝나 Buffers는 두 full scan(2+10)+α다. 등호(=)가 아니면 해시 버킷 매칭이 성립하지 않아 못 쓴다.</div>
+
+  <h3 class="blk"><span class="ix">7.11</span>build를 바꿔치는 옵티마이저 — swap_join_inputs <span class="db add">74일차</span></h3>
+  <p>3테이블 해시(<code class="inl">leading(d,e,l)</code>)를 돌렸더니, 어떤 실행에선 <b>LOC이 위(build)로 올라간 플랜</b>이 나왔다. 순서 힌트를 줬는데도 옵티마이저가 <b class="k">해시의 build/probe만 맞바꾼 것</b> — 조인 순서는 유지하되 "누구를 메모리에 올릴지"는 더 작은 쪽으로 스스로 바꾼다.</p>
+  <pre class="term"><span class="cm">-- 같은 leading(d,e,l)인데:  ①                          ②</span>
+<span class="out">|1| HASH JOIN               |1| HASH JOIN     ← LOC이 build로 승격</span>
+<span class="out">|2|  HASH JOIN (d build)    |2|  TABLE ACCESS FULL LOC</span>
+<span class="out">|5|  TABLE ACCESS FULL LOC  |3|  HASH JOIN (d⋈e 결과가 probe)</span>
+<span class="cm">-- 원위치 강제: no_swap_join_inputs(l) / 반대 강제: swap_join_inputs</span></pre>
+  <div class="tip"><b>outer join은 순서가 문법으로 강제된다</b> — <code class="inl">(+)가 붙지 않은 테이블이 항상 선행(outer·first·build)</code>. 그래서 <code class="inl">where e.department_id = d.department_id(+)</code>에선 <code class="inl">leading(d,e)</code>를 줘도 <b>무시되고</b> EMP가 선행인 <code class="inl">HASH JOIN OUTER</code>가 나온다(결과 107행 — 부서 없는 사원도 살아남음). 뒤집고 싶으면 <code class="inl">swap_join_inputs(d)</code> → <code class="inl">HASH JOIN RIGHT OUTER</code>(DEPT build, Buffers 13). 그리고 오늘도 오타 사례 — <code class="inl">gather_plan_statistcs</code>(i 누락)로 돌리자 플랜에 <b>"basic plan statistics not available" 경고</b>가 남고 Starts/A-Rows가 안 찍혔다. 힌트 오타는 조용히 무시되지만, 이번엔 플랜 Note가 알려줬다.</div>
+
+  <h3 class="blk"><span class="ix">7.12</span>Index Join — 테이블에 안 가고 인덱스끼리 조인 <span class="db add">74일차</span></h3>
+  <p><b class="k">한 테이블에 속한 여러 인덱스</b>를 이용해 random access 없이 결과를 만드는 방식. <b>SELECT 컬럼이 전부 인덱스에 포함될 때만</b> 작동한다.</p>
+  <pre class="term"><span class="cm">-- loc의 city·location_id 둘 다 인덱스에 있음 → 테이블 접근 없이</span>
+<span class="out">| 3 |    VIEW                  | index$_join$_003 | 23행 | 8 |</span>
+<span class="hl">|*4 |     HASH JOIN            |  access(ROWID=ROWID)  | 8 |</span>
+<span class="out">| 5 |      INDEX FAST FULL SCAN| LOC_CITY_IDX     |  4 |</span>
+<span class="out">| 6 |      INDEX FAST FULL SCAN| LOC_IDX          |  4 |</span></pre>
+  <div class="why"><span class="h">rowid로 자기 자신과 조인</span>
+  두 인덱스를 각각 fast full scan해서 <b>rowid를 키로 해시 조인</b>(<code class="inl">access(ROWID=ROWID)</code>) — 같은 행의 city와 location_id를 rowid로 맞춰 붙이니 테이블 블록엔 갈 필요가 없다. §5.2 "인덱스만으로 충당되면 테이블 안 간다"의 조인 버전.</div>
+
+  <h3 class="blk"><span class="ix">7.13</span>조인 3형제 — 언제 무엇을 <span class="db add">74일차</span></h3>
+  <table>
+    <tr><th>방법</th><th>유리한 상황</th><th>비용의 정체</th><th>힌트</th></tr>
+    <tr><td><b>NL</b></td><td>소량 + driven 조인키 인덱스, 첫 행 빨리</td><td>바깥 행 수 × probe (random access)</td><td><code class="inl">use_nl</code></td></tr>
+    <tr><td><b>Sort Merge</b></td><td>대량 · 양쪽 정렬 가능(인덱스가 대체하면 더 좋음)</td><td><b>정렬</b>(PGA·CPU — Buffers엔 안 보임)</td><td><code class="inl">use_merge</code></td></tr>
+    <tr><td><b>Hash</b></td><td>대량 · <b>= 조인</b> · 작은 build + 중복 적은 키</td><td>해시 테이블 메모리(hash area)</td><td><code class="inl">use_hash</code></td></tr>
+  </table>
+  <div class="why"><span class="h">오늘 실측으로 보면 (emp 107 ⋈ dept 27, 필터 없음)</span>
+  NL(batch) <b>35</b> · hash <b>13</b> · SM full <b>5</b> — Buffers만 보면 SM 승. 하지만 SM의 정렬(Used-Mem 16K)과 hash의 build 메모리(1.5M)는 Buffers 밖의 비용이다. 테이블이 커지면: NL은 반복이(random), SM은 정렬이(temp 넘침 = Used-Tmp), hash는 build가 메모리를 넘칠 때가 각자의 급소. <b class="k">판정은 Buffers + 메모리 컬럼을 같이, 그리고 건수·등호 여부·인덱스 유무로 고른다.</b></div>
 </section>
 
 <section class="part" id="road">

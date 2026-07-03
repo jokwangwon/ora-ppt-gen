@@ -58,6 +58,10 @@
     "72": {
       "status": "reviewing",
       "note": "덱 하이브리드 + 문서·문제 저작 완료. 문서: §5.6 접근경로 4플랜·§5.7 비트맵(구조/조각잠금)·§6.6 10046(추적파일/tkprof/bind peeking)·§6.7 BCHR(숫자대비)·§7 조인(driving/driven·Predicate/*·access-filter). 덱 보강: [10] BCHR 숫자, [20] driven 인덱스, [21] Predicate/access=driven 인덱스 증거. 문제 MCQ5·ESSAY2·TERMS7·PLANQ2. 허브 용어 검색창 추가."
+    },
+    "74": {
+      "status": "reviewing",
+      "note": "축=조인 3형제(SM·Hash·outer·index join). 문서 §7.9~7.13(인덱스가 정렬 대체·SORT JOIN Starts 재사용·build/probe·ora_hash·swap_join_inputs·outer 순서규칙·Buffers 밖 비용). 문제 MCQ5·ESSAY2·TERMS6·PLANQ2(근거대조 0건). 덱 19장·복습시트 내장."
     }
   }
 }
