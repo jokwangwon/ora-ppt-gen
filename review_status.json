@@ -62,6 +62,10 @@
     "74": {
       "status": "reviewing",
       "note": "축=조인 3형제(SM·Hash·outer·index join). 문서 §7.9~7.13(인덱스가 정렬 대체·SORT JOIN Starts 재사용·build/probe·ora_hash·swap_join_inputs·outer 순서규칙·Buffers 밖 비용). 문제 MCQ5·ESSAY2·TERMS6·PLANQ2(근거대조 0건). 덱 19장·복습시트 내장."
+    },
+    "75": {
+      "status": "reviewing",
+      "note": "결석일 — 동기 수강생 PDF 기반. 축=쿼리 변환(filter↔unnest·조인 제거). 문서 §8.1~8.5(서브쿼리 4종·filter 47/최악214→12번 캐시·unnest semi 12·qb_name·조인제거 PK-FK·semi/anti·NOT IN null). 문제 MCQ6·ESSAY2·TERMS7·PLANQ2(근거대조 0건). 덱 19장. 캡처 누락 실험은 compare.md 홈랩 재현 목록."
     }
   }
 }

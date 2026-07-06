@@ -9,7 +9,7 @@
 <style>
 :root{
   --bg:#F6F7F9;--panel:#FFFFFF;--ink:#161B22;--muted:#5A6472;--line:#E4E8EE;
-  --d62:#6E56CF;--d63:#0E9F8C;--d64:#DB7B2B;--d65:#34528C;--d66:#B23A6F;--d67:#8C6A43;--d68:#4E8A57;--d69:#A23E8C;--d70:#3C7D5A;--d71:#B5642A;--d72:#C74634;--d73:#0563C1;--d74:#70AD47;--dsim:#2B7A9B;
+  --d62:#6E56CF;--d63:#0E9F8C;--d64:#DB7B2B;--d65:#34528C;--d66:#B23A6F;--d67:#8C6A43;--d68:#4E8A57;--d69:#A23E8C;--d70:#3C7D5A;--d71:#B5642A;--d72:#C74634;--d73:#0563C1;--d74:#70AD47;--d75:#7C3AED;--dsim:#2B7A9B;
   --ok:#1F9D63;--ok-t:#e3f5ec;--no:#D6453D;--no-t:#fbe6e4;--accent:#2D6FE0;--accent-t:#e7f0fd;--cl:#C9622B;--cl-t:#fbeadf;
   --mono:'JetBrains Mono',ui-monospace,monospace;--sans:'Pretendard',system-ui,sans-serif;
 }
@@ -29,14 +29,14 @@ h1{font-size:24px;font-weight:800;letter-spacing:-.02em;margin:7px 0 3px}
 .chip.d62.on{background:var(--d62);border-color:var(--d62)}.chip.d63.on{background:var(--d63);border-color:var(--d63)}
 .chip.d64.on{background:var(--d64);border-color:var(--d64)}.chip.d65.on{background:var(--d65);border-color:var(--d65)}
 .chip.d66.on{background:var(--d66);border-color:var(--d66)}.chip.d67.on{background:var(--d67);border-color:var(--d67)}
-.chip.d68.on{background:var(--d68);border-color:var(--d68)}.chip.d69.on{background:var(--d69);border-color:var(--d69)}.chip.d70.on{background:var(--d70);border-color:var(--d70)}.chip.d71.on{background:var(--d71);border-color:var(--d71)}.chip.dsim.on{background:var(--dsim);border-color:var(--dsim)}.chip.d72.on{background:var(--d72);border-color:var(--d72)}.chip.d73.on{background:var(--d73);border-color:var(--d73)}.chip.d74.on{background:var(--d74);border-color:var(--d74)}
+.chip.d68.on{background:var(--d68);border-color:var(--d68)}.chip.d69.on{background:var(--d69);border-color:var(--d69)}.chip.d70.on{background:var(--d70);border-color:var(--d70)}.chip.d71.on{background:var(--d71);border-color:var(--d71)}.chip.dsim.on{background:var(--dsim);border-color:var(--dsim)}.chip.d72.on{background:var(--d72);border-color:var(--d72)}.chip.d73.on{background:var(--d73);border-color:var(--d73)}.chip.d74.on{background:var(--d74);border-color:var(--d74)}.chip.d75.on{background:var(--d75);border-color:var(--d75)}
 .bar{height:7px;background:var(--line);border-radius:99px;overflow:hidden;margin:10px 0 2px}
 .bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
 .meta{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:12px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:17px;margin:11px 0;box-shadow:0 1px 2px rgba(0,0,0,.03)}
 .daytag{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;margin-bottom:8px}
 .dt62{background:#efeafc;color:var(--d62)}.dt63{background:#e2f6f3;color:var(--d63)}.dt64{background:#fbeedd;color:var(--d64)}
-.dt65{background:#e8edf6;color:var(--d65)}.dt66{background:#f9e7f0;color:var(--d66)}.dt67{background:#f0e9dd;color:var(--d67)}.dt68{background:#e7f1e9;color:var(--d68)}.dt69{background:#f4e3ef;color:var(--d69)}.dt70{background:#e4f1ea;color:var(--d70)}.dt71{background:#f6e9dd;color:var(--d71)}.dt72{background:#fbe7de;color:var(--d72)}.dt73{background:var(--d73);color:#fff}.dt74{background:var(--d74);color:#fff}.dtsim{background:#e1f0f5;color:var(--dsim)}
+.dt65{background:#e8edf6;color:var(--d65)}.dt66{background:#f9e7f0;color:var(--d66)}.dt67{background:#f0e9dd;color:var(--d67)}.dt68{background:#e7f1e9;color:var(--d68)}.dt69{background:#f4e3ef;color:var(--d69)}.dt70{background:#e4f1ea;color:var(--d70)}.dt71{background:#f6e9dd;color:var(--d71)}.dt72{background:#fbe7de;color:var(--d72)}.dt73{background:var(--d73);color:#fff}.dt74{background:var(--d74);color:#fff}.dt75{background:var(--d75);color:#fff}.dtsim{background:#e1f0f5;color:var(--dsim)}
 .q{font-size:17px;font-weight:700;margin:2px 0 14px;line-height:1.45}
 .q code,.opt code,.ex code,.model code,.def code{font-family:var(--mono);font-size:.85em;background:#eef1f5;padding:1px 5px;border-radius:5px}
 .opt{display:block;width:100%;text-align:left;padding:14px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--panel);margin:8px 0;font-size:15px;cursor:pointer;font-family:inherit;color:inherit;line-height:1.4;transition:.12s}
@@ -1525,6 +1525,7 @@ footer{padding:30px 0 50px;color:var(--muted);font-size:13px}
   <a href="#p5">5. 인덱스 & rowid</a>
   <a href="#p6">6. 도구·통계·TRACE·10046·BCHR</a>
   <a href="#join">7. 조인</a>
+  <a href="#qt">8. 쿼리 변환</a>
   <a href="#road">로드맵</a>
 </div></nav>
 
@@ -2307,13 +2308,75 @@ Predicate Information:
   NL(batch) <b>35</b> · hash <b>13</b> · SM full <b>5</b> — Buffers만 보면 SM 승. 하지만 SM의 정렬(Used-Mem 16K)과 hash의 build 메모리(1.5M)는 Buffers 밖의 비용이다. 테이블이 커지면: NL은 반복이(random), SM은 정렬이(temp 넘침 = Used-Tmp), hash는 build가 메모리를 넘칠 때가 각자의 급소. <b class="k">판정은 Buffers + 메모리 컬럼을 같이, 그리고 건수·등호 여부·인덱스 유무로 고른다.</b></div>
 </section>
 
+<section class="part" id="qt">
+  <div class="phead"><div class="pnum">08</div><div><div class="ptitle">쿼리 변환 — 옵티마이저는 내 SQL을 다시 쓴다 <span class="db add">75일차</span></div><div class="psub">서브쿼리 → filter / unnest(semi·anti) / 조인 제거</div></div></div>
+  <p><b class="k">Query Transformation(쿼리 변환)</b> — 옵티마이저가 실행계획을 만들기 <b>전에</b>, 결과가 동일하면서 비용이 더 적을 것 같으면 SQL을 재작성하는 것(8i부터 단계적 도입). 내가 쓴 문장과 실제 도는 문장이 다를 수 있다 — <b>플랜에 filter 술어가 보이면 꼭 다시 확인</b>하라는 것이 오늘의 경고다.</p>
+
+  <h3 class="blk"><span class="ix">8.1</span>서브쿼리 4종 — 어디에 있느냐로 갈린다</h3>
+  <table>
+    <tr><th>종류</th><th>위치·동작</th></tr>
+    <tr><td><b>nested subquery</b> (중첩)</td><td>서브쿼리를 한 번 수행해 main query를 수행</td></tr>
+    <tr><td><b>correlated subquery</b> (상호관련)</td><td>main query의 컬럼을 서브쿼리가 사용 — <b>main 행 수만큼 서브쿼리 반복</b></td></tr>
+    <tr><td><b>inline view</b></td><td>FROM 절의 서브쿼리 — 가상 집합(가상 테이블) 생성</td></tr>
+    <tr><td><b>scalar subquery</b> (스칼라)</td><td>SELECT 절 컬럼 위치 — <b>하나의 값만</b> 리턴, <b>cache 기능</b> 제공</td></tr>
+  </table>
+  <div class="tip"><b>현장 용어</b> — "쿼리 블록 보세요"라고 하면 서브쿼리를 확인하면 된다. 메인쿼리의 컬럼이 서브쿼리 안에 있으면 그게 상호관련 서브쿼리다.</div>
+
+  <h3 class="blk"><span class="ix">8.2</span>filter 방식 — 반복이지만, 캐시가 구한다</h3>
+  <p><code class="inl">no_unnest</code> 힌트로 서브쿼리를 <b>변환 없이 filter 방식</b>으로 돌리면(인덱스 없는 상태):</p>
+  <pre class="term"><span class="cm">-- where department_id in (select /*+ no_unnest */ department_id from hr.dept)</span>
+<span class="out">| Id | Operation          | Name | Starts | A-Rows | Buffers |</span>
+<span class="hl">|* 1 |  FILTER            |      |    1   |   106  |   47 |</span>
+<span class="out">|  2 |   TABLE ACCESS FULL| EMP  |    1   |   107  |   11 |</span>
+<span class="hl">|* 3 |   TABLE ACCESS FULL| DEPT |   12   |    11  |   36 |  ← Starts 12 (107이 아니다!)</span>
+<span class="out">   1 - filter( IS NOT NULL)      3 - filter("DEPARTMENT_ID"=:B1)</span></pre>
+  <div class="why"><span class="h">filter operation cache (filter optimization)</span>
+  FILTER는 <b>메인 루프의 행마다 서브 루프를 돌리는</b> 구조라 NL과 실행 방식이 같다. dept full 1회가 2블록이니 <b>최악은 107번 × 2 = 214블록</b>. 그런데 실측은 서브쿼리 수행이 <b>12번</b>뿐 — 오라클이 filter 조건의 <b>input 값(:B1)을 cache</b>해서, 같은 department_id가 또 오면 읽지 않고 캐시를 쓴다. emp의 department_id 종류가 12가지(null 제외 11 + 1)라 <b>종류 수만큼만</b> 돌았다. 술어의 <code class="inl">:B1</code>이 이 바인딩의 흔적이고, <code class="inl">filter(IS NOT NULL)</code>은 null 행 제외의 흔적이다.</div>
+
+  <h3 class="blk"><span class="ix">8.3</span>unnest — 서브쿼리를 조인으로 푼다 (semi join)</h3>
+  <p>동일한 결과가 보장되면 옵티마이저는 서브쿼리를 <b>조인문으로 변환</b>한다(unnest). 조인이 되는 순간 <b>액세스 경로·조인 방법·조인 순서를 고를 수 있게</b> 된다 — 73~74일차의 3형제 도구가 전부 열린다. 힌트 <code class="inl">unnest</code> / <code class="inl">no_unnest</code>.</p>
+  <pre class="term"><span class="cm">-- 같은 쿼리, 힌트 없음(인덱스 0) → 옵티마이저가 스스로 unnest</span>
+<span class="out">| Id | Operation           | Name | A-Rows | Buffers |</span>
+<span class="hl">|* 1 |  HASH JOIN RIGHT SEMI|     |   106  |   12 |  ← filter 47 → semi 12</span>
+<span class="out">|  2 |   TABLE ACCESS FULL | DEPT |    27  |    2 |</span>
+<span class="out">|  3 |   TABLE ACCESS FULL | EMP  |   107  |   10 |</span></pre>
+  <div class="why"><span class="h">서브쿼리 블록에 힌트를 주는 법 — qb_name(10g~)</span>
+  unnest된 서브쿼리의 테이블은 메인 힌트에서 이름이 안 잡힌다. 서브쿼리에 <code class="inl">qb_name(sub)</code>로 이름을 붙이고, 메인에서 <code class="inl">leading(d@sub, e)</code>·<code class="inl">use_nl(e)</code>·<code class="inl">full(d@sub)</code>처럼 <b>@블록이름</b>으로 지정한다. 이걸로 unnest된 조인의 순서·방법을 3형제 실험처럼 제어했다.</div>
+  <div class="tip"><b>주의 — 서브쿼리와 조인은 같지 않다</b> — 결과 건수부터 다르다(1:m에서 조인은 m쪽 만큼 늘어남). m:1처럼 <b>결과가 보장될 때만</b> 변환이 성립한다. 한쪽 테이블 데이터만 보면 되면 서브쿼리, 양쪽을 비교해야 하면 조인. <code class="inl">(select distinct department_id from hr.emp)</code>를 inline view로 조인하는 식의 우회는 곤란하다 — 함부로 unnest(수동 변환)하지 말 것.</div>
+
+  <h3 class="blk"><span class="ix">8.4</span>조인 제거(join elimination) — 안 읽어도 되는 테이블은 안 읽는다</h3>
+  <p><b>1:m 관계에서 1쪽 테이블을 참조하지 않으면</b>(SELECT에 m쪽 컬럼만) 옵티마이저가 1쪽 테이블을 아예 읽지 않는다. 전제: <b class="k">PK(1쪽)·FK(m쪽) 제약조건</b>이 있어야 작동.</p>
+  <pre class="term"><span class="cm">-- e.* 만 조회하는 employees⋈departments — DEPT를 읽지 않는다</span>
+<span class="pr">SYS&gt;</span> select e.* from hr.employees e, hr.departments d
+     where e.department_id = d.department_id;
+<span class="cm">-- 내부적으로 이 문장이 돌아간다:</span>
+<span class="hl">     select * from hr.employees where department_id is not null;</span>
+<span class="cm">-- 확인: _optimizer_join_elimination_enabled = TRUE (기본)</span>
+<span class="cm">-- 비활성화 힌트: no_eliminated_join(d)</span></pre>
+  <div class="why"><span class="h">FK가 있어야 하는 이유 · FK의 덤</span>
+  FK가 보장하는 건 "emp의 department_id는 반드시 dept에 존재한다"는 사실 — 그래서 dept를 안 읽어도 결과가 같다고 <b>증명</b>이 되고, 그때만 제거한다. FK(+not null)를 걸면 ① 데이터 품질이 좋아지고 ② 조인 제거가 돌아간다. null을 포함해야 하면 outer join을 쓰되, null이 포함될 컬럼에 FK를 걸지 않는 관행도 있다(현장에선 버그로 본다). 제약조건 때문에 PK 쪽 lock이 걸리는 문제는 9i에서 해결됐다.</div>
+
+  <h3 class="blk"><span class="ix">8.5</span>semi join & anti join — 만나면 멈추고, 없으면 찾는다</h3>
+  <table>
+    <tr><th></th><th>semi join</th><th>anti join</th></tr>
+    <tr><td>찾는 것</td><td>서브쿼리에 <b>존재하는</b> 메인 행 (IN·EXISTS)</td><td>존재하지 <b>않는</b> 행 (NOT IN·NOT EXISTS)</td></tr>
+    <tr><td>동작</td><td>match되면 <b>그 행의 조인 검색을 멈춤</b>(브레이크)</td><td>match되면 버리고, <b>없으면</b> 결과로</td></tr>
+    <tr><td>공통</td><td colspan="2">서브쿼리를 조인으로 변환 · 변환된 쪽은 <b>항상 후행(inner)</b></td></tr>
+    <tr><td>힌트</td><td><code class="inl">nl_sj · merge_sj · hash_sj</code></td><td><code class="inl">nl_aj · merge_aj · hash_aj</code></td></tr>
+  </table>
+  <div class="why"><span class="h">플랜에서 읽는 신호</span>
+  operation에 <code class="inl">SEMI</code>/<code class="inl">ANTI</code>가 붙는다(예: <code class="inl">HASH JOIN RIGHT SEMI</code>). merge_sj의 <b>SORT UNIQUE</b>는 정렬이 아니라 <b>m쪽을 1쪽 집합처럼 중복 제거</b>하는 작업이다. semi가 일반 조인보다 유리한 이유 = 짝을 하나 찾으면 <b>더 안 뒤진다</b> — 인위적으로 distinct를 만들 필요가 없다.</div>
+  <div class="tip"><b>NOT IN의 null 함정</b> — 서브쿼리 결과에 <b>null이 하나라도 있으면 NOT IN은 아무것도 반환하지 않는다</b>(AND 진리표: <code class="inl">x != null</code>은 UNKNOWN). 그래서 anti join 실습에서 <code class="inl">where department_id is not null</code>을 서브쿼리에 넣거나 NOT EXISTS로 쓴다. 면접·실무 단골.</div>
+</section>
+
 <section class="part" id="road">
   <div class="phead"><div class="pnum">▶</div><div><div class="ptitle">앞으로 다룰 것 (로드맵)</div><div class="psub">수업이 진행되며 채워 나갈 목차</div></div></div>
   <ul class="road">
     <li class="done"><span class="n">01–06</span>개요 · 실행계획 읽기·도구·통계 · 액세스 경로 · 인덱스 · 버퍼 피닝 · <b>클러스터링 팩터 · SQL TRACE · 10046 · BCHR · 비트맵</b> <span class="tag">완료</span></li>
     <li class="done"><span class="n">07</span><a href="#join" style="color:var(--tune);font-weight:600">조인 방식</a> — Nested Loop · Sort Merge · Hash, 순서와 Starts로 반복 읽기 <span class="tag">완료</span></li>
-    <li><span class="n">08</span>옵티마이저 & 통계 — CBO, 카디널리티 추정, 통계 최신화·히스토그램 <span class="tag">예정</span></li>
-    <li><span class="n">09</span>증상→원인→처방 안티패턴 + 자주 쓰는 힌트 <span class="tag">예정</span></li>
+    <li class="done"><span class="n">08</span><a href="#qt" style="color:var(--tune);font-weight:600">쿼리 변환</a> — 서브쿼리 filter↔unnest(semi/anti) · filter optimization · 조인 제거 <span class="tag">완료</span></li>
+    <li><span class="n">09</span>옵티마이저 & 통계 — CBO, 카디널리티 추정, 통계 최신화·히스토그램 <span class="tag">예정</span></li>
+    <li><span class="n">10</span>증상→원인→처방 안티패턴 + 자주 쓰는 힌트 <span class="tag">예정</span></li>
   </ul>
   <div class="why"><span class="h">메모</span>구조 지식(HWM·scattered read·버퍼 캐시·블록)은 <b>내부구조편 가이드</b>에, 그걸 활용하는 기법은 이 문서에 쌓는다. 새 수업이 오면 위 로드맵을 하나씩 완료로 바꿔 간다.</div>
 </section>
@@ -2830,7 +2893,13 @@ const MCQ=[
   {id:"m74c",d:74,q:"Hash Join에서 build table을 고르는 기준으로 옳은 것은?",o:["항상 FROM 절의 첫 테이블", "두 집합 중 작은 쪽 — 그리고 해시 키 컬럼에 중복(충돌)이 적을수록 유리", "항상 인덱스가 있는 쪽", "정렬이 이미 되어 있는 쪽"],a:1,e:"작은 집합을 hash area에 해시 테이블(build)로 올리고 큰 쪽이 probe한다. 해시 키 값에 충돌이 없을수록 좋다. 또 hash join은 = 조건에서만 쓸 수 있다."},
   {id:"m74d",d:74,q:"where e.department_id = d.department_id(+) 인 outer join에 leading(d,e)를 줬더니 EMP가 선행(build)인 플랜이 나왔다. 이유는?",o:["힌트 오타 때문", "(+)가 붙지 않은 테이블이 항상 선행(outer·first·build)으로 강제된다 — 문법 규칙이 힌트보다 우선", "EMP가 더 커서", "adaptive plan이 임의로 바꿔서"],a:1,e:"outer join에서는 (+) 없는 쪽(모든 행을 보존해야 하는 쪽)이 항상 선행 테이블로 선택된다. leading은 무시된다. 뒤집으려면 swap_join_inputs(d) → HASH JOIN RIGHT OUTER."},
   {id:"m74e",d:74,q:"Index Join(index$_join$)이 작동하기 위한 조건은?",o:["테이블에 PK가 있을 것", "SELECT 절의 컬럼이 전부 사용되는 인덱스들 안에 포함될 것 — 그래야 테이블 접근 없이 rowid로 인덱스끼리 조인", "조인 상대 테이블이 작을 것", "인덱스가 유니크할 것"],a:1,e:"한 테이블의 여러 인덱스를 각각 fast full scan해 rowid로 해시 조인(access(ROWID=ROWID))한다. 필요한 컬럼이 인덱스 밖에 있으면 테이블에 가야 하므로 성립하지 않는다."},
-  {id:"m74f",d:74,q:"employee_id<110 AND job_id='IT_PROG' 조회의 기본 플랜(Buffers 4)은 EMP_JOB_IDX access + 테이블에서 filter(EMPLOYEE_ID<110)였다. index_join(e emp_idx emp_job_idx) 힌트를 주자 Buffers 3이 된 이유는?",o:["테이블 접근 없이 두 인덱스를 각각 RANGE SCAN해 rowid로 교집합 — 두 조건이 모두 access로 처리됨", "인덱스가 이미 버퍼 캐시에 있어서", "정렬을 생략해서", "해시 조인이 항상 인덱스 접근보다 빨라서"],a:0,e:"index_join은 각 조건을 자기 인덱스에서 access로 좁히고(JOB_IDX·EMP_IDX 각각 RANGE SCAN), rowid 해시 교집합(ROWID=ROWID)으로 붙여 테이블 블록 접근이 0이 된다(4→3). 단 만능은 아니다 — 조건 없는 조회에선 index join 16 vs full 11로 full이 더 쌌다(작은 테이블은 인덱스 둘 합산이 더 큼)."}
+  {id:"m74f",d:74,q:"employee_id<110 AND job_id='IT_PROG' 조회의 기본 플랜(Buffers 4)은 EMP_JOB_IDX access + 테이블에서 filter(EMPLOYEE_ID<110)였다. index_join(e emp_idx emp_job_idx) 힌트를 주자 Buffers 3이 된 이유는?",o:["테이블 접근 없이 두 인덱스를 각각 RANGE SCAN해 rowid로 교집합 — 두 조건이 모두 access로 처리됨", "인덱스가 이미 버퍼 캐시에 있어서", "정렬을 생략해서", "해시 조인이 항상 인덱스 접근보다 빨라서"],a:0,e:"index_join은 각 조건을 자기 인덱스에서 access로 좁히고(JOB_IDX·EMP_IDX 각각 RANGE SCAN), rowid 해시 교집합(ROWID=ROWID)으로 붙여 테이블 블록 접근이 0이 된다(4→3). 단 만능은 아니다 — 조건 없는 조회에선 index join 16 vs full 11로 full이 더 쌌다(작은 테이블은 인덱스 둘 합산이 더 큼)."},
+  {id:"m75a",d:75,q:"filter 방식에서 EMP 107행에 대해 DEPT 서브쿼리가 107번이 아니라 12번만 수행됐다. 이유는?",o:["옵티마이저가 서브쿼리를 조인으로 변환했기 때문", "filter 조건의 input 값을 cache해 같은 값이 오면 읽지 않기 때문(filter optimization)", "DEPT 테이블이 버퍼 캐시에 전부 올라와 있었기 때문", "EMP의 null 행이 96개라서 나머지만 수행했기 때문"],a:1,e:"FILTER는 NL처럼 메인 행마다 서브 루프를 도는 구조라 최악은 107×2=214블록. 하지만 오라클이 :B1 input 값을 cache해서 department_id 종류 수(12가지)만큼만 수행했다. 조인 변환(unnest)은 no_unnest 힌트로 막은 상태."},
+  {id:"m75b",d:75,q:"서브쿼리가 unnest(조인으로 변환)되면 얻는 가장 큰 이점은?",o:["항상 Buffers가 줄어든다", "서브쿼리 결과가 정렬되어 나온다", "액세스 경로·조인 방법·조인 순서를 옵티마이저와 힌트로 고를 수 있게 된다", "filter cache가 활성화된다"],a:2,e:"조인이 되는 순간 3형제(NL/SM/Hash)·leading·인덱스 선택의 도구가 전부 열린다. '항상 줄어든다'는 아님 — 힌트를 쓴다고 다 I/O가 줄지는 않는다고 수업에서 강조."},
+  {id:"m75c",d:75,q:"조인 제거(join elimination)가 작동하기 위한 전제 조건은?",o:["두 테이블이 같은 테이블스페이스에 있어야 한다", "1쪽에 PK, m쪽에 FK 제약조건이 설정되어 있어야 한다", "서브쿼리에 no_unnest 힌트가 있어야 한다", "통계정보가 최신이어야 한다"],a:1,e:"FK가 'emp의 department_id는 반드시 dept에 존재한다'를 증명해줄 때만 1쪽을 안 읽어도 결과가 같다고 보장된다. 내부적으로 where department_id is not null 문장으로 바뀌어 돈다."},
+  {id:"m75d",d:75,q:"semi join의 동작 설명으로 옳은 것은?",o:["메인쿼리 행이 서브쿼리 행과 match되면 그 행의 조인 검색을 멈춘다", "서브쿼리 쪽이 항상 선행(driving)이 된다", "match된 행을 버리고 없는 행만 반환한다", "반드시 SORT UNIQUE 정렬이 일어난다"],a:0,e:"semi = 짝을 하나 찾으면 브레이크. 변환된 서브쿼리는 항상 후행(inner)이고, match된 행을 버리는 건 anti join. merge_sj의 SORT UNIQUE는 정렬이 아니라 m쪽을 1쪽 집합처럼 중복 제거하는 작업."},
+  {id:"m75e",d:75,q:"NOT IN 서브쿼리 결과에 null이 하나라도 있으면?",o:["null만 제외하고 정상 반환된다", "전체가 반환된다", "아무것도 반환되지 않는다(0건)", "에러가 발생한다"],a:2,e:"x != null은 UNKNOWN이고 NOT IN은 AND로 묶이므로 전체가 UNKNOWN → 0건. 그래서 서브쿼리에 where department_id is not null을 넣거나 NOT EXISTS를 쓴다. 면접 단골."},
+  {id:"m75f",d:75,q:"unnest된 서브쿼리의 테이블(d)에 메인 힌트에서 조인 순서를 지정하려면?",o:["leading(d,e)라고 쓰면 그대로 적용된다", "서브쿼리에 qb_name(sub)를 붙이고 leading(d@sub,e)처럼 @블록이름으로 지정한다", "서브쿼리 안에 leading을 쓴다", "unnest된 테이블은 힌트로 제어할 수 없다"],a:1,e:"unnest된 서브쿼리의 테이블은 메인 힌트에서 이름이 안 잡힌다. qb_name(sub)(10g~)으로 쿼리 블록에 이름을 붙이고 leading(d@sub,e)·full(d@sub)처럼 지정한다."}
 ];
 
 const ESSAY=[
@@ -2862,7 +2931,9 @@ const ESSAY=[
   {id:"e73a",d:73,q:"Seattle 쿼리가 227 → 72 → 18로 줄어든 과정을 각 단계의 원인과 함께 설명하라. 마지막에 옵티마이저 기본(9)이 여전히 최저였던 이유도 덧붙여라.",a:"227은 leading(e,d,l)로 필터(Seattle) 반대편에서 출발한 값이다 — 바깥 EMP 107행이 명단이 되어 DEPT를 107번(Starts 107) 조회하고, city는 맨 끝에서야 확인된다. 72는 leading(l,d,e)로 방향을 바로잡은 값 — Seattle이 loc을 1행으로 걸러 명단은 짧아졌지만, dept(location_id)·emp(department_id)에 진입 인덱스가 없어 매 반복이 full scan(Predicate filter 3줄)이었다. 18은 loc(city)·dept(location_id)·emp(department_id) 진입 인덱스 3개를 만든 값 — filter 세 줄이 전부 access로 바뀌었다. 그런데 옵티마이저 기본은 9 — 테이블이 몇 블록짜리로 작아 full+hash/merge로 한 번에 쓸어담는 게 반복 접근보다 싸다. 풀 스캔 제거가 항상 최선이 아니며, 판정은 Buffers 총점이다.",k:["leading(e,d,l) 바깥 107행", "Starts 107", "필터 쪽에서 출발", "진입 인덱스 3개", "filter→access", "옵티마이저 9", "판정은 Buffers"]},
   {id:"e73b",d:73,q:"optimizer_features_enable('10.1.0') 상태에서 full(e) full(d)까지 강제하자 e→d 순서는 232, d→e 순서는 95가 나왔다. 이 실험이 보여주는 NL 최악의 조건과 처방을 설명하라.",a:"NL 안쪽은 바깥 행 수만큼 반복 조회된다. full 힌트로 안쪽 인덱스를 빼앗으면 매 반복이 full scan이 된다 — e→d는 4블록짜리 DEPT full을 107번 반복해 안쪽에서만 222, 총 232. d→e는 EMP full을 27번 반복해 88, 총 95. 같은 최악 조건에서도 바깥이 작은 쪽(27)이 2.4배 싸다. 즉 NL 최악 = 큰 바깥(반복 승수) × 안쪽 인덱스 부재(반복마다 full)이고, 처방은 ①바깥 행 수 최소화(필터 쪽·작은 쪽에서 출발) ②driven 조인키에 진입 인덱스다.",k:["Starts × full", "DEPT full×107=222", "EMP full×27=88", "반복 승수", "진입 인덱스", "바깥 최소화"]},
   {id:"e74a",d:74,q:"같은 emp⋈dept(필터 없음)에서 NL(batch) 35, hash 13, SM full 강제 5가 나왔다. 'Buffers가 가장 낮은 SM이 항상 최선'이라는 결론이 왜 위험한지, 세 방법의 비용이 각각 어디에 숨는지로 설명하라.",a:"Buffers는 논리 I/O(블록 읽기)만 센다. SM full의 5는 두 full scan(2+3)뿐이라 낮지만, 정렬 비용은 Buffers에 찍히지 않고 PGA 메모리(Used-Mem 16K)와 CPU로 치른다. hash의 13도 build 해시 테이블 메모리(Used-Mem 1.5M)는 별도다. NL의 35는 반복 probe가 그대로 Buffers에 드러난다. 즉 세 방법의 비용 위치가 다르다 — NL은 random access 반복(Buffers), SM은 정렬(메모리·CPU, 대용량이면 Used-Tmp로 디스크), hash는 build 메모리. 테이블이 커지면 각자의 급소(반복 폭증 / temp 넘침 / build 메모리 초과)가 달라지므로, 판정은 Buffers + 메모리 컬럼(OMem·Used-Mem·Used-Tmp)을 같이 보고 건수·등호·인덱스 유무로 고른다.",k:["Buffers=논리 I/O만", "정렬은 PGA·CPU", "Used-Mem", "Used-Tmp=temp 넘침", "build 메모리", "NL=반복", "비용 위치가 다르다"]},
-  {id:"e74b",d:74,q:"SM 기본 플랜에서 DEPT 쪽에는 SORT JOIN이 없고 INDEX FULL SCAN이 있었다. 이것이 의미하는 바와, 이 원리가 이전에 배운 어떤 내용의 재등장인지 설명하라.",a:"SM은 양쪽을 조인 키로 정렬해야 하는데, DEPT_IDX(department_id PK 인덱스)를 INDEX FULL SCAN으로 읽으면 이미 department_id 순서로 나온다. 정렬된 순서를 인덱스가 공짜로 제공하므로 옵티마이저가 DEPT 쪽 SORT JOIN을 생략했다. 이는 §5.5에서 배운 'INDEX FULL SCAN은 정렬된 결과라 ORDER BY를 흡수(sort 생략)한다'는 원리가 조인 정렬에서 재등장한 것이다. 반대로 full(d)를 강제하면 인덱스를 못 쓰니 DEPT 쪽에도 SORT JOIN이 생긴다.",k:["인덱스가 정렬 대체", "INDEX FULL SCAN=정렬된 순서", "SORT JOIN 생략", "ORDER BY 흡수의 재등장", "full 강제 시 SORT JOIN 부활"]}
+  {id:"e74b",d:74,q:"SM 기본 플랜에서 DEPT 쪽에는 SORT JOIN이 없고 INDEX FULL SCAN이 있었다. 이것이 의미하는 바와, 이 원리가 이전에 배운 어떤 내용의 재등장인지 설명하라.",a:"SM은 양쪽을 조인 키로 정렬해야 하는데, DEPT_IDX(department_id PK 인덱스)를 INDEX FULL SCAN으로 읽으면 이미 department_id 순서로 나온다. 정렬된 순서를 인덱스가 공짜로 제공하므로 옵티마이저가 DEPT 쪽 SORT JOIN을 생략했다. 이는 §5.5에서 배운 'INDEX FULL SCAN은 정렬된 결과라 ORDER BY를 흡수(sort 생략)한다'는 원리가 조인 정렬에서 재등장한 것이다. 반대로 full(d)를 강제하면 인덱스를 못 쓰니 DEPT 쪽에도 SORT JOIN이 생긴다.",k:["인덱스가 정렬 대체", "INDEX FULL SCAN=정렬된 순서", "SORT JOIN 생략", "ORDER BY 흡수의 재등장", "full 강제 시 SORT JOIN 부활"]},
+  {id:"e75a",d:75,q:"같은 IN 서브쿼리가 no_unnest(filter 방식)일 때 Buffers 47, 힌트 없이(unnest→HASH JOIN RIGHT SEMI) 12였다. 47의 내부 구조와, filter 방식이 최악(214블록)보다 선방한 이유를 설명하라.",a:"filter 방식은 EMP full(11) + 메인 행마다 DEPT 서브 루프를 도는 NL식 반복 구조다. DEPT full 1회가 2블록이므로 최악은 107×2=214블록이지만, 오라클이 filter 조건의 input 값(:B1)을 cache해 같은 department_id가 오면 읽지 않는다(filter optimization). emp의 department_id 종류가 12가지라 DEPT는 Starts 12·36블록만 발생, 합계 47. unnest되면 양쪽 full 1회씩의 해시 semi 조인(2+10=12)이라 더 싸다.",k:["filter optimization", "cache", ":B1", "214", "12번", "Starts 12", "unnest", "semi"]},
+  {id:"e75b",d:75,q:"semi join과 anti join의 공통점 둘과 차이점을 설명하라.",a:"공통점: 둘 다 서브쿼리를 조인으로 변환한 것이고, 변환된 서브쿼리 쪽은 항상 후행(inner)으로 처리된다. 차이점: semi(IN·EXISTS)는 서브쿼리에 존재하는 메인 행을 찾으며 match되면 그 행의 조인 검색을 멈춘다(브레이크). anti(NOT IN·NOT EXISTS)는 존재하지 않는 행을 찾으며 match되면 버리고 없으면 결과로 담는다. 힌트는 semi가 nl_sj·merge_sj·hash_sj, anti가 nl_aj·merge_aj·hash_aj.",k:["항상 후행", "inner", "브레이크", "match", "존재하지 않는", "nl_sj", "nl_aj"]}
 ];
 
 const PLANQ=[
@@ -2903,7 +2974,9 @@ const PLANQ=[
   {id:"pl73a",q:"같은 쿼리(emp⋈dept, 필터 없음, 결과 106행)의 두 플랜이다. Buffers가 126 vs 35로 갈린 이유를 Starts로 설명하라.",plan:"-- ① leading(e,d)\n| 2 | TABLE ACCESS FULL EMP   | Starts 1   | Buffers 10  |\n| 3 | DEPT BY INDEX ROWID     | Starts 107 | Buffers 116 |\n-- 총 126\n\n-- ② leading(d,e)\n| 2 | TABLE ACCESS FULL DEPT  | Starts 1   | Buffers 7   |\n| 3 | EMP BY INDEX ROWID      | Starts 27  | Buffers 28  |\n-- 총 35",a:"NL 안쪽 Starts = 바깥 행 수. ①은 EMP 107행이 바깥이라 DEPT 쪽 작업을 107번 반복(Starts 107)해 안쪽에서만 116을 썼다. ②는 DEPT 27행이 바깥이라 EMP 쪽 반복이 27번(Starts 27), 안쪽 28. 바깥 읽기 자체(10 vs 7)는 미미하고, 반복 승수(107 vs 27)가 총점 126 vs 35를 만들었다. ①의 안쪽이 UNIQUE SCAN으로 더 좋은 스캔인데도 진다 — probe의 질보다 횟수. 필터가 없으면 작은 테이블을 바깥으로."},
   {id:"pl73b",q:"풀 스캔 제거 후의 Seattle 플랜(Buffers 18)이다. 5단계 루틴(실행순서→Starts→A-Rows→E×Starts→Predicate)으로 읽어라.",plan:"| 4 | LOC BY INDEX ROWID BATCHED  | Starts 1  | E 1  | A 1  |\n|*5 |  LOC_CITY_IDX RANGE         | Starts 1  | E 1  | A 1  |\n| 6 | DEPT BY INDEX ROWID BATCHED | Starts 1  | E 4  | A 21 |\n|*7 |  DEPT_LOC_IDX RANGE         | Starts 1  | E 4  | A 21 |\n|*8 | EMP_DEPT_IDX RANGE          | Starts 21 | E 10 | A 18 |\n| 9 | EMP BY INDEX ROWID          | Starts 18 | E 4  | A 18 |\n-- 총 Buffers 18 · Predicate: 5·7·8 전부 access",a:"①실행순서: 가장 깊은 5부터 — 5→4→7→6→8→9. ②Starts: Id 8이 21(부서 21개만큼 emp 인덱스를 반복), Id 9가 18. ③A-Rows 여정: Seattle 1행 → 부서 21행 → 사원 18행 — 어디서 불어나는지 그대로 보인다. ④견적: Id 7은 E 4×1=4 vs A 21로 과소, Id 8은 E 10×21=210 vs A 18로 과대 — 결과엔 무해하지만 통계가 거친 상태임을 읽을 수 있다. ⑤Predicate: 5·7·8 전부 access — 세 테이블 진입이 모두 인덱스 문으로 바뀐 것(72→18의 원인). 판정: 맨 윗줄 Buffers 18."},
   {id:"pl74a",q:"옵티마이저 기본으로 실행된 emp⋈dept의 Sort Merge 플랜이다. ① DEPT 쪽에 SORT JOIN이 없는 이유 ② Id 4의 Starts=27인데 Id 5의 Starts=1인 이유를 설명하라.",plan:"| 1 |  MERGE JOIN                  |          | Starts 1  | Buffers 15 |\n| 2 |   TABLE ACCESS BY INDEX ROWID| DEPT     | Starts 1  | Buffers 12 |\n| 3 |    INDEX FULL SCAN           | DEPT_IDX | Starts 1  | Buffers  6 |\n|*4 |   SORT JOIN                  |          | Starts 27 | Buffers  3 | Used-Mem 16K |\n| 5 |    TABLE ACCESS FULL         | EMP      | Starts 1  | Buffers  3 |",a:"① DEPT_IDX를 INDEX FULL SCAN으로 읽으면 department_id 순서로 나온다 — SM에 필요한 '조인 키 정렬'을 인덱스가 이미 제공하므로 DEPT 쪽 SORT JOIN이 생략됐다(§5.5 ORDER BY 흡수의 조인 버전). ② EMP는 Id 5에서 한 번만(Starts 1) 읽혀 한 번만 정렬된다. Id 4 SORT JOIN의 Starts 27은 바깥(DEPT 27행)이 각자 짝을 찾을 때마다 정렬된 결과를 재사용해 탐색을 시작한 횟수다 — 정렬 27번이 아니다. Used-Mem 16K(0)은 정렬이 메모리에서 optimal로 끝났다는 뜻."},
-  {id:"pl74b",q:"outer join(e.department_id = d.department_id(+))에 leading(d,e) use_nl(e)를 줬는데 아래 플랜이 나왔다. ① 힌트가 반영되지 않은 부분과 그 이유 ② A-Rows가 106이 아니라 107인 이유를 설명하라.",plan:"|*1 |  HASH JOIN OUTER   |      | Starts 1 | A-Rows 107 | Buffers 10 |\n| 2 |   TABLE ACCESS FULL| EMP  | Starts 1 | A-Rows 107 | Buffers  3 |\n| 3 |   TABLE ACCESS FULL| DEPT | Starts 1 | A-Rows  27 | Buffers  7 |",a:"① leading(d,e)가 무시되고 EMP가 선행(build)이다 — outer join에서는 (+)가 붙지 않은 테이블(모든 행을 보존해야 하는 EMP)이 항상 선행으로 강제되는 문법 규칙이 힌트보다 우선한다. use_nl도 반영되지 않고 HASH JOIN OUTER가 됐다. 뒤집으려면 swap_join_inputs(d)로 HASH JOIN RIGHT OUTER를 만든다. ② 일반 조인은 부서 없는 사원이 탈락해 106행이지만, outer join은 짝 없는 EMP 행도 NULL을 붙여 보존하므로 107행 전부가 나온다."}
+  {id:"pl74b",q:"outer join(e.department_id = d.department_id(+))에 leading(d,e) use_nl(e)를 줬는데 아래 플랜이 나왔다. ① 힌트가 반영되지 않은 부분과 그 이유 ② A-Rows가 106이 아니라 107인 이유를 설명하라.",plan:"|*1 |  HASH JOIN OUTER   |      | Starts 1 | A-Rows 107 | Buffers 10 |\n| 2 |   TABLE ACCESS FULL| EMP  | Starts 1 | A-Rows 107 | Buffers  3 |\n| 3 |   TABLE ACCESS FULL| DEPT | Starts 1 | A-Rows  27 | Buffers  7 |",a:"① leading(d,e)가 무시되고 EMP가 선행(build)이다 — outer join에서는 (+)가 붙지 않은 테이블(모든 행을 보존해야 하는 EMP)이 항상 선행으로 강제되는 문법 규칙이 힌트보다 우선한다. use_nl도 반영되지 않고 HASH JOIN OUTER가 됐다. 뒤집으려면 swap_join_inputs(d)로 HASH JOIN RIGHT OUTER를 만든다. ② 일반 조인은 부서 없는 사원이 탈락해 106행이지만, outer join은 짝 없는 EMP 행도 NULL을 붙여 보존하므로 107행 전부가 나온다."},
+  {id:"pl75a",q:"no_unnest로 filter 방식을 강제한 플랜이다. DEPT의 Starts가 107이 아니라 12인 이유와, 술어 filter(IS NOT NULL)·filter(\"DEPARTMENT_ID\"=:B1)의 의미를 설명하라.",plan:"| Id | Operation          | Name | Starts | A-Rows | Buffers |\n|* 1 |  FILTER            |      |    1   |   106  |   47 |\n|  2 |   TABLE ACCESS FULL| EMP  |    1   |   107  |   11 |\n|* 3 |   TABLE ACCESS FULL| DEPT |   12   |    11  |   36 |\n\n   1 - filter( IS NOT NULL)\n   3 - filter(\"DEPARTMENT_ID\"=:B1)",a:"FILTER는 메인(EMP) 행마다 서브쿼리(DEPT)를 도는 NL식 반복 구조지만, 오라클이 filter 조건의 input 값을 cache한다(filter optimization). emp의 department_id 종류가 12가지라 DEPT full은 12번만 수행됐다(:B1이 그 바인딩 캐시의 흔적). Id 1의 filter(IS NOT NULL)은 department_id가 null인 행을 서브쿼리 수행 없이 제외한 흔적 — 그래서 A-Rows가 107이 아닌 106이다."},
+  {id:"pl75b",q:"같은 IN 서브쿼리를 힌트 없이 실행한 플랜이다. 어떤 변환이 일어났고, operation의 SEMI는 무엇을 뜻하는가? filter 방식(47) 대비 왜 12로 줄었는가?",plan:"| Id | Operation            | Name | A-Rows | Buffers |\n|* 1 |  HASH JOIN RIGHT SEMI|      |   106  |   12 |\n|  2 |   TABLE ACCESS FULL  | DEPT |    27  |    2 |\n|  3 |   TABLE ACCESS FULL  | EMP  |   107  |   10 |",a:"옵티마이저가 서브쿼리를 스스로 unnest해 조인으로 변환했고, IN 서브쿼리라 semi join이 됐다. SEMI = 메인 행이 서브쿼리 행과 match되면 그 행의 조인 검색을 멈추는(브레이크) 조인 — 중복을 인위적으로 제거할 필요가 없다. filter 방식은 DEPT를 12번 반복(36블록)했지만, semi는 양쪽을 full 1회씩(2+10)만 읽는 해시 조인이라 12로 끝났다."}
 ];
 function findQ(id){return ESSAY.find(x=>x.id===id)||PLANQ.find(x=>x.id===id);}
 
@@ -3036,10 +3109,17 @@ const TERMS=[
   {t:"OMem/1Mem/Used-Mem/Used-Tmp",e:"플랜의 정렬·해시 작업영역 컬럼.",d:"OMem=optimal(메모리 한 번에) 예상 크기, 1Mem=one-pass 예상 크기, Used-Mem=실제 사용량(끝의 (0)=optimal), Used-Tmp=메모리 부족으로 temp를 쓴 크기(KB). Used-Tmp가 보이면 정렬/해시가 디스크로 넘친 신호."},
   {t:"swap_join_inputs",e:"해시 조인의 build/probe를 맞바꾸는 힌트.",d:"옵티마이저는 leading 순서를 유지하면서도 build만 더 작은 쪽으로 스스로 바꿀 수 있다(3테이블 실습에서 LOC이 build로 승격). 고정하려면 no_swap_join_inputs, 강제로 바꾸려면 swap_join_inputs. outer join을 뒤집을 때도 사용(→ HASH JOIN RIGHT OUTER)."},
   {t:"outer join 순서 규칙",e:"(+)가 붙지 않은 테이블이 항상 선행(outer·first·build).",d:"모든 행을 보존해야 하는 쪽이 선행으로 강제되는 문법 규칙 — leading 힌트보다 우선한다(실습에서 leading(d,e) 무시됨, 결과 107행). swap_join_inputs로만 build를 뒤집을 수 있다."},
-  {t:"Index Join (index$_join$)",e:"한 테이블의 여러 인덱스를 rowid로 조인해 테이블 접근을 생략.",d:"SELECT 컬럼이 전부 인덱스에 포함될 때만 작동. 각 인덱스를 fast full scan한 뒤 rowid를 키로 해시 조인(access(ROWID=ROWID)) — 같은 행의 컬럼들을 rowid로 맞춰 붙인다. random access가 없다."}
+  {t:"Index Join (index$_join$)",e:"한 테이블의 여러 인덱스를 rowid로 조인해 테이블 접근을 생략.",d:"SELECT 컬럼이 전부 인덱스에 포함될 때만 작동. 각 인덱스를 fast full scan한 뒤 rowid를 키로 해시 조인(access(ROWID=ROWID)) — 같은 행의 컬럼들을 rowid로 맞춰 붙인다. random access가 없다."},
+  {t:"Query Transformation",e:"옵티마이저의 SQL 재작성",d:"실행계획 생성 전에, 결과가 동일하면서 비용이 더 적을 것 같으면 SQL문을 재작성하는 것. 8i부터 단계적 도입. 플랜에 filter 술어가 보이면 변환 여부를 다시 확인하라는 신호."},
+  {t:"filter optimization",e:"filter 조건 input 값 캐시",d:"FILTER operation이 조건의 input 값(:B1)을 cache해, 같은 값이 다시 오면 서브쿼리를 수행하지 않고 캐시를 쓰는 최적화. 최악 214블록이 실측 12번(값 종류 수)으로 줄었다."},
+  {t:"unnest / no_unnest",e:"서브쿼리→조인 변환 힌트",d:"unnest는 서브쿼리를 조인문으로 변환(액세스 경로·조인 방법·순서 선택 가능), no_unnest는 filter 방식 유지. 동일한 결과가 보장될 때만(m:1) 변환이 성립한다."},
+  {t:"join elimination(조인 제거)",e:"안 읽어도 되는 테이블 제거",d:"1:m 조인에서 1쪽을 참조하지 않으면 1쪽 테이블을 아예 읽지 않는 변환. PK(1쪽)·FK(m쪽) 제약이 전제. 내부적으로 is not null 문장으로 바뀐다. _optimizer_join_elimination_enabled(기본 TRUE), 비활성 힌트 no_eliminated_join."},
+  {t:"semi join",e:"존재하면 멈추는 조인",d:"IN·EXISTS 서브쿼리를 조인으로 변환한 것. 변환된 쪽은 항상 후행이고, match되면 그 행의 조인 검색을 멈춘다(브레이크). 힌트 nl_sj·merge_sj·hash_sj. merge_sj의 SORT UNIQUE는 m쪽을 1쪽 집합처럼 만드는 작업."},
+  {t:"anti join",e:"없는 행을 찾는 조인",d:"NOT IN·NOT EXISTS를 조인으로 변환한 것. match되면 버리고 서브쿼리에 없으면 결과로. 힌트 nl_aj·merge_aj·hash_aj. NOT IN은 서브쿼리에 null이 있으면 0건이 되므로 is not null 처리 필요."},
+  {t:"qb_name",e:"쿼리 블록 이름 붙이기",d:"서브쿼리에 qb_name(sub)로 이름을 붙이고 메인 힌트에서 leading(d@sub,e)·full(d@sub)처럼 @블록이름으로 unnest된 테이블을 지정하는 방법(10g~)."}
 ];
 
-const DAYS=[62,63,64,65,66,67,68,69,70,71,72,73,74,'심화'];
+const DAYS=[62,63,64,65,66,67,68,69,70,71,72,73,74,75,'심화'];
 const dcls=d=>d==='심화'?'dsim':'d'+d;
 const dlab=d=>d==='심화'?'심화':d+'일차';
 
@@ -3473,6 +3553,79 @@ renderChips();startMcq();
 <li><b>[개념 제목]</b> 을 훑으며 설명 안 되는 것만 [문서 §] 링크로 이동해 그 부분 재독</li>
 <li><b>[명령어 표]</b> 의 결과 숫자(35·15·5·13 / 107행)를 가리고 떠올려보기 — 특히 "SM이 5인데 왜 최고가 아닌가?"</li>
 <li>마무리 — <a href='study_hub_full.html' class='cmp-link'>허브에서 74일차 문제 풀기</a> (날짜칩 74 필터)</li>
+</ol></script>
+<script type="text/plain" id="cmp-75"><h2>75일차 복습 시트</h2>
+<div class='note'>오늘 하루를 한 장으로 — 축·개념·명령어·요약. 막히는 개념은 옆의 [문서 §] 링크로 바로 이동해 다시 읽고, 마지막에 허브에서 문제로 마무리.</div>
+<div class='note'><b>※ 결석일</b> — 동기 수강생 노트(PDF) 기반으로 작성. 플랜 캡처가 없는 실험은 맨 아래 "홈랩 재현" 목록으로.</div>
+<hr>
+<h3>[오늘의 축]</h3>
+<div class='note'><b>옵티마이저는 내 SQL을 다시 쓴다(Query Transformation) — 서브쿼리는 filter(캐시로 버티기) ↔ unnest(semi/anti 조인으로 풀기), 안 읽어도 되는 테이블은 조인 제거. 플랜에 filter 술어가 보이면 "다시 확인하라"는 신호.</b></div>
+<p>수업이 서브쿼리 4종 → filter 방식(47) → filter optimization(214→12) → unnest(semi 12) → qb_name 제어 → 조인 제거(PK-FK) → semi/anti로 이어짐 — 전부 "내가 쓴 문장과 실제 도는 문장이 다르다"의 이야기.</p>
+<h3>[개념 제목] (수업 등장 순)</h3>
+<ol>
+<li><b>Query Transformation</b> — 결과 동일 + 비용 절감 기대 시 SQL 재작성(8i부터 단계적) · <a href='sql_tuning.html#qt' class='cmp-link'>문서 §8 도입</a></li>
+<li><b>서브쿼리 4종</b> — nested / correlated(메인 행 수만큼 반복) / inline view / scalar(값 1개·cache) · <a href='sql_tuning.html#qt' class='cmp-link'>문서 §8.1</a></li>
+<li><b>filter 방식</b> — <code>no_unnest</code>, FILTER는 NL과 같은 반복 구조, 술어 <code>IS NOT NULL</code>·<code>=:B1</code> 읽기 · <a href='sql_tuning.html#qt' class='cmp-link'>문서 §8.2</a></li>
+<li><b>filter optimization</b> — input 값 cache, 최악 214블록이 실측 <b>12번</b>(department_id 종류 수만큼) · <a href='sql_tuning.html#qt' class='cmp-link'>문서 §8.2</a></li>
+<li><b>unnest</b> — 서브쿼리→조인 변환, 액세스 경로·조인 방법·순서의 3형제 도구가 전부 열림 · <a href='sql_tuning.html#qt' class='cmp-link'>문서 §8.3</a></li>
+<li><b>qb_name(sub) / @sub</b> — unnest된 서브쿼리 테이블을 힌트로 잡는 법(10g~) · <a href='sql_tuning.html#qt' class='cmp-link'>문서 §8.3</a></li>
+<li><b>서브쿼리 ≠ 조인</b> — 결과 건수부터 다름(1:m), m:1처럼 보장될 때만 변환. distinct inline view 우회는 곤란 · <a href='sql_tuning.html#qt' class='cmp-link'>문서 §8.3</a></li>
+<li><b>조인 제거(join elimination)</b> — 1쪽 미참조 + <b>PK·FK 제약</b> 있으면 1쪽을 아예 안 읽음(내부적으로 <code>is not null</code> 문장) · <a href='sql_tuning.html#qt' class='cmp-link'>문서 §8.4</a></li>
+<li><b>semi join</b> — IN/EXISTS, 변환된 쪽 항상 후행, match되면 브레이크. <code>nl_sj·merge_sj·hash_sj</code>, SORT UNIQUE=1쪽화 · <a href='sql_tuning.html#qt' class='cmp-link'>문서 §8.5</a></li>
+<li><b>NOT IN의 null 함정</b> — 서브쿼리에 null 있으면 0건(AND 진리표) · <a href='sql_tuning.html#qt' class='cmp-link'>문서 §8.5</a></li>
+<li><b>anti join</b> — NOT IN/NOT EXISTS, 없는 행을 찾음. <code>nl_aj·merge_aj·hash_aj</code> · <a href='sql_tuning.html#qt' class='cmp-link'>문서 §8.5</a></li>
+</ol>
+<h3>[실습 명령어 정리] (실행 순서 + 결과 요지)</h3>
+<table><tr><th>#</th><th>명령</th><th>결과 요지</th></tr>
+<tr><td>1</td><td>emp/dept 재생성(drop→CTAS) + 제약·인덱스 조회</td><td>제약 0 · 인덱스 0 상태에서 시작</td></tr>
+<tr><td>2</td><td><code>in (select /*+ no_unnest */ ...)</code></td><td><b>FILTER</b> 방식, Buffers <b>47</b> — EMP full 11 + DEPT full <b>Starts 12</b>/36, 술어 <code>filter(IS NOT NULL)</code>·<code>filter(=:B1)</code></td></tr>
+<tr><td>3</td><td><code>exists (select /*+ no_unnest */ 'x' ...)</code></td><td>상호관련 filter — null 제외 <b>11번</b>+1 수행, 같은 47</td></tr>
+<tr><td>4</td><td><code>count(*) from hr.dept</code></td><td>dept full 1회 = <b>2블록</b> → 최악 107×2=<b>214</b> 계산의 근거</td></tr>
+<tr><td>5</td><td>filter optimization 확인</td><td>실측 서브쿼리 수행 <b>12번</b>뿐 — input 값(:B1) cache, 종류 수만큼만</td></tr>
+<tr><td>6</td><td>dept_idx(unique)+PK 생성 → 제약·인덱스 조회</td><td>blevel 0(root=leaf 1블록), CF 좋음</td></tr>
+<tr><td>7</td><td>힌트 없음 IN 재실행</td><td>옵티마이저 스스로 unnest → <b>HASH JOIN RIGHT SEMI</b>, Buffers <b>12</b> (DEPT 2 + EMP 10)</td></tr>
+<tr><td>8</td><td><code>unnest</code> + <code>leading(d,e)</code> use_nl/use_merge/use_hash</td><td>조인 3형제로 순서·방법 제어 (수치 캡처 없음 → 홈랩)</td></tr>
+<tr><td>9</td><td><code>qb_name(sub)</code> + <code>leading(d@sub,e) use_nl(e) full(d@sub)</code></td><td>@블록이름으로 서브쿼리 테이블 지정 성공</td></tr>
+<tr><td>10</td><td>emp_dept_idx 생성 → <code>leading(e,d@sub) use_nl(d@sub)</code></td><td>진입 인덱스 태우기 (수치 캡처 없음 → 홈랩)</td></tr>
+<tr><td>11</td><td>employees⋈departments <code>e.*</code> 조회</td><td><b>조인 제거</b> — DEPT를 안 읽음, 내부적으로 <code>where department_id is not null</code></td></tr>
+<tr><td>12</td><td><code>_optimizer_join_elimination_enabled</code> false/true</td><td>세션 레벨 on/off — false면 다시 조인 플랜</td></tr>
+<tr><td>13</td><td>emp에 FK 추가 → IN 서브쿼리 재실행</td><td>CTAS 사본도 조인 제거 작동 · <code>no_eliminated_join(d)</code>로 개별 비활성</td></tr>
+<tr><td>14</td><td><code>location_id=1500</code> 서브쿼리 vs 조인 vs no_unnest</td><td>같은 결과 3가지 플랜 비교 — 작은 쪽 driving으로 unnest</td></tr>
+<tr><td>15</td><td><code>d.*</code> 조인 vs <code>(select distinct ...)</code> inline view</td><td>수동 unnest 우회 — "이러시면 곤란해요"</td></tr>
+<tr><td>16</td><td>dept where IN emp → SEMI · <code>merge_sj</code> · <code>hash_sj</code></td><td>operation에 <b>SEMI</b> · merge_sj의 <b>SORT UNIQUE</b>=m쪽 1쪽화</td></tr>
+<tr><td>17</td><td><code>not in (select department_id from emp)</code></td><td><b>0건</b> — 서브쿼리 null 하나로 전멸(AND 진리표)</td></tr>
+<tr><td>18</td><td><code>is not null</code> 추가 / NOT EXISTS → <code>nl_aj·merge_aj·hash_aj</code></td><td><b>ANTI</b> 조인 3형제 (각 플랜 캡처 없음 → 홈랩)</td></tr>
+</table>
+<h3>[5줄 요약]</h3>
+<ol>
+<li><b>쿼리 변환 = 옵티마이저가 플랜을 만들기 전에 SQL 자체를 고쳐 쓰는 것</b> — 내가 쓴 문장과 도는 문장이 다를 수 있다. filter 술어가 그 신호.</li>
+<li><b>filter 방식은 NL과 같은 반복이지만 cache가 구한다</b> — 최악 214블록이 input 캐시 덕에 12번(값 종류 수)으로. <code>:B1</code>이 캐시 바인딩의 흔적.</li>
+<li><b>unnest되면 3형제 도구가 전부 열린다</b> — 서브쿼리인 채로는 순서·방법을 못 고르고, 조인이 되어야 leading/use_xx가 통한다(@sub로 지정).</li>
+<li><b>조인 제거는 FK가 증명해줄 때만</b> — "emp의 부서는 반드시 dept에 있다"는 보장이 있어야 1쪽을 안 읽어도 결과가 같다.</li>
+<li><b>semi는 만나면 멈추고(브레이크), anti는 없어야 담는다</b> — 변환된 서브쿼리는 항상 후행. NOT IN은 null 하나로 전멸하니 is not null 또는 NOT EXISTS.</li>
+</ol>
+<h3>[건너뛴 것 — 매뉴얼 대비]</h3>
+<table><tr><th>안 다룬 것</th><th>추정 이유</th><th>공부하러 가기</th></tr>
+<tr><td>view merging·predicate pushing 등 나머지 변환</td><td>① 뒤 차시 추정</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/' class='cmp-link'>매뉴얼(SQL Tuning Guide)</a></td></tr>
+<tr><td>scalar subquery cache 실습</td><td>① 개념만 언급</td><td><a href='sql_tuning.html#qt' class='cmp-link'>문서 §8.1</a> 개념만</td></tr>
+<tr><td>shared cursor (강사가 화두만 던짐)</td><td>① 뒤 차시 추정</td><td>? → 강사 질문</td></tr>
+</table>
+<h3>[홈랩 재현 권장 — 결석으로 플랜 캡처가 없는 실험]</h3>
+<p>노트에 SQL은 있는데 실행 결과 수치가 없는 것들. 홈랩에서 직접 돌려 Buffers를 채울 것:</p>
+<ol>
+<li><code>unnest</code> + <code>leading(d,e)</code> × <b>use_nl / use_merge / use_hash</b> 각각의 Buffers (74일차 35·15·13과 비교)</li>
+<li>dept_idx 생성 <b>후</b> <code>exists no_unnest</code> — filter 방식이 인덱스로 얼마나 좋아지는가</li>
+<li>emp_dept_idx 생성 후 <code>leading(e,d@sub) use_nl(d@sub)</code> — 진입 인덱스 NL 수치</li>
+<li><code>merge_sj</code> 플랜에서 <b>SORT UNIQUE</b> 위치 직접 확인 · <code>hash_sj</code>와 Buffers 비교</li>
+<li><code>nl_aj / merge_aj / hash_aj</code> 각 ANTI 플랜 모양</li>
+</ol>
+<hr>
+<h3>복습 동선 (10분)</h3>
+<ol>
+<li><b>[오늘의 축]</b> 한 줄을 소리 내어 설명해보기 — filter·unnest·조인 제거가 각각 언제 나오는지</li>
+<li><b>[개념 제목]</b> 을 훑으며 설명 안 되는 것만 [문서 §] 링크로 이동해 그 부분 재독</li>
+<li><b>[명령어 표]</b> 의 결과 숫자(47 → 12 / 214 → 12번 / Starts 12)를 가리고 떠올려보기 — 특히 "왜 107번이 아니라 12번인가?"</li>
+<li>마무리 — <a href='study_hub_full.html' class='cmp-link'>허브에서 75일차 문제 풀기</a> (날짜칩 75 필터)</li>
 </ol></script>
 </body>
 </html>
