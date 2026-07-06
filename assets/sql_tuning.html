@@ -84,6 +84,7 @@ footer{padding:30px 0 50px;color:var(--muted);font-size:13px}
   <a href="#p5">5. 인덱스 & rowid</a>
   <a href="#p6">6. 도구·통계·TRACE·10046·BCHR</a>
   <a href="#join">7. 조인</a>
+  <a href="#qt">8. 쿼리 변환</a>
   <a href="#road">로드맵</a>
 </div></nav>
 
@@ -866,13 +867,75 @@ Predicate Information:
   NL(batch) <b>35</b> · hash <b>13</b> · SM full <b>5</b> — Buffers만 보면 SM 승. 하지만 SM의 정렬(Used-Mem 16K)과 hash의 build 메모리(1.5M)는 Buffers 밖의 비용이다. 테이블이 커지면: NL은 반복이(random), SM은 정렬이(temp 넘침 = Used-Tmp), hash는 build가 메모리를 넘칠 때가 각자의 급소. <b class="k">판정은 Buffers + 메모리 컬럼을 같이, 그리고 건수·등호 여부·인덱스 유무로 고른다.</b></div>
 </section>
 
+<section class="part" id="qt">
+  <div class="phead"><div class="pnum">08</div><div><div class="ptitle">쿼리 변환 — 옵티마이저는 내 SQL을 다시 쓴다 <span class="db add">75일차</span></div><div class="psub">서브쿼리 → filter / unnest(semi·anti) / 조인 제거</div></div></div>
+  <p><b class="k">Query Transformation(쿼리 변환)</b> — 옵티마이저가 실행계획을 만들기 <b>전에</b>, 결과가 동일하면서 비용이 더 적을 것 같으면 SQL을 재작성하는 것(8i부터 단계적 도입). 내가 쓴 문장과 실제 도는 문장이 다를 수 있다 — <b>플랜에 filter 술어가 보이면 꼭 다시 확인</b>하라는 것이 오늘의 경고다.</p>
+
+  <h3 class="blk"><span class="ix">8.1</span>서브쿼리 4종 — 어디에 있느냐로 갈린다</h3>
+  <table>
+    <tr><th>종류</th><th>위치·동작</th></tr>
+    <tr><td><b>nested subquery</b> (중첩)</td><td>서브쿼리를 한 번 수행해 main query를 수행</td></tr>
+    <tr><td><b>correlated subquery</b> (상호관련)</td><td>main query의 컬럼을 서브쿼리가 사용 — <b>main 행 수만큼 서브쿼리 반복</b></td></tr>
+    <tr><td><b>inline view</b></td><td>FROM 절의 서브쿼리 — 가상 집합(가상 테이블) 생성</td></tr>
+    <tr><td><b>scalar subquery</b> (스칼라)</td><td>SELECT 절 컬럼 위치 — <b>하나의 값만</b> 리턴, <b>cache 기능</b> 제공</td></tr>
+  </table>
+  <div class="tip"><b>현장 용어</b> — "쿼리 블록 보세요"라고 하면 서브쿼리를 확인하면 된다. 메인쿼리의 컬럼이 서브쿼리 안에 있으면 그게 상호관련 서브쿼리다.</div>
+
+  <h3 class="blk"><span class="ix">8.2</span>filter 방식 — 반복이지만, 캐시가 구한다</h3>
+  <p><code class="inl">no_unnest</code> 힌트로 서브쿼리를 <b>변환 없이 filter 방식</b>으로 돌리면(인덱스 없는 상태):</p>
+  <pre class="term"><span class="cm">-- where department_id in (select /*+ no_unnest */ department_id from hr.dept)</span>
+<span class="out">| Id | Operation          | Name | Starts | A-Rows | Buffers |</span>
+<span class="hl">|* 1 |  FILTER            |      |    1   |   106  |   47 |</span>
+<span class="out">|  2 |   TABLE ACCESS FULL| EMP  |    1   |   107  |   11 |</span>
+<span class="hl">|* 3 |   TABLE ACCESS FULL| DEPT |   12   |    11  |   36 |  ← Starts 12 (107이 아니다!)</span>
+<span class="out">   1 - filter( IS NOT NULL)      3 - filter("DEPARTMENT_ID"=:B1)</span></pre>
+  <div class="why"><span class="h">filter operation cache (filter optimization)</span>
+  FILTER는 <b>메인 루프의 행마다 서브 루프를 돌리는</b> 구조라 NL과 실행 방식이 같다. dept full 1회가 2블록이니 <b>최악은 107번 × 2 = 214블록</b>. 그런데 실측은 서브쿼리 수행이 <b>12번</b>뿐 — 오라클이 filter 조건의 <b>input 값(:B1)을 cache</b>해서, 같은 department_id가 또 오면 읽지 않고 캐시를 쓴다. emp의 department_id 종류가 12가지(null 제외 11 + 1)라 <b>종류 수만큼만</b> 돌았다. 술어의 <code class="inl">:B1</code>이 이 바인딩의 흔적이고, <code class="inl">filter(IS NOT NULL)</code>은 null 행 제외의 흔적이다.</div>
+
+  <h3 class="blk"><span class="ix">8.3</span>unnest — 서브쿼리를 조인으로 푼다 (semi join)</h3>
+  <p>동일한 결과가 보장되면 옵티마이저는 서브쿼리를 <b>조인문으로 변환</b>한다(unnest). 조인이 되는 순간 <b>액세스 경로·조인 방법·조인 순서를 고를 수 있게</b> 된다 — 73~74일차의 3형제 도구가 전부 열린다. 힌트 <code class="inl">unnest</code> / <code class="inl">no_unnest</code>.</p>
+  <pre class="term"><span class="cm">-- 같은 쿼리, 힌트 없음(인덱스 0) → 옵티마이저가 스스로 unnest</span>
+<span class="out">| Id | Operation           | Name | A-Rows | Buffers |</span>
+<span class="hl">|* 1 |  HASH JOIN RIGHT SEMI|     |   106  |   12 |  ← filter 47 → semi 12</span>
+<span class="out">|  2 |   TABLE ACCESS FULL | DEPT |    27  |    2 |</span>
+<span class="out">|  3 |   TABLE ACCESS FULL | EMP  |   107  |   10 |</span></pre>
+  <div class="why"><span class="h">서브쿼리 블록에 힌트를 주는 법 — qb_name(10g~)</span>
+  unnest된 서브쿼리의 테이블은 메인 힌트에서 이름이 안 잡힌다. 서브쿼리에 <code class="inl">qb_name(sub)</code>로 이름을 붙이고, 메인에서 <code class="inl">leading(d@sub, e)</code>·<code class="inl">use_nl(e)</code>·<code class="inl">full(d@sub)</code>처럼 <b>@블록이름</b>으로 지정한다. 이걸로 unnest된 조인의 순서·방법을 3형제 실험처럼 제어했다.</div>
+  <div class="tip"><b>주의 — 서브쿼리와 조인은 같지 않다</b> — 결과 건수부터 다르다(1:m에서 조인은 m쪽 만큼 늘어남). m:1처럼 <b>결과가 보장될 때만</b> 변환이 성립한다. 한쪽 테이블 데이터만 보면 되면 서브쿼리, 양쪽을 비교해야 하면 조인. <code class="inl">(select distinct department_id from hr.emp)</code>를 inline view로 조인하는 식의 우회는 곤란하다 — 함부로 unnest(수동 변환)하지 말 것.</div>
+
+  <h3 class="blk"><span class="ix">8.4</span>조인 제거(join elimination) — 안 읽어도 되는 테이블은 안 읽는다</h3>
+  <p><b>1:m 관계에서 1쪽 테이블을 참조하지 않으면</b>(SELECT에 m쪽 컬럼만) 옵티마이저가 1쪽 테이블을 아예 읽지 않는다. 전제: <b class="k">PK(1쪽)·FK(m쪽) 제약조건</b>이 있어야 작동.</p>
+  <pre class="term"><span class="cm">-- e.* 만 조회하는 employees⋈departments — DEPT를 읽지 않는다</span>
+<span class="pr">SYS&gt;</span> select e.* from hr.employees e, hr.departments d
+     where e.department_id = d.department_id;
+<span class="cm">-- 내부적으로 이 문장이 돌아간다:</span>
+<span class="hl">     select * from hr.employees where department_id is not null;</span>
+<span class="cm">-- 확인: _optimizer_join_elimination_enabled = TRUE (기본)</span>
+<span class="cm">-- 비활성화 힌트: no_eliminated_join(d)</span></pre>
+  <div class="why"><span class="h">FK가 있어야 하는 이유 · FK의 덤</span>
+  FK가 보장하는 건 "emp의 department_id는 반드시 dept에 존재한다"는 사실 — 그래서 dept를 안 읽어도 결과가 같다고 <b>증명</b>이 되고, 그때만 제거한다. FK(+not null)를 걸면 ① 데이터 품질이 좋아지고 ② 조인 제거가 돌아간다. null을 포함해야 하면 outer join을 쓰되, null이 포함될 컬럼에 FK를 걸지 않는 관행도 있다(현장에선 버그로 본다). 제약조건 때문에 PK 쪽 lock이 걸리는 문제는 9i에서 해결됐다.</div>
+
+  <h3 class="blk"><span class="ix">8.5</span>semi join & anti join — 만나면 멈추고, 없으면 찾는다</h3>
+  <table>
+    <tr><th></th><th>semi join</th><th>anti join</th></tr>
+    <tr><td>찾는 것</td><td>서브쿼리에 <b>존재하는</b> 메인 행 (IN·EXISTS)</td><td>존재하지 <b>않는</b> 행 (NOT IN·NOT EXISTS)</td></tr>
+    <tr><td>동작</td><td>match되면 <b>그 행의 조인 검색을 멈춤</b>(브레이크)</td><td>match되면 버리고, <b>없으면</b> 결과로</td></tr>
+    <tr><td>공통</td><td colspan="2">서브쿼리를 조인으로 변환 · 변환된 쪽은 <b>항상 후행(inner)</b></td></tr>
+    <tr><td>힌트</td><td><code class="inl">nl_sj · merge_sj · hash_sj</code></td><td><code class="inl">nl_aj · merge_aj · hash_aj</code></td></tr>
+  </table>
+  <div class="why"><span class="h">플랜에서 읽는 신호</span>
+  operation에 <code class="inl">SEMI</code>/<code class="inl">ANTI</code>가 붙는다(예: <code class="inl">HASH JOIN RIGHT SEMI</code>). merge_sj의 <b>SORT UNIQUE</b>는 정렬이 아니라 <b>m쪽을 1쪽 집합처럼 중복 제거</b>하는 작업이다. semi가 일반 조인보다 유리한 이유 = 짝을 하나 찾으면 <b>더 안 뒤진다</b> — 인위적으로 distinct를 만들 필요가 없다.</div>
+  <div class="tip"><b>NOT IN의 null 함정</b> — 서브쿼리 결과에 <b>null이 하나라도 있으면 NOT IN은 아무것도 반환하지 않는다</b>(AND 진리표: <code class="inl">x != null</code>은 UNKNOWN). 그래서 anti join 실습에서 <code class="inl">where department_id is not null</code>을 서브쿼리에 넣거나 NOT EXISTS로 쓴다. 면접·실무 단골.</div>
+</section>
+
 <section class="part" id="road">
   <div class="phead"><div class="pnum">▶</div><div><div class="ptitle">앞으로 다룰 것 (로드맵)</div><div class="psub">수업이 진행되며 채워 나갈 목차</div></div></div>
   <ul class="road">
     <li class="done"><span class="n">01–06</span>개요 · 실행계획 읽기·도구·통계 · 액세스 경로 · 인덱스 · 버퍼 피닝 · <b>클러스터링 팩터 · SQL TRACE · 10046 · BCHR · 비트맵</b> <span class="tag">완료</span></li>
     <li class="done"><span class="n">07</span><a href="#join" style="color:var(--tune);font-weight:600">조인 방식</a> — Nested Loop · Sort Merge · Hash, 순서와 Starts로 반복 읽기 <span class="tag">완료</span></li>
-    <li><span class="n">08</span>옵티마이저 & 통계 — CBO, 카디널리티 추정, 통계 최신화·히스토그램 <span class="tag">예정</span></li>
-    <li><span class="n">09</span>증상→원인→처방 안티패턴 + 자주 쓰는 힌트 <span class="tag">예정</span></li>
+    <li class="done"><span class="n">08</span><a href="#qt" style="color:var(--tune);font-weight:600">쿼리 변환</a> — 서브쿼리 filter↔unnest(semi/anti) · filter optimization · 조인 제거 <span class="tag">완료</span></li>
+    <li><span class="n">09</span>옵티마이저 & 통계 — CBO, 카디널리티 추정, 통계 최신화·히스토그램 <span class="tag">예정</span></li>
+    <li><span class="n">10</span>증상→원인→처방 안티패턴 + 자주 쓰는 힌트 <span class="tag">예정</span></li>
   </ul>
   <div class="why"><span class="h">메모</span>구조 지식(HWM·scattered read·버퍼 캐시·블록)은 <b>내부구조편 가이드</b>에, 그걸 활용하는 기법은 이 문서에 쌓는다. 새 수업이 오면 위 로드맵을 하나씩 완료로 바꿔 간다.</div>
 </section>
