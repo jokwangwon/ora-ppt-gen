@@ -4,11 +4,13 @@
 허브(study_hub_full.html)의 데이터 배열을 편집한다:
   MCQ   += {id,d,q,o:[],a,e}
   ESSAY += {id,d,q,a,k:[]}
-  TERMS += {t,e,d}            (d = 상세설명. 일차 필드 없음)
+  TERMS += {t,e,d,day}        (d = 상세설명 텍스트, day = 일차 — 날짜칩 필터용. 주입 시 자동 부여)
   PLANQ += {id,q,plan,a}
 그리고 DAYS 에 해당 일차를 추가하고, 없으면 날짜 칩(--dNN 색 변수 + .dtNN)을 만든다.
 
-**멱등**: 이미 있는 id(또는 TERMS의 t)는 건너뛴다. 주입 후 JS 문법은 호출측(make_day/
+**멱등 + 갱신**: 이미 있는 id(또는 TERMS의 t)는 — 내용이 같으면 건너뛰고, 내용이
+바뀌었으면 그 자리에서 교체한다(update-in-place). days/N/quiz.json 이 소스 오브 트루스:
+문제를 고치면 재주입으로 허브가 따라온다. 주입 후 JS 문법은 호출측(make_day/
 sync_and_verify)에서 node --check 로 재검증한다.
 
 사용법:
@@ -28,8 +30,8 @@ from pathlib import Path
 SCHEMA = {
     "MCQ": (["id", "d", "q", "o", "a", "e"], "id"),
     "ESSAY": (["id", "d", "q", "a", "k"], "id"),
-    "TERMS": (["t", "e", "d"], "t"),
-    "PLANQ": (["id", "q", "plan", "a"], "id"),
+    "TERMS": (["t", "e", "d", "day"], "t"),
+    "PLANQ": (["id", "q", "plan", "a", "k"], "id"),
 }
 # 새 일차 칩 색상 후보 (기존과 겹치지 않게 순환)
 CHIP_COLORS = ["#C74634", "#0563C1", "#70AD47", "#7C3AED", "#0F766E", "#B45309", "#BE185D", "#4338CA"]
@@ -52,6 +54,41 @@ def existing_ids(array_body: str, id_field: str) -> set[str]:
     return set(re.findall(r"\bt:\s*\"((?:[^\"\\]|\\.)*)\"", array_body))
 
 
+def find_literal(body: str, id_field: str, key: str) -> tuple[int, int] | None:
+    """array body 안에서 id_field:key 를 가진 객체 리터럴의 (시작,끝) 위치.
+
+    문자열 리터럴('…' / "…", 이스케이프 포함)을 인식하며 중괄호 짝을 맞춘다 —
+    plan/해설 텍스트에 { } , 가 들어 있어도 안전하다.
+    """
+    km = re.search(id_field + r":\s*" + re.escape(json.dumps(key, ensure_ascii=False)), body) \
+        or re.search(id_field + r":\s*'" + re.escape(key) + r"'", body)
+    if not km:
+        return None
+    # 뒤로 스캔해 이 항목의 여는 '{' 를 찾는다 (직전의 최상위 '{')
+    start = body.rfind("{", 0, km.start())
+    if start == -1:
+        return None
+    depth, i, in_str, quote = 0, start, False, ""
+    while i < len(body):
+        c = body[i]
+        if in_str:
+            if c == "\\":
+                i += 2
+                continue
+            if c == quote:
+                in_str = False
+        elif c in "'\"":
+            in_str, quote = True, c
+        elif c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return (start, i + 1)
+        i += 1
+    return None
+
+
 def inject_array(hub: str, name: str, items: list[dict], rep: list[str]) -> str:
     keys, id_field = SCHEMA[name]
     m = re.search(r"(const\s+" + name + r"\s*=\s*\[)(.*?)(\]\s*;)", hub, re.S)
@@ -63,17 +100,22 @@ def inject_array(hub: str, name: str, items: list[dict], rep: list[str]) -> str:
     new_lits = []
     for it in items:
         key = it.get(id_field)
+        lit = js_literal(it, keys)
         if key in have:
-            rep.append(f"· {name} 건너뜀(이미 있음): {key}")
+            # 이미 있음 — 내용이 다르면 그 자리에서 교체 (days 파일이 소스 오브 트루스)
+            span = find_literal(body, id_field, key)
+            if span and body[span[0]:span[1]] != lit:
+                body = body[:span[0]] + lit + body[span[1]:]
+                rep.append(f"~ {name} 갱신: {key}")
+            else:
+                rep.append(f"· {name} 건너뜀(동일): {key}")
             continue
-        new_lits.append(js_literal(it, keys))
+        new_lits.append(lit)
         rep.append(f"+ {name} 추가: {key}")
-    if not new_lits:
-        return hub
-    sep = ",\n  "
-    trimmed = body.rstrip().rstrip(",")
-    new_body = trimmed + sep + sep.join(new_lits) + "\n"
-    return hub[:m.start()] + head + new_body + tail + hub[m.end():]
+    if new_lits:
+        sep = ",\n  "
+        body = body.rstrip().rstrip(",") + sep + sep.join(new_lits) + "\n"
+    return hub[:m.start()] + head + body + tail + hub[m.end():]
 
 
 def add_day(hub: str, day: int, rep: list[str]) -> str:
@@ -141,6 +183,9 @@ def add_day_chip(hub: str, day: int, rep: list[str]) -> str:
 def inject(hub: str, quiz: dict, day: int, rep: list[str]) -> str:
     for name in ("MCQ", "ESSAY", "TERMS", "PLANQ"):
         items = quiz.get(name) or []
+        if name == "TERMS":
+            # 날짜칩 필터용 일차 태그 (d 는 상세설명 텍스트라 별도 필드)
+            items = [{**it, "day": it.get("day", day)} for it in items]
         if items:
             hub = inject_array(hub, name, items, rep)
     hub = add_day(hub, day, rep)

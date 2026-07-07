@@ -77,6 +77,29 @@ def structural_errors(quiz: dict, day: int | None) -> list[str]:
     return errs
 
 
+def length_bias(quiz: dict) -> list[str]:
+    """정답 길이 편향(조언) — '제일 긴 보기가 정답' 패턴이 시험 요령으로 뚫리는 문제.
+
+    문제 단위: 정답이 유일하게 최장이고 2위보다 30%+ 길면 지적.
+    세트 단위: 절반 이상에서 '정답=최장'이면 세트 전체 경향으로 지적.
+    """
+    warns, longest_correct, n = [], 0, 0
+    for it in quiz.get("MCQ", []):
+        o, a = it.get("o", []), it.get("a")
+        if not isinstance(a, int) or not (0 <= a < len(o)) or len(o) < 2:
+            continue
+        n += 1
+        lens = [len(x) for x in o]
+        if lens[a] == max(lens) and lens.count(max(lens)) == 1:
+            longest_correct += 1
+            runner = max(v for i, v in enumerate(lens) if i != a)
+            if lens[a] > runner * 1.3:
+                warns.append(f"MCQ {it.get('id','?')}: 정답({lens[a]}자)이 2위({runner}자)보다 30%+ 김 — 오답을 살찌우거나 정답을 다듬기")
+    if n and longest_correct * 2 >= n and n >= 3:
+        warns.append(f"세트 경향: {n}문제 중 {longest_correct}개가 '정답=최장 보기' — 길이만 보고 찍힌다")
+    return warns
+
+
 def grounding(text: str, doc_text: str | None) -> tuple[list[str], list[str]]:
     """텍스트의 숫자들이 원문에 있는지. (있는것, 없는것)"""
     if doc_text is None:
@@ -186,6 +209,13 @@ def main(argv: list[str] | None = None) -> int:
 
     n_m, n_e, n_t, n_p = (len(quiz.get(k, [])) for k in ("MCQ", "ESSAY", "TERMS", "PLANQ"))
     print(f"{OK} 구조 통과 — MCQ {n_m}·ESSAY {n_e}·TERMS {n_t}·PLANQ {n_p}")
+    bias = length_bias(quiz)
+    if bias:
+        print(f"{WARN} 정답 길이 편향 {len(bias)}건:")
+        for b in bias:
+            print(f"   {WARN} {b}")
+    else:
+        print(f"{OK} 정답 길이 편향 없음")
     if doc_text is not None:
         print(f"{OK if warns == 0 else WARN} 근거 대조 — 원문 미확인 숫자 있는 문제 {warns}건" + ("" if warns == 0 else " (시트에서 ⚠ 확인)"))
     else:
