@@ -198,19 +198,27 @@ footer .inner{padding:0;max-width:940px}
           </div>
         </article>
     </div>
-    <details class="misc"><summary>그 외 발표 덱 <span class="pill mini warn">미검토 · 참고용</span> · 8개</summary><ul class="misc-list">
+    <details class="misc"><summary>그 외 발표 덱 <span class="pill mini warn">미검토 · 참고용</span> · 9개</summary><ul class="misc-list">
           <li class="mrow"><span class="mtitle">버퍼 캐시·DBWR (문서 전체 덱)</span><span class="pill mini warn">미검토</span><span class="meta">80 KB · 2026-07-01</span><a class="mdl" href="files/buffer_cache_dbwr_checkpoint.pptx" download>PPTX ↓</a></li>
           <li class="mrow"><span class="mtitle">68일차 — row migration · ITL · full scan</span><span class="pill mini warn">미검토</span><span class="meta">305 KB · 2026-07-01</span><a class="mdl" href="files/day68.pptx" download>PPTX ↓</a></li>
           <li class="mrow"><span class="mtitle">73일차 — NL 조인 · 조인 순서와 진입 인덱스</span><span class="pill mini warn">미검토</span><span class="meta">151 KB · 2026-07-02</span><a class="mdl" href="files/day73.pptx" download>PPTX ↓</a></li>
           <li class="mrow"><span class="mtitle">74일차 — 조인 3형제 · Sort Merge와 Hash</span><span class="pill mini warn">미검토</span><span class="meta">76 KB · 2026-07-03</span><a class="mdl" href="files/day74.pptx" download>PPTX ↓</a></li>
           <li class="mrow"><span class="mtitle">75일차 — 쿼리 변환 · filter↔unnest · 조인 제거</span><span class="pill mini warn">미검토</span><span class="meta">77 KB · 2026-07-06</span><a class="mdl" href="files/day75.pptx" download>PPTX ↓</a></li>
+          <li class="mrow"><span class="mtitle">76일차 — 쿼리 변환 2탄 · OR-expansion · push_subq · bloom</span><span class="pill mini warn">미검토</span><span class="meta">73 KB · 2026-07-07</span><a class="mdl" href="files/day76.pptx" download>PPTX ↓</a></li>
           <li class="mrow"><span class="mtitle">내부구조편 (문서 전체 덱)</span><span class="pill mini warn">미검토</span><span class="meta">346 KB · 2026-07-01</span><a class="mdl" href="files/guide_62_68.pptx" download>PPTX ↓</a></li>
           <li class="mrow"><span class="mtitle">RMAN 복구 (문서 전체 덱)</span><span class="pill mini warn">미검토</span><span class="meta">15 KB · 2026-07-01</span><a class="mdl" href="files/rman_recovery.pptx" download>PPTX ↓</a></li>
-          <li class="mrow"><span class="mtitle">SQL 튜닝편 (문서 전체 덱)</span><span class="pill mini warn">미검토</span><span class="meta">474 KB · 2026-07-06</span><a class="mdl" href="files/sql_tuning.pptx" download>PPTX ↓</a></li></ul></details>
+          <li class="mrow"><span class="mtitle">SQL 튜닝편 (문서 전체 덱)</span><span class="pill mini warn">미검토</span><span class="meta">520 KB · 2026-07-07</span><a class="mdl" href="files/sql_tuning.pptx" download>PPTX ↓</a></li></ul></details>
 
     <h2 class="sec" id="daily"><span class="n">04</span>일일 복습</h2>
     <div class="sub">하루치 요약 일지 — 그날의 축·개념·명령어·5줄 요약을 한 장으로. 관련 문서 섹션으로 바로 이동합니다.</div>
     <div class="grid">
+        <article class="card">
+          <div class="tags"><span class="pill topic">📅 76일차</span></div>
+          <h3 class="ctitle">쿼리 변환 2탄 — 변환의 방향은 언제나 &quot;더 앞 단계에서, 더 적은 행으로&quot;. null도 anti로(NA·LNNVL), or는 union all로(OR-expansion), 서브쿼리 필터는 앞으로(push_subq), 뷰는 해체하거나(view merging) 조건을 안으로(pushdown), 조인 전엔 bloom filter.</h3>
+          <div class="acts">
+            <a class="btn" href="reviews/day76.html">복습 시트 열기</a>
+          </div>
+        </article>
         <article class="card">
           <div class="tags"><span class="pill topic">📅 75일차</span></div>
           <h3 class="ctitle">옵티마이저는 내 SQL을 다시 쓴다(Query Transformation) — 서브쿼리는 filter(캐시로 버티기) ↔ unnest(semi/anti 조인으로 풀기), 안 읽어도 되는 테이블은 조인 제거. 플랜에 filter 술어가 보이면 &quot;다시 확인하라&quot;는 신호.</h3>
@@ -234,7 +242,7 @@ footer .inner{padding:0;max-width:940px}
         </article>
     </div>
   </div>
-  <footer><div class="inner">자동 생성 · 최종 갱신 2026-07-06 · <code>build_library.py</code> — 파일 추가 후 재실행하면 목록이 갱신됩니다.</div></footer>
+  <footer><div class="inner">자동 생성 · 최종 갱신 2026-07-07 · <code>build_library.py</code> — 파일 추가 후 재실행하면 목록이 갱신됩니다.</div></footer>
 </main>
 
 <script>
