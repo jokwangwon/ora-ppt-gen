@@ -868,7 +868,7 @@ Predicate Information:
 </section>
 
 <section class="part" id="qt">
-  <div class="phead"><div class="pnum">08</div><div><div class="ptitle">쿼리 변환 — 옵티마이저는 내 SQL을 다시 쓴다 <span class="db add">75일차</span></div><div class="psub">서브쿼리 → filter / unnest(semi·anti) / 조인 제거</div></div></div>
+  <div class="phead"><div class="pnum">08</div><div><div class="ptitle">쿼리 변환 — 옵티마이저는 내 SQL을 다시 쓴다 <span class="db add">75~76일차</span></div><div class="psub">서브쿼리 → filter / unnest(semi·anti) / 조인 제거 · OR-expansion · push_subq · view merging · pushdown · bloom</div></div></div>
   <p><b class="k">Query Transformation(쿼리 변환)</b> — 옵티마이저가 실행계획을 만들기 <b>전에</b>, 결과가 동일하면서 비용이 더 적을 것 같으면 SQL을 재작성하는 것(8i부터 단계적 도입). 내가 쓴 문장과 실제 도는 문장이 다를 수 있다 — <b>플랜에 filter 술어가 보이면 꼭 다시 확인</b>하라는 것이 오늘의 경고다.</p>
 
   <h3 class="blk"><span class="ix">8.1</span>서브쿼리 4종 — 어디에 있느냐로 갈린다</h3>
@@ -926,6 +926,69 @@ Predicate Information:
   <div class="why"><span class="h">플랜에서 읽는 신호</span>
   operation에 <code class="inl">SEMI</code>/<code class="inl">ANTI</code>가 붙는다(예: <code class="inl">HASH JOIN RIGHT SEMI</code>). merge_sj의 <b>SORT UNIQUE</b>는 정렬이 아니라 <b>m쪽을 1쪽 집합처럼 중복 제거</b>하는 작업이다. semi가 일반 조인보다 유리한 이유 = 짝을 하나 찾으면 <b>더 안 뒤진다</b> — 인위적으로 distinct를 만들 필요가 없다.</div>
   <div class="tip"><b>NOT IN의 null 함정</b> — 서브쿼리 결과에 <b>null이 하나라도 있으면 NOT IN은 아무것도 반환하지 않는다</b>(AND 진리표: <code class="inl">x != null</code>은 UNKNOWN). 그래서 anti join 실습에서 <code class="inl">where department_id is not null</code>을 서브쿼리에 넣거나 NOT EXISTS로 쓴다. 면접·실무 단골.</div>
+
+  <h3 class="blk"><span class="ix">8.6</span>anti join이 null을 배웠다 — ANTI NA와 LNNVL <span class="db add">76일차</span></h3>
+  <p><b>10g까지는</b> NOT IN 서브쿼리가 anti join으로 풀리지 않았다 — 조인 컬럼에 <code class="inl">is not null</code>을 명시해야만 anti가 됐다. 지금(19c)은 힌트 없이 NOT IN을 던져도 플랜에 <b class="k">MERGE JOIN ANTI NA</b>가 뜬다 — <b>NA = Null-Aware</b>, null의 의미(전멸)를 지키면서 anti join 구조로 도는 변환이다(그래서 결과는 여전히 0건, A-Rows 0).</p>
+  <pre class="term"><span class="cm">-- ① is not null 명시 → 보통 anti (16행)</span>
+<span class="hl">|* 1 |  HASH JOIN ANTI  |              | A-Rows 16 | Buffers 3 |</span>
+<span class="cm">-- ② 명시 없이 NOT IN (19c) → null-aware anti (0행 — null 의미 유지)</span>
+<span class="hl">|  1 |  MERGE JOIN ANTI NA |           | A-Rows  0 | Buffers 5 |</span>
+<span class="cm">-- ③ no_unnest → filter 방식 (Buffers 57, EMP full을 Starts 27)</span>
+<span class="out">   1 - filter( IS NULL)   3 - filter(LNNVL("DEPARTMENT_ID"&lt;&gt;:B1))</span></pre>
+  <div class="why"><span class="h">LNNVL 읽는 법</span>
+  <code class="inl">LNNVL(조건)</code> = 조건이 <b>거짓이거나 판정 불가(null)</b>면 참. 그래서 <code class="inl">LNNVL("DEPARTMENT_ID"&lt;&gt;:B1)</code> = <code class="inl">department_id is null or department_id = :B1</code>, <code class="inl">LNNVL("DEPARTMENT_ID"=20)</code> = <code class="inl">department_id &lt;&gt; 20 or department_id is null</code>. NOT IN의 null 의미를 술어 한 줄로 지키는 장치 — 아래 OR-expansion에서도 그대로 다시 나온다.</div>
+
+  <h3 class="blk"><span class="ix">8.7</span>OR-expansion — or를 union all로 다시 쓴다 <span class="db add">76일차</span></h3>
+  <p><code class="inl">job_id = 'IT_PROG' <b>or</b> department_id = 20</code> — or가 걸치면 옵티마이저는 인덱스 둘 중 하나로 못 정하고 <b>full table scan</b>(Buffers 7)을 잡기 쉽다. 그런데 각각은 인덱스로 4씩이다. <b class="k">OR-expansion</b> = 사용자가 쿼리를 직접 바꾸지 않아도 or 조건을 <b>union all 형태</b>로 변환해 가지마다 index range scan을 태우는 기능.</p>
+  <pre class="term"><span class="cm">-- use_concat 힌트 → CONCATENATION (Buffers 6)</span>
+<span class="out">|  1 |  CONCATENATION     |                   |</span>
+<span class="out">|  2 |   TABLE ACCESS ... | EMP_DEPARTMENT_IX |  ← department_id=20 가지</span>
+<span class="hl">|* 4 |   TABLE ACCESS ... | EMP_JOB_IX        |  4 - filter(LNNVL("DEPARTMENT_ID"=20))</span></pre>
+  <div class="why"><span class="h">LNNVL이 왜 또 나오나 — 중복 제거</span>
+  두 가지를 union all로 합치면 <b>양쪽 조건을 다 만족하는 행이 두 번</b> 나온다. 그래서 둘째 가지에 <code class="inl">LNNVL(department_id=20)</code>(= 20이 아니거나 null)을 자동으로 붙여 첫째 가지가 이미 가져간 행을 뺀다 — 수동으로 union all + lnnvl을 쓴 실측(6)과 use_concat(6)이 같은 플랜이 되는 이유. 힌트: <code class="inl">use_concat</code>(유도) / <code class="inl">no_expand</code>(금지, full 7).</div>
+  <div class="tip"><b>union vs union all</b> — union은 <b>SORT UNIQUE</b>(전체 중복 제거 정렬)가 하나 더 붙는다. OR-expansion이 union all + LNNVL을 쓰는 건 정렬 없이 중복을 피하는 방법이기 때문.</div>
+
+  <h3 class="blk"><span class="ix">8.8</span>같은 술어, 다른 플랜 — FREQUENCY 히스토그램 <span class="db add">76일차</span></h3>
+  <p>같은 <code class="inl">department_id = ?</code>인데 — <b>10(1행)은 index 3블록, 50(45행)은 full 9블록</b>. 힌트 없이 옵티마이저가 값을 보고 접근 경로를 갈랐고, E-Rows도 45로 정확했다. 무엇을 보고 갈랐는지는 통계에 있다:</p>
+  <pre class="term"><span class="pr">SYS&gt;</span> select column_name, num_distinct, num_buckets, histogram
+     from dba_tab_columns where table_name='EMPLOYEES';
+<span class="out">DEPARTMENT_ID   11   11  FREQUENCY   ← 값 종류 11개, 버킷 11개</span>
+<span class="hl">JOB_ID          19   19  FREQUENCY   · LAST_NAME 102 FREQUENCY ...</span></pre>
+  <div class="why"><span class="h">히스토그램 = 값별 분포표</span>
+  <b>FREQUENCY 히스토그램</b>은 값 종류마다 버킷 하나 — "50번 부서는 45명, 10번 부서는 1명"을 옵티마이저가 안다. 그래서 같은 술어라도 <b>값에 따라 index/full을 바꿔 태운다</b>. <code class="inl">or department_id = 50</code>으로 OR-expansion을 걸면 job 가지는 index, 50 가지는 full — <b>가지마다 다른 접근</b>(13)을 조합한다. 인덱스를 강제해도(9) full(9)과 같았다 — 45행이면 인덱스 이득이 없다. 통계·히스토그램 본편은 로드맵 09에서.</div>
+
+  <h3 class="blk"><span class="ix">8.9</span>pushing subquery — 서브쿼리 필터를 앞 단계로 <span class="db add">76일차</span></h3>
+  <p>emp⋈dept 조인에 <code class="inl">exists (London인 location)</code> 서브쿼리를 단 3테이블 문장. <code class="inl">no_unnest</code>로 filter 방식을 강제하면 서브쿼리 필터가 <b>맨 마지막</b>에 돈다 — MERGE JOIN으로 <b>106행을 다 만들어 놓고</b> 걸러낸다(Buffers 25). <b class="k">push_subq</b>는 unnest <b>안 된</b> 서브쿼리의 처리 순서를 제어해 <b>가능한 앞 단계에서 먼저</b> 필터링한다:</p>
+  <pre class="term"><span class="cm">-- exists(select /*+ no_unnest push_subq */ ...) → dept를 읽는 단계에서 먼저 거름</span>
+<span class="hl">|* 3 |    TABLE ACCESS FULL | DEPARTMENTS |  27→1행  3 - filter( IS NOT NULL)</span>
+<span class="out">|* 5 |      INDEX UNIQUE SCAN| LOC_ID_PK  |  Starts 7  5 - access("LOCATION_ID"=:B1)</span>
+<span class="out">|  6 |    INDEX RANGE SCAN  | EMP_DEPARTMENT_IX |  ← 1행만 NL로 (Buffers 24)</span></pre>
+  <div class="why"><span class="h">Buffers보다 구조를 봐라</span>
+  25→24로 숫자는 비슷하지만 구조가 다르다 — <b>다음 단계로 넘어가는 행 수가 106 → 1</b>. 데이터가 크면 이 차이가 곧 비용이다. "실행계획상 가능한 앞 단계에서 서브쿼리 필터링을 먼저 처리해 다음 수행 단계로 넘어가는 행 수를 줄인다"가 push_subq의 정의 그 자체. 참고로 힌트 없이 두면 옵티마이저는 아예 unnest해서 locations를 driving으로 3중 NL(7)을 만든다.</div>
+  <div class="tip"><b>플랜 재구성 연습</b> — 큰 플랜의 Id 3·4·5만 수행하는 SQL을 직접 써보기: <code class="inl">select /*+ full(d) */ * from hr.departments d where exists(select /*+ no_unnest */ 'x' from hr.locations where location_id = d.location_id and city='London')</code> → FILTER + full(dept) + LOC_ID_PK(:B1). 실행계획을 보고 SQL로 되짚는 연습을 많이 하라는 게 강사 강조.</div>
+
+  <h3 class="blk"><span class="ix">8.10</span>view merging — 뷰를 해체해 메인과 통합한다 <span class="db add">76일차</span></h3>
+  <p>인라인 뷰 둘을 조인해도 플랜에 VIEW가 없다 — 옵티마이저가 뷰를 <b>해체(merging)해서 메인 쿼리와 통합</b>했기 때문. 뷰 없이 직접 쓴 조인과 <b>plan hash까지 동일</b>하다. 힌트 <code class="inl">merge</code> / <code class="inl">no_merge</code>.</p>
+  <table>
+    <tr><th>구분</th><th>조건·동작</th></tr>
+    <tr><td><b>simple view merging</b></td><td>뷰 안에 group by·distinct가 <b>없으면</b> 해체 후 통합 — 직접 조인과 같은 플랜</td></tr>
+    <tr><td><b>complex view merging</b></td><td>group by·distinct가 <b>있어도</b> 해체(<code class="inl">_complex_view_merging=TRUE</code>) — 조인 먼저, HASH GROUP BY를 꼭대기로</td></tr>
+    <tr><td>merging <b>불가</b></td><td>뷰 안에 union·union all·intersect·minus·connect by·rownum·(group by 없는) 전체 집계·분석함수</td></tr>
+  </table>
+  <div class="why"><span class="h">TP(Transitive Predicate) — 상수 조건이 조인절을 타고 번진다</span>
+  뷰 안의 <code class="inl">d.department_id = 20</code>이 조인절 <code class="inl">e.department_id = d.department_id</code>를 타고 <b>emp 쪽에도 <code class="inl">access("E"."DEPARTMENT_ID"=20)</code>를 생성</b>한다 — 내가 안 쓴 상수 조건이 Predicate에 보이면 TP다. 양쪽에 상수를 직접 쓴 문장과 같은 플랜(6블록)이 된다.</div>
+  <div class="tip"><b>no_merge를 걸면</b> 플랜에 <b>VIEW</b> operation이 나타나고 뷰가 독립 집합으로 처리된다(HASH JOIN). 변환을 끊고 뷰 경계를 지키고 싶을 때 쓰는 스위치이자, 아래 pushdown 실험의 준비물.</div>
+
+  <h3 class="blk"><span class="ix">8.11</span>조인 조건 pushdown & bloom filter — 뷰 안으로, 조인 전에 <span class="db add">76일차</span></h3>
+  <p>부서 평균급여 group by 뷰를 <code class="inl">location_id = 1800</code>인 부서(1곳)와 조인하는 문장 — 뷰를 <code class="inl">no_merge</code>로 고정하면 뷰가 <b>emp 107행 전체를 group by</b> 한 뒤에야 조인한다(Buffers 8). <b class="k">조인 조건 pushdown</b>(<code class="inl">push_pred</code>)은 조인 조건절을 <b>뷰 쿼리 블록 안으로</b> 넣어, driving에서 읽은 조인 컬럼 값을 뷰 안에서 참조하게 한다:</p>
+  <pre class="term"><span class="cm">-- push_pred → 뷰 안에서 d의 department_id로 바로 인덱스 (Buffers 5)</span>
+<span class="hl">|  4 |   VIEW PUSHED PREDICATE |            |  ← 뷰 안으로 조인 조건이 들어감</span>
+<span class="out">|* 8 |       INDEX RANGE SCAN | EMP_DEPARTMENT_IX | 8 - access("DEPARTMENT_ID"="D"."DEPARTMENT_ID")</span>
+<span class="cm">-- no_push_pred → 뷰 전체 group by 후 HASH JOIN (8) ... 대신 bloom filter 등장:</span>
+<span class="out">|  2 |   JOIN FILTER CREATE | :BF0000 |   |  7 |  JOIN FILTER USE | :BF0000 |</span>
+<span class="hl">   8 - filter(SYS_OP_BLOOM_FILTER(:BF0000,"DEPARTMENT_ID"))  ← EMP 107행 → 2행</span></pre>
+  <div class="why"><span class="h">bloom filter — 조인 전에 거르는 요약 필터</span>
+  hash join 시 build(선행) 집합의 조인 키를 <b>비트 요약(:BF0000)으로 만들어 probe(후행) 쪽에 미리 배포</b> — probe 집합에서 조인에 참여할 가망이 없는 행을 <b>조인 전에</b> 걸러 건수를 줄인다. 실측에서 EMP full 107행이 JOIN FILTER USE를 거치며 <b>2행</b>만 올라왔다. 힌트 <code class="inl">px_join_filter</code> / <code class="inl">no_px_join_filter</code>(걸면 107행 그대로). 오늘 하루의 공통 문법이 이것 — <b>변환의 방향은 언제나 "더 앞 단계에서, 더 적은 행으로"</b>.</div>
 </section>
 
 <section class="part" id="road">
@@ -933,7 +996,7 @@ Predicate Information:
   <ul class="road">
     <li class="done"><span class="n">01–06</span>개요 · 실행계획 읽기·도구·통계 · 액세스 경로 · 인덱스 · 버퍼 피닝 · <b>클러스터링 팩터 · SQL TRACE · 10046 · BCHR · 비트맵</b> <span class="tag">완료</span></li>
     <li class="done"><span class="n">07</span><a href="#join" style="color:var(--tune);font-weight:600">조인 방식</a> — Nested Loop · Sort Merge · Hash, 순서와 Starts로 반복 읽기 <span class="tag">완료</span></li>
-    <li class="done"><span class="n">08</span><a href="#qt" style="color:var(--tune);font-weight:600">쿼리 변환</a> — 서브쿼리 filter↔unnest(semi/anti) · filter optimization · 조인 제거 <span class="tag">완료</span></li>
+    <li class="done"><span class="n">08</span><a href="#qt" style="color:var(--tune);font-weight:600">쿼리 변환</a> — filter↔unnest(semi/anti) · 조인 제거 · OR-expansion · push_subq · view merging · pushdown · bloom <span class="tag">완료</span></li>
     <li><span class="n">09</span>옵티마이저 & 통계 — CBO, 카디널리티 추정, 통계 최신화·히스토그램 <span class="tag">예정</span></li>
     <li><span class="n">10</span>증상→원인→처방 안티패턴 + 자주 쓰는 힌트 <span class="tag">예정</span></li>
   </ul>

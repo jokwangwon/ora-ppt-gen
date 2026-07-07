@@ -91,6 +91,7 @@ DECK_LABELS = {
     "day73.pptx": "73일차 — NL 조인 · 조인 순서와 진입 인덱스",
     "day74.pptx": "74일차 — 조인 3형제 · Sort Merge와 Hash",
     "day75.pptx": "75일차 — 쿼리 변환 · filter↔unnest · 조인 제거",
+    "day76.pptx": "76일차 — 쿼리 변환 2탄 · OR-expansion · push_subq · bloom",
     "sql_tuning.pptx": "SQL 튜닝편 (문서 전체 덱)",
     "guide_62_68.pptx": "내부구조편 (문서 전체 덱)",
     "buffer_cache_dbwr_checkpoint.pptx": "버퍼 캐시·DBWR (문서 전체 덱)",

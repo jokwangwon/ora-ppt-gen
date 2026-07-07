@@ -1,0 +1,232 @@
+{
+  "deck_id": "day76",
+  "title": "변환의 방향은 '더 앞 단계에서, 더 적은 행으로'",
+  "subtitle": "76일차 — 쿼리 변환 2탄: ANTI NA · OR-expansion · push_subq · view merging · bloom",
+  "source": "assets/sql_tuning.html §8.6~8.11",
+  "slides": [
+    { "type": "title" },
+    {
+      "type": "section",
+      "num": "00",
+      "title": "오늘의 큰 그림",
+      "subtitle": "변환 6종 — 전부 '먼저 거르기'의 이야기"
+    },
+    {
+      "type": "content",
+      "title": "오늘 배운 변환 6종은 전부 같은 방향을 본다 — 행 수를 앞에서 줄인다",
+      "notes": "76일차입니다. 어제 쿼리 변환의 문을 열었죠 — filter냐 unnest냐, 조인 제거. 오늘은 그 2탄으로 변환 여섯 개를 한 바퀴 돕니다. 얼핏 제각각처럼 보이는데, 다 보고 나면 공통 문법이 하나 보여요. 전부 '더 앞 단계에서, 더 적은 행으로'입니다. null 때문에 anti를 포기하지 않고(NA), or 때문에 full을 잡지 않고(OR-expansion), 서브쿼리 필터를 뒤로 미루지 않고(push_subq), 뷰 경계 때문에 일을 두 번 하지 않고(view merging·pushdown), 조인에 못 낄 행은 조인 전에 버립니다(bloom filter). 오늘 실측 숫자들이 이 문장의 증거예요.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": ["변환", "무엇을 앞으로 당기나", "오늘의 실측"],
+          "rows": [
+            ["ANTI NA · LNNVL", "null 처리를 술어 안으로", "anti 3 · NA 5 · filter 57"],
+            ["OR-expansion", "or의 가지마다 인덱스를", "full 7 → concat 6"],
+            ["push_subq", "서브쿼리 필터를 앞 단계로", "넘어가는 행 106 → 1"],
+            ["view merging · pushdown", "조건을 뷰 안으로", "8 → 5"],
+            ["bloom filter", "build 요약을 probe 스캔으로", "EMP 107행 → 2행"]
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "why",
+          "head": "오늘의 축",
+          "body": "변환의 방향은 언제나 \"더 앞 단계에서, 더 적은 행으로\" — 다음 단계로 넘기는 행 수가 곧 비용이다. Buffers가 비슷해도 구조가 다르면 데이터가 클 때 갈린다."
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "num": "01",
+      "title": "ANTI NA · LNNVL",
+      "subtitle": "anti join이 null을 배웠다"
+    },
+    {
+      "type": "content",
+      "title": "19c의 anti는 null을 안다 — NOT IN 그대로도 ANTI NA로 풀린다",
+      "notes": "어제 NOT IN의 null 함정을 배웠죠. 서브쿼리에 null이 있으면 0건. 그래서 is not null을 명시해야 anti join으로 풀린다 — 이게 10g까지의 이야기입니다. 지금 19c는요, is not null 없이 NOT IN을 그대로 던져도 플랜에 MERGE JOIN ANTI NA가 뜹니다. NA는 Null-Aware예요. null의 의미를 지키면서 — 그래서 결과는 여전히 0건입니다 — anti join 구조로 도는 겁니다. no_unnest로 filter 방식을 강제하면 57블록에 LNNVL 술어가 나오는데, LNNVL을 읽는 법이 오늘의 열쇠입니다. LNNVL(조건)은 조건이 거짓이거나 판정 불가면 참이에요. 그러니까 LNNVL(department_id<>:B1)은 'null이거나 :B1과 같다'로 풀립니다. null 의미를 술어 한 줄에 담는 장치고, 잠시 후 OR-expansion에서 똑같이 다시 나옵니다.",
+      "blocks": [
+        {
+          "kind": "code",
+          "lines": [
+            "-- ① is not null 명시 → HASH JOIN ANTI, 16행, Buffers 3",
+            "-- ② NOT IN 그대로(19c) → MERGE JOIN ANTI NA, 0행, Buffers 5",
+            "-- ③ no_unnest → FILTER, Buffers 57 (EMP full Starts 27)",
+            "   3 - filter(LNNVL(\"DEPARTMENT_ID\"<>:B1))"
+          ]
+        },
+        {
+          "kind": "bullets",
+          "items": [
+            "10g까지: is not null 명시해야만 anti — 지금은 NA(Null-Aware)가 대신한다",
+            "NA여도 결과는 null 의미 그대로(0건) — 구조만 anti로",
+            "LNNVL(x<>:B1) = x is null or x=:B1 — \"거짓이거나 모름이면 참\""
+          ]
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "num": "02",
+      "title": "OR-expansion",
+      "subtitle": "or를 union all로 다시 쓴다 — 그리고 히스토그램"
+    },
+    {
+      "type": "content",
+      "title": "or가 걸치면 full(7) — use_concat이 union all로 갈라 인덱스 둘을 태운다(6)",
+      "notes": "job_id가 IT_PROG이거나 department_id가 20. or가 걸치면 옵티마이저는 인덱스 하나로 못 정하고 full 7블록을 잡습니다. 그런데 각각 단독으론 인덱스로 4씩이에요. OR-expansion은 이 or를 union all 형태로 다시 써서 가지마다 index range scan을 태우는 변환입니다. use_concat 힌트를 주면 CONCATENATION이 뜨고 6블록. 여기서 중요한 게 중복입니다. 두 조건을 다 만족하는 행은 두 가지에서 두 번 나오겠죠. 그래서 둘째 가지에 LNNVL(department_id=20)을 자동으로 붙여요 — 20이 아니거나 null인 행만. 첫째 가지가 가져간 행을 빼는 겁니다. 수동으로 union all에 lnnvl을 써서 만든 6블록과 정확히 같은 플랜이 됐어요. union으로 쓰면 SORT UNIQUE 정렬이 하나 더 붙는데, union all + LNNVL은 정렬 없이 중복을 피하는 방법인 거죠. 반대 힌트는 no_expand입니다.",
+      "blocks": [
+        {
+          "kind": "code",
+          "lines": [
+            "select /*+ use_concat */ * from hr.employees",
+            " where job_id = 'IT_PROG' or department_id = 20;",
+            "|  1 |  CONCATENATION      |                   |",
+            "|* 3 |   INDEX RANGE SCAN  | EMP_DEPARTMENT_IX |",
+            "|* 5 |   INDEX RANGE SCAN  | EMP_JOB_IX        |  4 - filter(LNNVL(\"DEPARTMENT_ID\"=20))"
+          ]
+        },
+        {
+          "kind": "bullets",
+          "items": [
+            "or → union all 가지치기, 가지마다 인덱스 (full 7 → 6)",
+            "겹치는 행은 둘째 가지의 LNNVL이 뺀다 — SORT UNIQUE 없이 중복 회피",
+            "use_concat(유도) / no_expand(금지 → full 7)"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "content",
+      "title": "같은 술어, 다른 플랜 — FREQUENCY 히스토그램이 값별 분포를 알고 있다",
+      "notes": "OR-expansion 실험 중에 이상한 걸 봤어요. 같은 department_id 술어인데 10번 부서는 인덱스 3블록, 50번 부서는 full 9블록. 옵티마이저가 알아서 갈랐고 E-Rows도 45로 정확했습니다. 근거는 dba_tab_columns에 있어요. DEPARTMENT_ID의 num_distinct 11, num_buckets 11, FREQUENCY 히스토그램. 값 종류마다 버킷이 하나라는 건 '50번 부서는 45명, 10번 부서는 1명'을 통계로 안다는 뜻입니다. 그래서 같은 술어라도 값에 따라 접근 경로를 바꿔 태워요. 45행이면 인덱스를 강제해도 9블록 — full과 같아서 이득이 없습니다. or department_id = 50으로 확장을 걸면 job 가지는 인덱스, 50 가지는 full — 가지마다 다른 접근을 조합한 13블록이 나왔어요. 히스토그램 본편은 로드맵 09, 옵티마이저와 통계에서 제대로 다룹니다. 오늘은 예고편이에요.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": ["실험", "플랜", "Buffers"],
+          "rows": [
+            ["department_id = 10 (1행)", "INDEX RANGE SCAN", "3"],
+            ["department_id = 50 (45행)", "TABLE ACCESS FULL — E-Rows 45 정확", "9"],
+            ["= 50 + index 강제", "인덱스 태워도 이득 없음", "9 (동일)"],
+            ["use_concat + or =50", "job은 index · 50은 full — 가지별 조합", "13"]
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "why",
+          "head": "FREQUENCY 히스토그램",
+          "body": "값 종류(11)마다 버킷 하나 — 값별 행 수를 통계로 안다. 같은 술어도 값 따라 index/full이 갈리는 이유. 본편은 로드맵 09(옵티마이저 & 통계)에서."
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "num": "03",
+      "title": "pushing subquery",
+      "subtitle": "서브쿼리 필터를 앞 단계로 — 106행이 1행이 된다"
+    },
+    {
+      "type": "content",
+      "title": "push_subq — 조인 후에 거르던 필터를 dept 단계로 당기면 넘어가는 행이 106→1",
+      "notes": "3테이블 문장입니다. emp와 dept를 조인하는데, dept가 London에 있다는 exists 서브쿼리가 붙어요. no_unnest로 filter 방식을 강제하면 서브쿼리 필터가 플랜 맨 위 — 실행으론 맨 마지막이죠 — 에 갑니다. MERGE JOIN으로 106행을 다 만들어 놓고 나서 걸러요. 25블록. push_subq를 추가하면 달라집니다. unnest 안 된 서브쿼리의 처리 순서를 제어해서, departments를 읽는 단계에서 먼저 필터링해요. dept 27행이 그 자리에서 1행이 되고, 그 1행만 emp와 NL 조인합니다. 24블록. 숫자는 25 대 24로 비슷하죠. 그런데 보셔야 할 건 Buffers가 아니라 구조입니다. 다음 단계로 넘어가는 행 수가 106에서 1로 줄었어요. 지금은 실습 데이터가 작아서 티가 안 나지만 데이터가 크면 이 차이가 곧 비용입니다. 참고로 힌트를 다 떼면 옵티마이저는 아예 unnest해서 locations를 driving으로 3중 NL, 7블록을 만들어요 — 변환을 막았을 때의 차선책이 push_subq인 겁니다.",
+      "blocks": [
+        {
+          "kind": "code",
+          "lines": [
+            "exists (select /*+ no_unnest push_subq */ 'x' from hr.locations",
+            "         where location_id = d.location_id and city = 'London')",
+            "|* 3 |    TABLE ACCESS FULL | DEPARTMENTS | 27행 → 1행  3 - filter( IS NOT NULL)",
+            "|* 5 |      INDEX UNIQUE SCAN| LOC_ID_PK  | Starts 7    5 - access(=:B1)",
+            "|  6 |    INDEX RANGE SCAN  | EMP_DEPARTMENT_IX |  ← 1행만 NL로"
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "why",
+          "head": "Buffers보다 구조",
+          "body": "no_unnest만: 조인 106행 완성 후 필터(25). +push_subq: dept 단계에서 먼저 필터, 1행만 전진(24). 다음 단계로 넘어가는 행 수 106→1 — 데이터가 크면 이게 비용이다."
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "num": "04",
+      "title": "view merging · TP",
+      "subtitle": "뷰를 해체해 메인과 통합한다"
+    },
+    {
+      "type": "content",
+      "title": "인라인 뷰를 조인했는데 플랜에 VIEW가 없다 — 해체되어 직접 조인과 같아졌다",
+      "notes": "인라인 뷰 두 개를 만들어 조인했습니다. manager_id 145인 사원 뷰, location 2500인 부서 뷰. 플랜을 보면 VIEW operation이 없어요. 옵티마이저가 뷰를 해체해서 메인 쿼리와 통합한 겁니다 — 이게 view merging이고, 뷰 없이 직접 쓴 조인과 plan hash까지 동일했습니다. group by나 distinct가 없는 simple view는 이렇게 통째로 풀리고요. group by가 있어도 complex view merging이 됩니다 — _complex_view_merging 파라미터가 TRUE고, 조인을 먼저 한 다음 HASH GROUP BY를 꼭대기로 올려요. 단 뷰 안에 union 계열, connect by, rownum, group by 없는 전체 집계, 분석함수가 있으면 merging 불가입니다. no_merge를 걸면 VIEW가 나타나면서 뷰가 독립 집합으로 처리되고요. 하나 더 — 뷰 안의 department_id=20 상수가 조인절을 타고 emp 쪽에 access(E.DEPARTMENT_ID=20)로 번졌습니다. 내가 안 쓴 상수 조건이 Predicate에 보이면 그게 TP, Transitive Predicate입니다.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": ["구분", "조건·동작"],
+          "rows": [
+            ["simple view merging", "group by·distinct 없으면 해체 — 직접 조인과 plan hash 동일"],
+            ["complex view merging", "group by 있어도 해체 — 조인 먼저, HASH GROUP BY 꼭대기로"],
+            ["merging 불가", "union(all)·intersect·minus·connect by·rownum·전체 집계·분석함수"],
+            ["no_merge", "VIEW operation 등장 — 뷰가 독립 집합으로"]
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "tip",
+          "head": "TP (Transitive Predicate)",
+          "body": "뷰 안의 d.department_id=20이 조인절을 타고 emp에도 access(E.DEPARTMENT_ID=20)를 만든다 — 내가 안 쓴 상수 술어가 플랜에 보이면 TP다."
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "num": "05",
+      "title": "pushdown · bloom filter",
+      "subtitle": "조건은 뷰 안으로, 필터는 조인 전에"
+    },
+    {
+      "type": "content",
+      "title": "push_pred — 조인 조건을 뷰 안으로 넣으면 107행 group by가 필요한 부서만으로 준다",
+      "notes": "이제 group by 뷰를 no_merge로 고정해 봅시다. 뷰가 독립적으로 돌면 emp 107행 전체를 group by한 다음에야 조인합니다. 8블록. push_pred를 주면요, 조인 조건절이 뷰 쿼리 블록 안으로 들어갑니다. 플랜에 VIEW PUSHED PREDICATE가 뜨고, driving인 departments에서 읽은 department_id 값으로 뷰 안에서 EMP_DEPARTMENT_IX 인덱스를 바로 탑니다. 필요한 부서의 행만 읽어서 SORT AGGREGATE — 5블록. 정의 그대로예요. 조인 수행 시 드라이빙에서 읽은 조인 컬럼 값을 inner 쪽 뷰 블록 안에서 참조할 수 있게 하는 기능. group by를 전부 해놓고 조인하느냐, 조인 값으로 필요한 만큼만 집계하느냐의 차이입니다.",
+      "blocks": [
+        {
+          "kind": "code",
+          "lines": [
+            "(select /*+ no_merge push_pred */ department_id, avg(salary) ...)",
+            "|  4 |   VIEW PUSHED PREDICATE |            |  ← 조인 조건이 뷰 안으로",
+            "|  6 |     SORT AGGREGATE      |            |",
+            "|* 8 |       INDEX RANGE SCAN | EMP_DEPARTMENT_IX | access(=\"D\".\"DEPARTMENT_ID\")"
+          ]
+        },
+        {
+          "kind": "bullets",
+          "items": [
+            "no_push_pred: 뷰가 emp 107행 전체를 group by 후 HASH JOIN (8)",
+            "push_pred: 뷰 안에서 d 값으로 인덱스 — 필요한 부서만 집계 (5)",
+            "driving에서 읽은 조인 컬럼 값을 뷰 안에서 참조하는 기능"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "content",
+      "title": "bloom filter — build의 요약을 probe에 미리 배포해, 조인 전에 107행을 2행으로",
+      "notes": "마지막, no_push_pred 플랜에서 낯선 게 하나 나왔습니다. JOIN FILTER CREATE :BF0000, JOIN FILTER USE :BF0000, 그리고 술어에 SYS_OP_BLOOM_FILTER. 이게 bloom filter입니다. hash join에서 build 집합 — 여기선 location 1800의 부서 1행 — 의 조인 키를 비트 요약으로 만들어서, probe 쪽 emp full scan에 미리 적용해요. 조인에 참여할 가망이 없는 행을 조인 전에 걸러 건수를 줄이는 알고리즘입니다. 실측으로 emp 107행이 JOIN FILTER USE를 거치며 2행만 group by에 올라갔어요. no_px_join_filter를 걸면 이 필터가 사라지고 107행이 그대로 올라갑니다. 오늘 하루를 관통한 문법으로 마무리하죠 — anti의 null 처리도, or의 가지치기도, 서브쿼리도, 뷰 조건도, bloom도 전부 같은 방향입니다. 더 앞 단계에서, 더 적은 행으로.",
+      "blocks": [
+        {
+          "kind": "steps",
+          "items": [
+            { "n": "①", "head": "CREATE", "body": "build(DEPARTMENTS 1행)의 조인 키를 비트 요약 :BF0000으로" },
+            { "n": "②", "head": "USE", "body": "probe(EMP full scan)에 SYS_OP_BLOOM_FILTER로 미리 적용" },
+            { "n": "③", "head": "효과", "body": "조인 전에 107행 → 2행 — 그 2행만 group by로" }
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "why",
+          "head": "오늘의 마무리",
+          "body": "px_join_filter / no_px_join_filter(걸면 107행 그대로). 변환 6종의 공통 문법 — 더 앞 단계에서, 더 적은 행으로. 다음 단계로 넘기는 행 수가 곧 비용이다."
+        }
+      ]
+    }
+  ]
+}

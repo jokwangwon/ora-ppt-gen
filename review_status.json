@@ -66,6 +66,10 @@
     "75": {
       "status": "reviewing",
       "note": "결석일 — 동기 수강생 PDF 기반. 축=쿼리 변환(filter↔unnest·조인 제거). 문서 §8.1~8.5(서브쿼리 4종·filter 47/최악214→12번 캐시·unnest semi 12·qb_name·조인제거 PK-FK·semi/anti·NOT IN null). 문제 MCQ6·ESSAY2·TERMS7·PLANQ2(근거대조 0건). 덱 19장. 캡처 누락 실험은 compare.md 홈랩 재현 목록."
+    },
+    "76": {
+      "status": "reviewing",
+      "note": "축=변환의 방향은 '더 앞 단계에서, 더 적은 행으로'. 문서 §8.6~8.11(ANTI NA·LNNVL·OR-expansion/use_concat·FREQUENCY 히스토그램 10vs50·push_subq 106→1행·view merging/TP·push_pred·bloom filter 107→2행). 문제 MCQ7·ESSAY2·TERMS8·PLANQ2(근거대조 0건). 덱 18장."
     }
   }
 }
