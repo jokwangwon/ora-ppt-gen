@@ -172,7 +172,7 @@ details.acc .body th{font-family:var(--mono);font-size:11px;color:var(--muted);t
 <!-- PLAN -->
 <div id="planArea" class="hidden">
   <div class="statusbar"><span id="pstatus">이해함 0</span><button onclick="resetPlan()">표시 초기화</button></div>
-  <div class="note cl">📊 실행계획을 읽고 <b>문제점·해결책</b>을 직접 써보세요. 🤖 Claude 채점은 Claude 앱에서 열어볼 때 작동합니다.</div>
+  <div class="note cl">📊 실행계획을 읽고 <b>문제점·해결책</b>을 직접 써보세요. 🤖 AI 채점(Gemini 무료 키·🔑 한 번 입력) 또는 📋 복사 채점(키 없이 아무 무료 AI)으로 채점받을 수 있어요.</div>
   <div id="plist"></div>
 </div>
 
@@ -3302,7 +3302,8 @@ function renderEssay(){
       <textarea id="ta-${it.id}" placeholder="직접 답을 써보세요…" oninput="saveAns('${it.id}',this.value)">${saved}</textarea>
       <div class="row">
         <button class="btn" onclick="toggleModel('${it.id}')" id="mb-${it.id}">모범답안</button>
-        <button class="btn cl" onclick="claudeGrade('${it.id}')" id="cl-${it.id}">🤖 Claude 채점</button>
+        <button class="btn cl" onclick="claudeGrade('${it.id}')" id="cl-${it.id}">🤖 AI 채점</button>
+        <button class="btn" onclick="copyGrade('${it.id}')">📋 복사 채점</button>
         <span style="margin-left:auto;display:flex;gap:6px">
           <span class="mk ok ${mark==='ok'?'on':''}" onclick="setMark('${it.id}','ok')">✓ 이해</span>
           <span class="mk again ${mark==='again'?'on':''}" onclick="setMark('${it.id}','again')">△ 다시</span>
@@ -3332,7 +3333,8 @@ function renderPlan(){
       <textarea id="ta-${it.id}" placeholder="문제점과 해결책을 써보세요…" oninput="saveAns('${it.id}',this.value)">${saved}</textarea>
       <div class="row">
         <button class="btn" onclick="toggleModel('${it.id}')" id="mb-${it.id}">모범답안</button>
-        <button class="btn cl" onclick="claudeGrade('${it.id}')" id="cl-${it.id}">🤖 Claude 채점</button>
+        <button class="btn cl" onclick="claudeGrade('${it.id}')" id="cl-${it.id}">🤖 AI 채점</button>
+        <button class="btn" onclick="copyGrade('${it.id}')">📋 복사 채점</button>
         <span style="margin-left:auto;display:flex;gap:6px">
           <span class="mk ok ${mark==='ok'?'on':''}" onclick="setMark('${it.id}','ok')">✓ 이해</span>
           <span class="mk again ${mark==='again'?'on':''}" onclick="setMark('${it.id}','again')">△ 다시</span>
@@ -3377,15 +3379,66 @@ function applyAutoMark(id,reply){
     box.insertBefore(b, box.firstChild);
   }
 }
-async function callClaude(messages){
-  const clean=messages.map(m=>({role:m.role,content:m.content}));
-  const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1000,messages:clean})});
+/* Gemini 무료 API (aistudio.google.com/apikey · 카드 등록 불필요) — 키는 이 브라우저 localStorage에만 저장 */
+function geminiKey(){return (LS.get(PFX+'gemini_key')||'').trim();}
+function setGeminiKey(){
+  const cur=geminiKey();
+  const v=prompt('Gemini 무료 API 키를 입력하세요.\n발급: aistudio.google.com/apikey (구글 계정만 있으면 무료·카드 불필요)\n키는 이 브라우저에만 저장됩니다. 비우고 확인하면 삭제.',cur);
+  if(v===null) return false;
+  const t=v.trim();
+  if(t){LS.set(PFX+'gemini_key',t);alert('저장 완료 — 이제 🤖 AI 채점이 원클릭으로 동작합니다.');return true;}
+  LS.del(PFX+'gemini_key');alert('키를 삭제했습니다. 📋 복사 채점은 계속 사용할 수 있습니다.');return false;
+}
+async function callGemini(messages){
+  const key=geminiKey();
+  if(!key) throw new Error('NO_KEY');
+  const contents=messages.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]}));
+  const res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+encodeURIComponent(key),
+    {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents})});
   const data=await res.json();
   if(data&&data.error){throw new Error(data.error.message||JSON.stringify(data.error));}
-  const txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join("\n").trim();
+  const cand=(data.candidates||[])[0];
+  const txt=(((cand||{}).content||{}).parts||[]).map(p=>p.text||'').join('').trim();
   if(!txt){throw new Error('본문 없는 응답: '+JSON.stringify(data).slice(0,180));}
   return txt;
+}
+function buildGradePrompt(it,ans){
+  const planTxt=it.plan?`\n\n[실행계획]\n${it.plan}`:'';
+  const kTxt=(it.k&&it.k.length)?`\n\n[채점 포인트]\n${it.k.join(', ')}`:'';
+  return `당신은 친절하지만 핵심을 짚는 오라클 DBA 시험 채점관입니다. 학생의 서술형 답안을 모범답안(과 채점 포인트)에 비추어 한국어로 평가하세요. 형식: 1) 점수 (5점 만점, 반드시 "N / 5" 표기) 2) 잘한 점 3) 빠지거나 부정확한 핵심 4) 한 줄 보완. 간결하게.\n\n[문제]\n${it.q}${planTxt}\n\n[모범답안]\n${it.a}${kTxt}\n\n[학생 답안]\n${ans}`;
+}
+function gradeAnswer(id){
+  const taEl=document.getElementById('ta-'+id);
+  const ans=((taEl?taEl.value:LS.get(PFX+'ans:'+id))||'').trim();
+  if(taEl) LS.set(PFX+'ans:'+id, taEl.value);
+  return ans;
+}
+/* 📋 복사 채점 — 키·비용 없이 아무 AI(챗GPT·제미나이·클로드 무료판)로 */
+function copyGrade(id){
+  const it=findQ(id);
+  const ans=gradeAnswer(id);
+  if(!ans){alert('먼저 답을 타이핑해주세요.');return;}
+  const txt=buildGradePrompt(it,ans);
+  const done=()=>showPasteBack(id,null);
+  const fail=()=>showPasteBack(id,txt);
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done,fail);
+  else fail();
+}
+function showPasteBack(id,fallbackTxt){
+  const box=document.getElementById('chat-'+id);box.classList.add('show');
+  let inner='<div class="msg a"><div class="bub">📋 채점 프롬프트가 복사됐습니다.<br>① ChatGPT·Gemini·Claude 등 아무 무료 챗에 붙여넣어 채점받기<br>② 받은 결과를 아래 칸에 붙여넣으면 점수를 자동 표시합니다</div></div>';
+  if(fallbackTxt){inner='<div class="msg a"><div class="bub">복사가 차단됐습니다 — 아래 내용을 직접 복사해 아무 무료 챗에 붙여넣으세요.</div></div>'
+    +`<textarea style="width:100%;min-height:110px;font-size:12px" onclick="this.select()">${fallbackTxt.replace(/</g,'&lt;')}</textarea>`;}
+  inner+=`<div class="chatin"><input id="pb-${id}" placeholder="AI 채점 결과 붙여넣기… (점수 자동 표시)" onkeydown="if(event.key==='Enter')pasteBack('${id}')"><button class="btn cl" onclick="pasteBack('${id}')">확인</button></div>`;
+  box.innerHTML=inner;
+}
+function pasteBack(id){
+  const el=document.getElementById('pb-'+id);
+  const v=(el&&el.value||'').trim();
+  if(!v){alert('AI가 준 채점 결과를 붙여넣어주세요.');return;}
+  chatState[id]=[{role:'assistant',content:v}];
+  renderChat(id);
+  applyAutoMark(id,v);
 }
 function renderChat(id){
   const box=document.getElementById('chat-'+id);box.classList.add('show');
@@ -3396,18 +3449,19 @@ function renderChat(id){
 }
 async function claudeGrade(id){
   const it=findQ(id);
-  const taEl=document.getElementById('ta-'+id);
-  const ans=((taEl?taEl.value:LS.get(PFX+'ans:'+id))||'').trim();
-  if(taEl) LS.set(PFX+'ans:'+id, taEl.value);
+  const ans=gradeAnswer(id);
   if(!ans){alert('먼저 답을 타이핑해주세요.');return;}
+  if(!geminiKey()){
+    if(confirm('원클릭 자동 채점에는 Gemini 무료 API 키가 필요합니다 (구글 계정으로 무료 발급·카드 불필요).\n\n[확인] 키 입력하기\n[취소] 키 없이 📋 복사 채점 사용 (아무 무료 AI로)')){
+      if(!setGeminiKey()) return;
+    } else { copyGrade(id); return; }
+  }
   const btn=document.getElementById('cl-'+id);btn.disabled=true;
   const box=document.getElementById('chat-'+id);box.classList.add('show');
-  box.innerHTML='<div class="spin">🤖 Claude가 채점 중…</div>';
-  const planTxt=it.plan?`\n\n[실행계획]\n${it.plan}`:'';
-  const sys=`당신은 친절하지만 핵심을 짚는 오라클 DBA 시험 채점관입니다. 학생의 서술형 답안을 채점 포인트에 비추어 한국어로 평가하세요. 형식: 1) 점수 (5점 만점) 2) 잘한 점 3) 빠지거나 부정확한 핵심 4) 한 줄 보완. 간결하게.\n\n[문제]\n${it.q}${planTxt}\n\n[모범답안]\n${it.a}\n\n[채점 포인트]\n${it.k.join(', ')}\n\n[학생 답안]\n${ans}`;
-  const msgs=[{role:'user',content:sys,_hidden:true}];
+  box.innerHTML='<div class="spin">🤖 AI가 채점 중… (Gemini)</div>';
+  const msgs=[{role:'user',content:buildGradePrompt(it,ans),_hidden:true}];
   try{
-    const reply=await callClaude(msgs);
+    const reply=await callGemini(msgs);
     msgs.push({role:'assistant',content:reply});
     chatState[id]=msgs;
     renderChat(id);
@@ -3416,7 +3470,9 @@ async function claudeGrade(id){
     if(gbox){const g=document.createElement('div');g.style.cssText='font-family:var(--mono);font-size:11px;color:var(--muted);margin:0 0 8px;padding:7px 9px;background:#f1f3f6;border-radius:7px;white-space:pre-wrap';g.textContent='✓ 채점한 답안: '+shown;gbox.insertBefore(g,gbox.firstChild);}
     applyAutoMark(id,reply);
   }catch(e){
-    box.innerHTML='<div class="note cl" style="margin:0">⚠️ Claude 채점 실패: '+((e&&e.message)||e)+'<br>이 기능은 <b>Claude 앱에서 이 파일을 열어볼 때</b> 작동합니다. (브라우저로 연 경우 미작동)</div>';
+    const msg=((e&&e.message)||e)+'';
+    box.innerHTML='<div class="note cl" style="margin:0">⚠️ AI 채점 실패: '+msg.replace(/</g,'&lt;')
+      +'<br>키 문제라면 <a href="javascript:setGeminiKey()">🔑 키 다시 입력</a>, 아니면 <a href="javascript:copyGrade(\''+id+'\')">📋 복사 채점</a>을 이용하세요.</div>';
   }
   btn.disabled=false;
 }
@@ -3428,7 +3484,8 @@ async function chatSend(id){
   const box=document.getElementById('chat-'+id);
   const sp=document.createElement('div');sp.className='spin';sp.textContent='🤖 …';box.appendChild(sp);
   try{
-    const reply=await callClaude(msgs.map(m=>({role:m.role,content:m.content})));
+    if(!geminiKey()) throw new Error('이어서 질문은 Gemini 키가 있어야 합니다 — 🤖 버튼에서 키를 입력하거나, 복사 채점을 쓴 챗에서 이어서 물어보세요.');
+    const reply=await callGemini(msgs.map(m=>({role:m.role,content:m.content})));
     msgs.push({role:'assistant',content:reply});chatState[id]=msgs;renderChat(id);
   }catch(e){
     msgs.push({role:'assistant',content:'(연결 실패: '+((e&&e.message)||e)+')'});chatState[id]=msgs;renderChat(id);
