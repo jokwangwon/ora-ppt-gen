@@ -61,7 +61,7 @@
 
 | 안 다룬 것 | 추정 이유 | 공부하러 가기 |
 |-----------|----------|--------------|
-| star transformation·기타 변환 | ④ DW 심화 | [매뉴얼(SQL Tuning Guide)](https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/) |
+| star transformation·기타 변환 | ④ DW 심화 | [매뉴얼 § Query Transformations](https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/query-transformations.html) |
 | 히스토그램 종류(HEIGHT-BALANCED·HYBRID)와 수집 | ① 로드맵 09 예정 | 다음 차시 대기 |
 | bloom filter의 false positive(오탐) 원리 | ④ 알고리즘 내부 | [문서 §8.11](assets/sql_tuning.html#qt) 개념만 · CS 기본서 |
 | adaptive plan의 동작(Note에 계속 등장) | ① 뒤 차시 추정 | ? → 강사 질문 |

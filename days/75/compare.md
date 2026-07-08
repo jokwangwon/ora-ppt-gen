@@ -60,7 +60,7 @@
 
 | 안 다룬 것 | 추정 이유 | 공부하러 가기 |
 |-----------|----------|--------------|
-| view merging·predicate pushing 등 나머지 변환 | ① 뒤 차시 추정 | [매뉴얼(SQL Tuning Guide)](https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/) |
+| view merging·predicate pushing 등 나머지 변환 | ① 뒤 차시 추정 | [매뉴얼 § Query Transformations](https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/query-transformations.html) |
 | scalar subquery cache 실습 | ① 개념만 언급 | [문서 §8.1](assets/sql_tuning.html#qt) 개념만 |
 | shared cursor (강사가 화두만 던짐) | ① 뒤 차시 추정 | ? → 강사 질문 |
 
