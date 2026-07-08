@@ -101,12 +101,17 @@ def length_bias(quiz: dict) -> list[str]:
 
 
 def grounding(text: str, doc_text: str | None) -> tuple[list[str], list[str]]:
-    """텍스트의 숫자들이 원문에 있는지. (있는것, 없는것)"""
+    """텍스트의 숫자들이 원문에 있는지. (있는것, 없는것)
+
+    추출기가 콤마를 벗기므로(1,1,2 → 112) 원문도 콤마 제거본을 함께 대조 —
+    순위 나열(1,1,3) 같은 표기가 허위 ⚠로 뜨지 않게 한다.
+    """
     if doc_text is None:
         return [], []
+    doc_nocomma = doc_text.replace(",", "")
     found, missing = [], []
     for n in numbers_of(text):
-        (found if n in doc_text else missing).append(n)
+        (found if (n in doc_text or n in doc_nocomma) else missing).append(n)
     return found, missing
 
 

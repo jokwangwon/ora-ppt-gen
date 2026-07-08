@@ -70,6 +70,10 @@
     "76": {
       "status": "reviewing",
       "note": "축=변환의 방향은 '더 앞 단계에서, 더 적은 행으로'. 문서 §8.6~8.11(ANTI NA·LNNVL·OR-expansion/use_concat·FREQUENCY 히스토그램 10vs50·push_subq 106→1행·view merging/TP·push_pred·bloom filter 107→2행). 문제 MCQ7·ESSAY2·TERMS8·PLANQ2(근거대조 0건). 덱 18장."
+    },
+    "77": {
+      "status": "reviewing",
+      "note": "축=조건은 이동하고 판단의 재료는 통계. 문서 §8.12~8.14(조건절 pushdown 6→2·pullup 4·_pred_move_around·집계 서브쿼리→분석함수 VW_WIF_1 17→8·분석함수 도구·rownum top-n 함정) + Part 09 개막 §9.1~9.3(RBO→CBO·aux_stats$ noworkload/workload·optimizer_mode full 9 vs first_rows index). 문제 MCQ7·ESSAY2·TERMS10·PLANQ2(편향0·근거0). 덱 17장."
     }
   }
 }
