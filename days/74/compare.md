@@ -53,7 +53,7 @@
 
 | 안 다룬 것 | 추정 이유 | 공부하러 가기 |
 |-----------|----------|--------------|
-| Used-Tmp가 실제로 뜨는 상황(대용량 정렬) | ⑤ 실습 데이터가 작음 | [매뉴얼(Concepts)](https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/) · 대용량 실습 때 확인 |
+| Used-Tmp가 실제로 뜨는 상황(대용량 정렬) | ⑤ 실습 데이터가 작음 | [매뉴얼 § Memory Architecture(PGA)](https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/memory-architecture.html) · 대용량 실습 때 확인 |
 | hash 충돌이 성능에 미치는 영향 | ④ 내부 심화 | [문서 §7.10](assets/sql_tuning.html#join) 개념만 |
 | adaptive plan (outer join 플랜의 Note) | ① 뒤 차시 추정 | ? → 강사 질문 |
 

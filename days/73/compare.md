@@ -52,8 +52,8 @@
 
 | 안 다룬 것 | 추정 이유 | 공부하러 가기 |
 |-----------|----------|--------------|
-| Sort Merge·Hash Join 내부 단계 | ① 뒤 차시 | 다음 수업 대기 · [매뉴얼(Concepts)](https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/) |
-| outer join의 NL 처리 | ①/② | [매뉴얼(Concepts)](https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/) |
+| Sort Merge·Hash Join 내부 단계 | ① 뒤 차시 | 다음 수업 대기 · [매뉴얼 § Joins](https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/joins.html) |
+| outer join의 NL 처리 | ①/② | [매뉴얼 § Joins](https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/joins.html) |
 | prefetch 실제 작동 확인 방법 | ? → 강사 질문 | 질문 후 [문서 §7.8](assets/sql_tuning.html#join)에 답 기록 |
 
 ---

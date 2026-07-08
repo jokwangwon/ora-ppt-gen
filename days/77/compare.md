@@ -63,7 +63,7 @@
 | 안 다룬 것 | 추정 이유 | 공부하러 가기 |
 |-----------|----------|--------------|
 | OBJECT 통계 수집(dbms_stats.gather_table_stats 옵션들) | ① 다음 차시 예고 (09 본편 계속) | 다음 수업 대기 |
-| 카디널리티 추정 공식·selectivity | ① 다음 차시 예고 | [매뉴얼(SQL Tuning Guide)](https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/) |
+| 카디널리티 추정 공식·selectivity | ① 다음 차시 예고 | [매뉴얼 § Optimizer Statistics Concepts](https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/optimizer-statistics-concepts.html) |
 | WINDOW SORT vs WINDOW BUFFER 차이 | ④ 내부 심화 | [문서 §8.13](assets/sql_tuning.html#qt) 개념만 |
 | first_rows가 플랜을 실제로 어떻게 계산하나 | ④ 비용 모델 내부 | ? → 강사 질문 |
 

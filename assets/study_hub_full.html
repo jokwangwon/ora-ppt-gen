@@ -3724,8 +3724,8 @@ renderChips();startMcq();
 </ol>
 <h3>[건너뛴 것 — 매뉴얼 대비]</h3>
 <table><tr><th>안 다룬 것</th><th>추정 이유</th><th>공부하러 가기</th></tr>
-<tr><td>Sort Merge·Hash Join 내부 단계</td><td>① 뒤 차시</td><td>다음 수업 대기 · <a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/' class='cmp-link'>매뉴얼(Concepts)</a></td></tr>
-<tr><td>outer join의 NL 처리</td><td>①/②</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/' class='cmp-link'>매뉴얼(Concepts)</a></td></tr>
+<tr><td>Sort Merge·Hash Join 내부 단계</td><td>① 뒤 차시</td><td>다음 수업 대기 · <a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/joins.html' class='cmp-link'>매뉴얼 § Joins</a></td></tr>
+<tr><td>outer join의 NL 처리</td><td>①/②</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/joins.html' class='cmp-link'>매뉴얼 § Joins</a></td></tr>
 <tr><td>prefetch 실제 작동 확인 방법</td><td>? → 강사 질문</td><td>질문 후 <a href='sql_tuning.html#join' class='cmp-link'>문서 §7.8</a>에 답 기록</td></tr>
 </table>
 <hr>
@@ -3781,7 +3781,7 @@ renderChips();startMcq();
 </ol>
 <h3>[건너뛴 것 — 매뉴얼 대비]</h3>
 <table><tr><th>안 다룬 것</th><th>추정 이유</th><th>공부하러 가기</th></tr>
-<tr><td>Used-Tmp가 실제로 뜨는 상황(대용량 정렬)</td><td>⑤ 실습 데이터가 작음</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/' class='cmp-link'>매뉴얼(Concepts)</a> · 대용량 실습 때 확인</td></tr>
+<tr><td>Used-Tmp가 실제로 뜨는 상황(대용량 정렬)</td><td>⑤ 실습 데이터가 작음</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/memory-architecture.html' class='cmp-link'>매뉴얼 § Memory Architecture(PGA)</a> · 대용량 실습 때 확인</td></tr>
 <tr><td>hash 충돌이 성능에 미치는 영향</td><td>④ 내부 심화</td><td><a href='sql_tuning.html#join' class='cmp-link'>문서 §7.10</a> 개념만</td></tr>
 <tr><td>adaptive plan (outer join 플랜의 Note)</td><td>① 뒤 차시 추정</td><td>? → 강사 질문</td></tr>
 </table>
@@ -3845,7 +3845,7 @@ renderChips();startMcq();
 </ol>
 <h3>[건너뛴 것 — 매뉴얼 대비]</h3>
 <table><tr><th>안 다룬 것</th><th>추정 이유</th><th>공부하러 가기</th></tr>
-<tr><td>view merging·predicate pushing 등 나머지 변환</td><td>① 뒤 차시 추정</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/' class='cmp-link'>매뉴얼(SQL Tuning Guide)</a></td></tr>
+<tr><td>view merging·predicate pushing 등 나머지 변환</td><td>① 뒤 차시 추정</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/query-transformations.html' class='cmp-link'>매뉴얼 § Query Transformations</a></td></tr>
 <tr><td>scalar subquery cache 실습</td><td>① 개념만 언급</td><td><a href='sql_tuning.html#qt' class='cmp-link'>문서 §8.1</a> 개념만</td></tr>
 <tr><td>shared cursor (강사가 화두만 던짐)</td><td>① 뒤 차시 추정</td><td>? → 강사 질문</td></tr>
 </table>
@@ -3919,7 +3919,7 @@ renderChips();startMcq();
 </ol>
 <h3>[건너뛴 것 — 매뉴얼 대비]</h3>
 <table><tr><th>안 다룬 것</th><th>추정 이유</th><th>공부하러 가기</th></tr>
-<tr><td>star transformation·기타 변환</td><td>④ DW 심화</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/' class='cmp-link'>매뉴얼(SQL Tuning Guide)</a></td></tr>
+<tr><td>star transformation·기타 변환</td><td>④ DW 심화</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/query-transformations.html' class='cmp-link'>매뉴얼 § Query Transformations</a></td></tr>
 <tr><td>히스토그램 종류(HEIGHT-BALANCED·HYBRID)와 수집</td><td>① 로드맵 09 예정</td><td>다음 차시 대기</td></tr>
 <tr><td>bloom filter의 false positive(오탐) 원리</td><td>④ 알고리즘 내부</td><td><a href='sql_tuning.html#qt' class='cmp-link'>문서 §8.11</a> 개념만 · CS 기본서</td></tr>
 <tr><td>adaptive plan의 동작(Note에 계속 등장)</td><td>① 뒤 차시 추정</td><td>? → 강사 질문</td></tr>
@@ -3987,7 +3987,7 @@ renderChips();startMcq();
 <h3>[건너뛴 것 — 매뉴얼 대비]</h3>
 <table><tr><th>안 다룬 것</th><th>추정 이유</th><th>공부하러 가기</th></tr>
 <tr><td>OBJECT 통계 수집(dbms_stats.gather_table_stats 옵션들)</td><td>① 다음 차시 예고 (09 본편 계속)</td><td>다음 수업 대기</td></tr>
-<tr><td>카디널리티 추정 공식·selectivity</td><td>① 다음 차시 예고</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/' class='cmp-link'>매뉴얼(SQL Tuning Guide)</a></td></tr>
+<tr><td>카디널리티 추정 공식·selectivity</td><td>① 다음 차시 예고</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/optimizer-statistics-concepts.html' class='cmp-link'>매뉴얼 § Optimizer Statistics Concepts</a></td></tr>
 <tr><td>WINDOW SORT vs WINDOW BUFFER 차이</td><td>④ 내부 심화</td><td><a href='sql_tuning.html#qt' class='cmp-link'>문서 §8.13</a> 개념만</td></tr>
 <tr><td>first_rows가 플랜을 실제로 어떻게 계산하나</td><td>④ 비용 모델 내부</td><td>? → 강사 질문</td></tr>
 </table>
