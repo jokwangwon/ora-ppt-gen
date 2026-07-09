@@ -23,7 +23,7 @@
 9. **자동 통계 수집(10g)** — autotask + 유지보수 윈도우(평일 22시 4h·주말 6시 20h), 대상=무통계+10% 변화 · [문서 §9.8](assets/sql_tuning.html#opt)
 10. **stale 추적** — dba_tab_modifications(DML 카운터) · stale_stats YES/NO · stale_percent 변경 · [문서 §9.8](assets/sql_tuning.html#opt)
 11. **lock_table_stats / statistics_level** — 수집 잠금(ALL) / typical(기본)·basic·all · [문서 §9.8](assets/sql_tuning.html#opt)
-12. **통계 시간 여행** — export(stattab)·diff 리포트·import·restore(시점 복원, **히스토그램은 안 됨!**)·31일 이력·purge·set_table_stats · [문서 §9.9](assets/sql_tuning.html#opt)
+12. **통계 시간 여행** — export(stattab)·diff 리포트·import·restore(시점 복원 — **수업 실측에선 히스토그램 제외**, 재확인 권장)·31일 이력·purge·set_table_stats · [문서 §9.9](assets/sql_tuning.html#opt)
 
 ## [실습 명령어 정리] (실행 순서 + 결과 요지)
 
@@ -49,7 +49,7 @@
 | 18 | `lock_table_stats` | stattype_locked=**ALL** — 통계 수집 차단 |
 | 19 | `create_stat_table` → `export_table_stats` | 통계를 tab_stat 테이블에 백업 |
 | 20 | 1000행 추가 후 `diff_table_stats_in_stattab` | 비교 리포트 — ROWS 100 vs **1100**, COL1 NDV 100 vs 101, HIST NO vs YES |
-| 21 | `import_table_stats` / `restore_table_stats('시각')` | 백업/이력 시점으로 복원 — **히스토그램은 restore 안 됨**(FREQUENCY→NONE 실측) |
+| 21 | `import_table_stats` / `restore_table_stats('시각')` | 백업/이력 시점으로 복원 — **수업 실측에선 히스토그램이 restore 안 됨**(FREQUENCY→NONE · 문서상 제약 목록엔 없어 재확인 권장) |
 | 22 | `get_stats_history_retention`(31) → `alter_...(7)` → `purge_stats` | 이력 보유 기간 변경·시점 기준 삭제 · `set_table_stats`로 수동 지정 |
 | 23 | (곁가지) time_zone·timestamp·interval 실습 | current_date/timestamp 계열과 to_yminterval/to_dsinterval — SQL 문법 복습 |
 
@@ -59,7 +59,7 @@
 2. **히스토그램은 균등 가정의 해독제** — 없으면 부서 10번(1명)도 50번(45명)도 E-Rows 10. size 20 job_id처럼 치우친 컬럼에만 골라 만든다(254 전체는 주의).
 3. **통계가 없으면 dynamic sampling** — 플랜 Note가 통계 건강 상태 표시등. 운영에서 이 Note는 "통계 수집이 필요하다"는 신호.
 4. **자동 수집은 밤에 stale을 찾는다** — 평일 22시/주말 6시 윈도우, 대상은 무통계 + 10% 변화(dba_tab_modifications가 증거). 임계치는 stale_percent, 막으려면 lock_table_stats.
-5. **통계는 시간 여행이 된다** — 31일 이력에서 restore, export로 백업, diff로 비교. 단 **히스토그램은 복원 안 되니** export가 안전벨트.
+5. **통계는 시간 여행이 된다** — 31일 이력에서 restore, export로 백업, diff로 비교. 단 **수업 실측에선 히스토그램이 복원되지 않았으니**(재확인 권장) export가 안전벨트.
 
 ## [건너뛴 것 — 매뉴얼 대비]
 

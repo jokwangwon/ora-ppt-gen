@@ -57,13 +57,13 @@
       "d": 74,
       "q": "Index Join(index$_join$)이 작동하기 위한 조건은?",
       "o": [
-        "테이블에 PK 제약과 유니크 인덱스가 있을 것",
-        "SELECT 컬럼 전부가 사용되는 인덱스들 안에 있을 것",
+        "테이블에 PK 제약과 그것을 받치는 유니크 인덱스가 있을 것",
+        "질의가 참조하는 컬럼(SELECT·WHERE) 전부가 인덱스들 안에 있을 것",
         "조인 상대 테이블이 build로 쓸 만큼 작을 것",
-        "인덱스들이 모두 같은 선두 컬럼(조인 키)으로 시작할 것"
+        "조인에 참여하는 인덱스들이 모두 같은 선두 컬럼(조인 키)으로 시작하고 있을 것"
       ],
       "a": 1,
-      "e": "한 테이블의 여러 인덱스를 각각 fast full scan해 rowid로 해시 조인(access(ROWID=ROWID))한다. 필요한 컬럼이 인덱스 밖에 있으면 테이블에 가야 하므로 성립하지 않는다."
+      "e": "한 테이블의 여러 인덱스를 각각 fast full scan해 rowid로 해시 조인(access(ROWID=ROWID))한다. 질의가 참조하는 컬럼(SELECT와 WHERE 모두)이 인덱스 밖에 있으면 테이블에 가야 하므로 성립하지 않는다 — §7.12 심화 예제의 WHERE 컬럼들도 인덱스로 커버된 사례."
     },
     {
       "id": "m74f",
@@ -132,13 +132,13 @@
     },
     {
       "t": "outer join 순서 규칙",
-      "e": "(+)가 붙지 않은 테이블이 항상 선행(outer·first·build).",
-      "d": "모든 행을 보존해야 하는 쪽이 선행으로 강제되는 문법 규칙 — leading 힌트보다 우선한다(실습에서 leading(d,e) 무시됨, 결과 107행). swap_join_inputs로만 build를 뒤집을 수 있다."
+      "e": "(+)가 붙지 않은 테이블이 항상 선행(조인 순서).",
+      "d": "모든 행을 보존해야 하는 쪽이 선행으로 강제되는 문법 규칙 — leading 힌트보다 우선한다(실습에서 leading(d,e) 무시됨, 결과 107행). 단 문법이 강제하는 건 조인 순서이고 build/probe는 비용 판단 — swap_join_inputs로 강제하거나 옵티마이저가 스스로 RIGHT OUTER를 고르기도 한다."
     },
     {
       "t": "Index Join (index$_join$)",
       "e": "한 테이블의 여러 인덱스를 rowid로 조인해 테이블 접근을 생략.",
-      "d": "SELECT 컬럼이 전부 인덱스에 포함될 때만 작동. 각 인덱스를 fast full scan한 뒤 rowid를 키로 해시 조인(access(ROWID=ROWID)) — 같은 행의 컬럼들을 rowid로 맞춰 붙인다. random access가 없다."
+      "d": "질의가 참조하는 컬럼(SELECT·WHERE 모두)이 전부 인덱스에 포함될 때만 작동. 각 인덱스를 fast full scan한 뒤 rowid를 키로 해시 조인(access(ROWID=ROWID)) — 같은 행의 컬럼들을 rowid로 맞춰 붙인다. random access가 없다."
     }
   ],
   "PLANQ": [

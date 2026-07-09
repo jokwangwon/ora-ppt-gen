@@ -35,7 +35,7 @@ ul,ol{padding-left:22px}
 <li><b>qb_name(sub) / @sub</b> — unnest된 서브쿼리 테이블을 힌트로 잡는 법(10g~) · <a href='../assets/sql_tuning.html#qt' class='cmp-link'>문서 §8.3</a></li>
 <li><b>서브쿼리 ≠ 조인</b> — 결과 건수부터 다름(1:m), m:1처럼 보장될 때만 변환. distinct inline view 우회는 곤란 · <a href='../assets/sql_tuning.html#qt' class='cmp-link'>문서 §8.3</a></li>
 <li><b>조인 제거(join elimination)</b> — 1쪽 미참조 + <b>PK·FK 제약</b> 있으면 1쪽을 아예 안 읽음(내부적으로 <code>is not null</code> 문장) · <a href='../assets/sql_tuning.html#qt' class='cmp-link'>문서 §8.4</a></li>
-<li><b>semi join</b> — IN/EXISTS, 변환된 쪽 항상 후행, match되면 브레이크. <code>nl_sj·merge_sj·hash_sj</code>, SORT UNIQUE=1쪽화 · <a href='../assets/sql_tuning.html#qt' class='cmp-link'>문서 §8.5</a></li>
+<li><b>semi join</b> — IN/EXISTS, 변환된 쪽 기본 후행(RIGHT 변형 예외), match되면 브레이크. <code>nl_sj·merge_sj·hash_sj</code>, SORT UNIQUE=1쪽화 · <a href='../assets/sql_tuning.html#qt' class='cmp-link'>문서 §8.5</a></li>
 <li><b>NOT IN의 null 함정</b> — 서브쿼리에 null 있으면 0건(AND 진리표) · <a href='../assets/sql_tuning.html#qt' class='cmp-link'>문서 §8.5</a></li>
 <li><b>anti join</b> — NOT IN/NOT EXISTS, 없는 행을 찾음. <code>nl_aj·merge_aj·hash_aj</code> · <a href='../assets/sql_tuning.html#qt' class='cmp-link'>문서 §8.5</a></li>
 </ol>
@@ -53,7 +53,7 @@ ul,ol{padding-left:22px}
 <tr><td>10</td><td>emp_dept_idx 생성 → <code>leading(e,d@sub) use_nl(d@sub)</code></td><td>진입 인덱스 태우기 (수치 캡처 없음 → 홈랩)</td></tr>
 <tr><td>11</td><td>employees⋈departments <code>e.*</code> 조회</td><td><b>조인 제거</b> — DEPT를 안 읽음, 내부적으로 <code>where department_id is not null</code></td></tr>
 <tr><td>12</td><td><code>_optimizer_join_elimination_enabled</code> false/true</td><td>세션 레벨 on/off — false면 다시 조인 플랜</td></tr>
-<tr><td>13</td><td>emp에 FK 추가 → IN 서브쿼리 재실행</td><td>CTAS 사본도 조인 제거 작동 · <code>no_eliminated_join(d)</code>로 개별 비활성</td></tr>
+<tr><td>13</td><td>emp에 FK 추가 → IN 서브쿼리 재실행</td><td>CTAS 사본도 조인 제거 작동 · <code>no_eliminate_join(d)</code>로 개별 비활성(수업 표기 no_eliminated_join은 오타)</td></tr>
 <tr><td>14</td><td><code>location_id=1500</code> 서브쿼리 vs 조인 vs no_unnest</td><td>같은 결과 3가지 플랜 비교 — 작은 쪽 driving으로 unnest</td></tr>
 <tr><td>15</td><td><code>d.*</code> 조인 vs <code>(select distinct ...)</code> inline view</td><td>수동 unnest 우회 — "이러시면 곤란해요"</td></tr>
 <tr><td>16</td><td>dept where IN emp → SEMI · <code>merge_sj</code> · <code>hash_sj</code></td><td>operation에 <b>SEMI</b> · merge_sj의 <b>SORT UNIQUE</b>=m쪽 1쪽화</td></tr>

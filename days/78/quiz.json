@@ -89,7 +89,7 @@
         "export를 먼저 하지 않으면 복원이 불가능하다"
       ],
       "a": 1,
-      "e": "실측에서 FREQUENCY였던 COL1이 복원 후 NONE이 됐다 — 히스토그램은 restore가 안 되므로 중요한 통계는 export_table_stats로 백업하는 쪽이 안전하다. 이력 보유는 기본 31일(get_stats_history_retention)."
+      "e": "실측에서 FREQUENCY였던 COL1이 복원 후 NONE이 됐다 — 히스토그램은 restore가 안 되므로 중요한 통계는 export_table_stats로 백업하는 쪽이 안전하다. 이력 보유는 기본 31일(get_stats_history_retention). 단 공식 문서상 복원 제약은 ANALYZE 수집분·사용자 정의 통계뿐이라 이 현상은 케이스 의존일 수 있다 — 홈랩 재확인 권장."
     }
   ],
   "ESSAY": [
@@ -113,7 +113,7 @@
       "id": "e78b",
       "d": 78,
       "q": "운영 DB에서 '통계 재수집 후 특정 쿼리의 플랜이 나빠졌다'는 상황을 가정하고, 오늘 배운 도구들로 대응 시나리오를 설명하라(복원·백업·잠금·임계치).",
-      "a": "① 복원: dba_tab_stats_history에서 문제 발생 전 시점을 찾아 restore_table_stats('소유자','테이블','시각')로 되돌린다(이력 기본 31일 보관). 단 히스토그램은 restore가 안 되므로, 히스토그램이 중요한 테이블이면 미리 create_stat_table+export_table_stats로 백업해둔 stattab에서 import_table_stats로 복원한다. ② 원인 분석: diff_table_stats_in_stattab으로 백업본과 현재 통계를 비교해 무엇이 달라졌는지(행 수·NDV·히스토그램 유무) 리포트로 확인한다. ③ 재발 방지: 검증된 통계를 유지해야 하는 테이블은 lock_table_stats로 수집을 잠그거나, set_table_prefs('stale_percent','40')처럼 임계치를 올려 자동 수집 빈도를 낮춘다. 무효화 부담은 no_invalidate(기본 auto_invalidate, 18000초 분산)로 조절한다.",
+      "a": "① 복원: dba_tab_stats_history에서 문제 발생 전 시점을 찾아 restore_table_stats('소유자','테이블','시각')로 되돌린다(이력 기본 31일 보관). 단 수업 실측에선 히스토그램이 restore에서 빠졌으므로(공식 문서상 제약 목록엔 없음 — 재확인 권장), 히스토그램이 중요한 테이블이면 미리 create_stat_table+export_table_stats로 백업해둔 stattab에서 import_table_stats로 복원한다. ② 원인 분석: diff_table_stats_in_stattab으로 백업본과 현재 통계를 비교해 무엇이 달라졌는지(행 수·NDV·히스토그램 유무) 리포트로 확인한다. ③ 재발 방지: 검증된 통계를 유지해야 하는 테이블은 lock_table_stats로 수집을 잠그거나, set_table_prefs('stale_percent','40')처럼 임계치를 올려 자동 수집 빈도를 낮춘다. 무효화 부담은 no_invalidate(기본 auto_invalidate, 18000초 분산)로 조절한다.",
       "k": [
         "restore_table_stats",
         "31일",
@@ -175,7 +175,7 @@
     {
       "t": "통계 시간 여행 (export·restore)",
       "e": "통계 백업·비교·복원",
-      "d": "create_stat_table+export_table_stats(백업) · diff_table_stats_in_stattab(비교 리포트) · import_table_stats/restore_table_stats(복원, 이력 31일). 주의: 히스토그램은 restore 안 됨 — export가 안전벨트."
+      "d": "create_stat_table+export_table_stats(백업) · diff_table_stats_in_stattab(비교 리포트) · import_table_stats/restore_table_stats(복원, 이력 31일). 주의: 수업 실측에선 히스토그램이 restore되지 않았다(문서상 제약 목록엔 없음 — 재확인 권장). export가 안전벨트."
     }
   ],
   "PLANQ": [

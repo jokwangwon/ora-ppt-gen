@@ -100,7 +100,7 @@
       "id": "e75b",
       "d": 75,
       "q": "semi join과 anti join의 공통점 둘과 차이점을 설명하라.",
-      "a": "공통점: 둘 다 서브쿼리를 조인으로 변환한 것이고, 변환된 서브쿼리 쪽은 항상 후행(inner)으로 처리된다. 차이점: semi(IN·EXISTS)는 서브쿼리에 존재하는 메인 행을 찾으며 match되면 그 행의 조인 검색을 멈춘다(브레이크). anti(NOT IN·NOT EXISTS)는 존재하지 않는 행을 찾으며 match되면 버리고 없으면 결과로 담는다. 힌트는 semi가 nl_sj·merge_sj·hash_sj, anti가 nl_aj·merge_aj·hash_aj.",
+      "a": "공통점: 둘 다 서브쿼리를 조인으로 변환한 것이고, 변환된 서브쿼리 쪽은 기본적으로 후행(inner)으로 처리된다(단 RIGHT SEMI/ANTI 변형에선 서브쿼리 쪽이 build로 온다 — 실측의 HASH JOIN RIGHT SEMI가 그 예). 차이점: semi(IN·EXISTS)는 서브쿼리에 존재하는 메인 행을 찾으며 match되면 그 행의 조인 검색을 멈춘다(브레이크). anti(NOT IN·NOT EXISTS)는 존재하지 않는 행을 찾으며 match되면 버리고 없으면 결과로 담는다. 힌트는 semi가 nl_sj·merge_sj·hash_sj, anti가 nl_aj·merge_aj·hash_aj.",
       "k": [
         "항상 후행",
         "inner",
@@ -131,12 +131,12 @@
     {
       "t": "join elimination(조인 제거)",
       "e": "안 읽어도 되는 테이블 제거",
-      "d": "1:m 조인에서 1쪽을 참조하지 않으면 1쪽 테이블을 아예 읽지 않는 변환. PK(1쪽)·FK(m쪽) 제약이 전제. 내부적으로 is not null 문장으로 바뀐다. _optimizer_join_elimination_enabled(기본 TRUE), 비활성 힌트 no_eliminated_join."
+      "d": "1:m 조인에서 1쪽을 참조하지 않으면 1쪽 테이블을 아예 읽지 않는 변환. PK(1쪽)·FK(m쪽) 제약이 전제. 내부적으로 is not null 문장으로 바뀐다. _optimizer_join_elimination_enabled(기본 TRUE), 비활성 힌트 no_eliminate_join(수업 노트 표기 no_eliminated_join은 오타 — 잘못된 힌트는 조용히 무시된다)."
     },
     {
       "t": "semi join",
       "e": "존재하면 멈추는 조인",
-      "d": "IN·EXISTS 서브쿼리를 조인으로 변환한 것. 변환된 쪽은 항상 후행이고, match되면 그 행의 조인 검색을 멈춘다(브레이크). 힌트 nl_sj·merge_sj·hash_sj. merge_sj의 SORT UNIQUE는 m쪽을 1쪽 집합처럼 만드는 작업."
+      "d": "IN·EXISTS 서브쿼리를 조인으로 변환한 것. 변환된 쪽은 기본적으로 후행이고(RIGHT SEMI 변형은 예외 — 서브쿼리 쪽이 build로 온다), match되면 그 행의 조인 검색을 멈춘다(브레이크). 힌트 nl_sj·merge_sj·hash_sj. merge_sj의 SORT UNIQUE는 m쪽을 1쪽 집합처럼 만드는 작업."
     },
     {
       "t": "anti join",
