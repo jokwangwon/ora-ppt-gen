@@ -93,6 +93,7 @@ DECK_LABELS = {
     "day75.pptx": "75일차 — 쿼리 변환 · filter↔unnest · 조인 제거",
     "day76.pptx": "76일차 — 쿼리 변환 2탄 · OR-expansion · push_subq · bloom",
     "day77.pptx": "77일차 — 조건절 이동 · 집계→분석함수 · 옵티마이저 개막",
+    "day78.pptx": "78일차 — E-Rows의 산수 · 히스토그램 · 통계 수명주기",
     "sql_tuning.pptx": "SQL 튜닝편 (문서 전체 덱)",
     "guide_62_68.pptx": "내부구조편 (문서 전체 덱)",
     "buffer_cache_dbwr_checkpoint.pptx": "버퍼 캐시·DBWR (문서 전체 덱)",

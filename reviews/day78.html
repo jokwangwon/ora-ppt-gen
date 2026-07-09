@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>78일차 복습 시트</title>
+<style>
+body{margin:0;background:#f6f8fa;color:#34343c;font-family:'Lato','Noto Sans KR',-apple-system,sans-serif;line-height:1.7}
+.wrap{max-width:820px;margin:0 auto;padding:36px 22px 80px}
+.top{font-size:12px;color:#7c828a;margin-bottom:6px}
+h2{color:#1b1b1f;font-size:22px;margin:4px 0 14px}
+h3{color:#1b1b1f;font-size:16px;margin:26px 0 8px;padding-top:14px;border-top:1px solid #e7ebef}
+h4{font-size:14px;color:#7c828a;margin:16px 0 4px}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(23,32,50,.05)}
+th{text-align:left;font-size:12px;color:#7c828a;padding:9px 12px;border-bottom:2px solid #e7ebef;background:#fbfcfd}
+td{padding:8px 12px;border-bottom:1px solid #eef1f4;vertical-align:top}
+code{font-family:ui-monospace,monospace;font-size:.85em;background:#eef1f4;padding:1px 6px;border-radius:5px}
+.note{background:#e9f2fb;border:1px solid #cfe0fb;border-radius:11px;padding:11px 14px;font-size:13px;color:#1f4f9e;margin:10px 0}
+hr{border:none;border-top:1px dashed #e7ebef;margin:18px 0}
+ul,ol{padding-left:22px}
+.back{position:fixed;right:16px;bottom:16px;background:#1d7dcc;color:#fff;font:700 13px/1 system-ui;text-decoration:none;padding:11px 15px;border-radius:24px;box-shadow:0 4px 14px rgba(0,0,0,.22)}
+</style></head><body><div class="wrap">
+<div class="top">Oracle DBA 학습 자료실 · 일일 복습</div>
+<h2>78일차 복습 시트</h2>
+<div class='note'>오늘 하루를 한 장으로 — 축·개념·명령어·요약. 막히는 개념은 옆의 [문서 §] 링크로 바로 이동해 다시 읽고, 마지막에 허브에서 문제로 마무리.</div>
+<hr>
+<h3>[오늘의 축]</h3>
+<div class='note'><b>E-Rows는 산수다 — selectivity(1/값 종류) × 총 행수. 균등 가정이 빗나가는 곳에 히스토그램(method_opt)을 만들고, 통계는 자동 수집(stale 10%)로 신선하게, 이력·export·restore로 시간 여행까지 — 통계의 수명주기 전체를 관리한다.</b></div>
+<p>옵티마이저 3단 파이프라인(Transformer→Estimator→Plan Generator)으로 E-Rows의 정체를 풀고, 통계의 생성·감시·잠금·백업·복원을 한 바퀴 돈 날.</p>
+<h3>[개념 제목] (수업 등장 순)</h3>
+<ol>
+<li><b>옵티마이저 3단 파이프라인</b> — Query Transformer(=Part 08) → Estimator(비용 계산) → Plan Generator(후보 생성) + Row Source Generator · <a href='../assets/sql_tuning.html#opt' class='cmp-link'>문서 §9.4</a></li>
+<li><b>selectivity / cardinality / cost</b> — 1/num_distinct · 총행수×selectivity(<b>=E-Rows</b>) · 표준화된 I/O 예측 · <a href='../assets/sql_tuning.html#opt' class='cmp-link'>문서 §9.4</a></li>
+<li><b>dynamic sampling</b> — 통계가 없으면 파싱 시점 즉석 샘플링, 플랜 Note에 표시(level=2) · <a href='../assets/sql_tuning.html#opt' class='cmp-link'>문서 §9.5</a></li>
+<li><b>균등 가정의 한계</b> — size 1 수집 시 부서 10번(1명)도 50번(45명)도 E-Rows 10 · <a href='../assets/sql_tuning.html#opt' class='cmp-link'>문서 §9.5</a></li>
+<li><b>히스토그램 유형</b> — Frequency(값 수=버킷 수) / height balanced(값 수&gt;버킷 수), 버킷 최대 2048(11g 254) · <a href='../assets/sql_tuning.html#opt' class='cmp-link'>문서 §9.6</a></li>
+<li><b>method_opt</b> — size 1(안 만듦)/컬럼 지정/254 전체(주의!)/repeat/auto(col_usage$)/skewonly · <a href='../assets/sql_tuning.html#opt' class='cmp-link'>문서 §9.6</a></li>
+<li><b>no_invalidate</b> — 수집 후 LCO 무효화 제어, 기본 auto_invalidate(18000초에 걸쳐 조금씩) · <a href='../assets/sql_tuning.html#opt' class='cmp-link'>문서 §9.7</a></li>
+<li><b>cascade / degree</b> — 인덱스 통계 동시 수집 / 병렬 수집 · <a href='../assets/sql_tuning.html#opt' class='cmp-link'>문서 §9.7</a></li>
+<li><b>자동 통계 수집(10g)</b> — autotask + 유지보수 윈도우(평일 22시 4h·주말 6시 20h), 대상=무통계+10% 변화 · <a href='../assets/sql_tuning.html#opt' class='cmp-link'>문서 §9.8</a></li>
+<li><b>stale 추적</b> — dba_tab_modifications(DML 카운터) · stale_stats YES/NO · stale_percent 변경 · <a href='../assets/sql_tuning.html#opt' class='cmp-link'>문서 §9.8</a></li>
+<li><b>lock_table_stats / statistics_level</b> — 수집 잠금(ALL) / typical(기본)·basic·all · <a href='../assets/sql_tuning.html#opt' class='cmp-link'>문서 §9.8</a></li>
+<li><b>통계 시간 여행</b> — export(stattab)·diff 리포트·import·restore(시점 복원, <b>히스토그램은 안 됨!</b>)·31일 이력·purge·set_table_stats · <a href='../assets/sql_tuning.html#opt' class='cmp-link'>문서 §9.9</a></li>
+</ol>
+<h3>[실습 명령어 정리] (실행 순서 + 결과 요지)</h3>
+<table><tr><th>#</th><th>명령</th><th>결과 요지</th></tr>
+<tr><td>1</td><td><code>v$version</code> · <code>optimizer_features_enable</code> · <code>v$sys_optimizer_env</code></td><td>옵티마이저 영향 요소를 눈으로 확인</td></tr>
+<tr><td>2</td><td>dba_tables⋈dba_tab_columns로 selectivity·cardinality 계산</td><td>JOB_ID: 19종 → sel .0526 · card <b>5.63</b> / DEPARTMENT_ID: 11종 → card <b>9.73</b></td></tr>
+<tr><td>3</td><td><code>delete_table_stats</code> 후 조회</td><td>플랜 Note <b>dynamic sampling (level=2)</b> — 즉석 샘플링</td></tr>
+<tr><td>4</td><td><code>gather_table_stats(... 'for all columns size 1')</code></td><td>히스토그램 없이 수집 — IT_PROG E-Rows <b>6</b>(107/19), full scan</td></tr>
+<tr><td>5</td><td><code>department_id=10</code> 조회 (히스토그램 없음)</td><td>E-Rows <b>10</b>(107/11) vs 실제 <b>1</b> — 균등 가정의 빗나감</td></tr>
+<tr><td>6</td><td>job_id/department_id 분포 group by</td><td>IT_PROG 5 · SA_REP 30 / 10번 1명 · 50번 45명 — 치우친 분포 확인</td></tr>
+<tr><td>7</td><td><code>'for columns size 20 job_id'</code> + flush shared_pool</td><td>JOB_ID FREQUENCY — IT_PROG <b>E-Rows 5 정확</b>, EMP_JOB_IDX 인덱스</td></tr>
+<tr><td>8</td><td><code>job_id='SA_REP'</code> 조회</td><td>A-Rows 30인데 <b>E-Rows 10</b> — 노트에 설명 없음, 홈랩 재확인</td></tr>
+<tr><td>9</td><td><code>'for columns size 20 job_id,department_id'</code></td><td>둘 다 FREQUENCY — dept=10 <b>E-Rows 1 정확</b> (50번은 여전히 10, 홈랩 재확인)</td></tr>
+<tr><td>10</td><td><code>'for all columns size auto'</code></td><td>col_usage$ 기반 — JOB_ID·DEPARTMENT_ID에만 FREQUENCY 자동 생성</td></tr>
+<tr><td>11</td><td><code>no_invalidate=&gt;true</code> + <code>_optimizer_invalidation_period</code></td><td>LCO 무효화 제어 — 기본 auto_invalidate, <b>18000초</b></td></tr>
+<tr><td>12</td><td><code>cascade=&gt;true</code> / <code>gather_index_stats</code></td><td>인덱스 통계 동시/단독 수집</td></tr>
+<tr><td>13</td><td><code>dba_autotask_client</code></td><td><b>auto optimizer stats collection ENABLED</b> (윈도우 그룹 ORA$AT_WGRP_OS)</td></tr>
+<tr><td>14</td><td><code>dba_scheduler_windows</code></td><td>평일 22시 <b>4시간</b> · 주말 6시 <b>20시간</b> — SET_ATTRIBUTE로 시각·duration 변경</td></tr>
+<tr><td>15</td><td><code>dbms_auto_task_admin.disable(...)</code></td><td>자동 수집 DISABLED · <code>statistics_level=typical</code> 확인(basic이면 장치들 눈멂)</td></tr>
+<tr><td>16</td><td>insert 2·update 15·delete 5 → <code>dba_tab_modifications</code></td><td>DML 카운터 누적 — 10% 초과 시 <code>stale_stats=YES</code>, 재수집하면 리셋+NO</td></tr>
+<tr><td>17</td><td><code>set_table_prefs('stale_percent','40')</code></td><td>테이블별 stale 임계치 변경 (dba_tab_stat_prefs)</td></tr>
+<tr><td>18</td><td><code>lock_table_stats</code></td><td>stattype_locked=<b>ALL</b> — 통계 수집 차단</td></tr>
+<tr><td>19</td><td><code>create_stat_table</code> → <code>export_table_stats</code></td><td>통계를 tab_stat 테이블에 백업</td></tr>
+<tr><td>20</td><td>1000행 추가 후 <code>diff_table_stats_in_stattab</code></td><td>비교 리포트 — ROWS 100 vs <b>1100</b>, COL1 NDV 100 vs 101, HIST NO vs YES</td></tr>
+<tr><td>21</td><td><code>import_table_stats</code> / <code>restore_table_stats('시각')</code></td><td>백업/이력 시점으로 복원 — <b>히스토그램은 restore 안 됨</b>(FREQUENCY→NONE 실측)</td></tr>
+<tr><td>22</td><td><code>get_stats_history_retention</code>(31) → <code>alter_...(7)</code> → <code>purge_stats</code></td><td>이력 보유 기간 변경·시점 기준 삭제 · <code>set_table_stats</code>로 수동 지정</td></tr>
+<tr><td>23</td><td>(곁가지) time_zone·timestamp·interval 실습</td><td>current_date/timestamp 계열과 to_yminterval/to_dsinterval — SQL 문법 복습</td></tr>
+</table>
+<h3>[5줄 요약]</h3>
+<ol>
+<li><b>E-Rows = 총 행수 × (1/값 종류 수)</b> — 옵티마이저 3단 파이프라인의 Estimator가 하는 산수. 73일차부터 본 E-Rows의 정체가 풀렸다.</li>
+<li><b>히스토그램은 균등 가정의 해독제</b> — 없으면 부서 10번(1명)도 50번(45명)도 E-Rows 10. size 20 job_id처럼 치우친 컬럼에만 골라 만든다(254 전체는 주의).</li>
+<li><b>통계가 없으면 dynamic sampling</b> — 플랜 Note가 통계 건강 상태 표시등. 운영에서 이 Note는 "통계 수집이 필요하다"는 신호.</li>
+<li><b>자동 수집은 밤에 stale을 찾는다</b> — 평일 22시/주말 6시 윈도우, 대상은 무통계 + 10% 변화(dba_tab_modifications가 증거). 임계치는 stale_percent, 막으려면 lock_table_stats.</li>
+<li><b>통계는 시간 여행이 된다</b> — 31일 이력에서 restore, export로 백업, diff로 비교. 단 <b>히스토그램은 복원 안 되니</b> export가 안전벨트.</li>
+</ol>
+<h3>[건너뛴 것 — 매뉴얼 대비]</h3>
+<table><tr><th>안 다룬 것</th><th>추정 이유</th><th>공부하러 가기</th></tr>
+<tr><td>SA_REP·dept=50의 E-Rows 10 (히스토그램 후에도)</td><td>노트에 설명 없음</td><td>? → 강사 질문 · 홈랩 재현</td></tr>
+<tr><td>height balanced·HYBRID 히스토그램 실물</td><td>① 뒤 차시 추정</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/optimizer-statistics-concepts.html' class='cmp-link'>매뉴얼 § Optimizer Statistics Concepts</a></td></tr>
+<tr><td>dynamic sampling level별 차이(0~11)</td><td>④ 심화</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/sql-processing.html' class='cmp-link'>매뉴얼 § SQL Processing</a> 주변 장</td></tr>
+<tr><td>시간대·interval 타입 심화</td><td>SQL 문법 곁가지</td><td>명령어 표 23번으로만 정리</td></tr>
+</table>
+<hr>
+<h3>복습 동선 (10분)</h3>
+<ol>
+<li><b>[오늘의 축]</b> 한 줄을 소리 내어 설명해보기 — E-Rows 공식과 통계 수명주기 5단계(수집→감시→잠금→백업→복원)</li>
+<li><b>[개념 제목]</b> 을 훑으며 설명 안 되는 것만 [문서 §] 링크로 이동해 그 부분 재독</li>
+<li><b>[명령어 표]</b> 의 결과 숫자(5.63·9.73 / 6→5·10→1 / 10%·18000·31일)를 가리고 떠올려보기 — 특히 "E-Rows 10은 어디서 온 숫자인가?"</li>
+<li>마무리 — <a href='../assets/study_hub_full.html' class='cmp-link'>허브에서 78일차 문제 풀기</a> (날짜칩 78 필터)</li>
+</ol>
+</div><a class="back" href="../index.html">&larr; 자료실</a></body></html>

@@ -1,0 +1,195 @@
+{
+  "MCQ": [
+    {
+      "id": "m78a",
+      "d": 78,
+      "q": "옵티마이저가 실행계획을 만드는 3단계의 올바른 순서는?",
+      "o": [
+        "Estimator → Query Transformer → Plan Generator",
+        "Query Transformer → Estimator → Plan Generator",
+        "Plan Generator → Estimator → Query Transformer",
+        "Query Transformer → Plan Generator → Estimator"
+      ],
+      "a": 1,
+      "e": "변환(최적화하기 쉬운 형태로, 결과 동일 보장 시에만) → 비용 계산(selectivity·cardinality·cost) → 후보 실행계획 생성. 그 뒤 Row Source Generator가 최적 계획을 받아 실행 가능한 형태로 출력한다."
+    },
+    {
+      "id": "m78b",
+      "d": 78,
+      "q": "num_rows=107, department_id의 num_distinct=11일 때 옵티마이저가 계산하는 cardinality는? (히스토그램 없음)",
+      "o": [
+        "11 — 값 종류 수가 그대로 추정치가 된다",
+        "약 10 — 107 × (1/11), E-Rows로 표시된다",
+        "107 — 조건과 무관하게 전체 행 수로 추정한다",
+        "1 — 인덱스가 없으면 항상 최솟값으로 추정한다"
+      ],
+      "a": 1,
+      "e": "selectivity = 1/num_distinct = 1/11 = .0909, cardinality = 총 행수 × selectivity = 107/11 ≈ 9.7(정확히는 9.72727273) → E-Rows 10. 히스토그램이 없으면 모든 값이 균등 분포한다고 가정한 산수다."
+    },
+    {
+      "id": "m78c",
+      "d": 78,
+      "q": "통계를 삭제하고 쿼리를 실행했더니 플랜 Note에 'dynamic statistics used: dynamic sampling (level=2)'가 떴다. 의미는?",
+      "o": [
+        "통계가 없어 파싱 시점에 즉석 샘플링으로 추정했다는 신호",
+        "파싱 없이 동적으로 통계가 자동 수집되어 딕셔너리에 저장됐다는 뜻",
+        "level 2 이상의 병렬도로 실행됐다는 뜻",
+        "adaptive plan이 실행 중 플랜을 바꿨다는 뜻"
+      ],
+      "a": 0,
+      "e": "딕셔너리에 통계가 없거나 부족하면 옵티마이저가 즉석으로 샘플을 떠서 추정한다. 운영 플랜에서 이 Note가 보이면 그 테이블의 통계 수집이 필요하다는 건강 상태 표시등."
+    },
+    {
+      "id": "m78d",
+      "d": 78,
+      "q": "method_opt=>'for all columns size 1'의 뜻은?",
+      "o": [
+        "버킷 1개짜리 히스토그램을 모든 컬럼에 만든다",
+        "히스토그램을 만들지 않겠다",
+        "첫 번째 컬럼에만 히스토그램을 만든다",
+        "자동으로 필요한 컬럼을 골라 만든다"
+      ],
+      "a": 1,
+      "e": "size 1 = 히스토그램 생성 안 함. 자동 선택은 size auto(조건절 사용 비중 높은 컬럼, sys.col_usage$ 기반), 분포 기반 선택은 skewonly, 기존 컬럼 유지는 repeat."
+    },
+    {
+      "id": "m78e",
+      "d": 78,
+      "q": "자동 통계 수집(auto optimizer stats collection)의 수집 대상은?",
+      "o": [
+        "모든 테이블을 매일 밤 전부 재수집한다",
+        "한 번도 수집 안 한 테이블 + 마지막 수집 후 10% 변화율 테이블",
+        "stale_stats가 NO로 판정된 신선한 테이블만 골라 미리 재수집한다",
+        "lock_table_stats가 걸린 테이블부터 우선 수집한다"
+      ],
+      "a": 1,
+      "e": "유지보수 윈도우(평일 22시 4시간·주말 6시 20시간)에서 last_analyzed is null이거나 10% 이상 변한(stale_stats=YES) 테이블만 수집한다. 임계치는 stale_percent(기본 10)로 테이블별 변경 가능."
+    },
+    {
+      "id": "m78f",
+      "d": 78,
+      "q": "dba_tab_modifications의 역할은?",
+      "o": [
+        "테이블의 현재 행 수와 블록 수를 실시간으로 보여준다",
+        "마지막 통계 수집 이후의 DML 누적 카운터 — stale 판정의 근거",
+        "통계 수집 이력을 수집 시각과 함께 31일간 보관하는 뷰다",
+        "라이브러리 캐시에서 무효화 대상 커서(LCO)를 보여주는 뷰다"
+      ],
+      "a": 1,
+      "e": "INSERTS/UPDATES/DELETES 누적치를 기록하고, 대상 테이블이 통계 수집을 수행하면 이전 정보가 지워진다(리셋). 이 카운터가 num_rows 대비 10%를 넘으면 stale_stats=YES."
+    },
+    {
+      "id": "m78g",
+      "d": 78,
+      "q": "restore_table_stats로 과거 시점 통계를 복원할 때 주의할 점은?",
+      "o": [
+        "31일이 지난 이력도 언제든 복원할 수 있다",
+        "히스토그램 통계는 복원되지 않는다",
+        "복원하면 그 이후의 이력이 전부 삭제된다",
+        "export를 먼저 하지 않으면 복원이 불가능하다"
+      ],
+      "a": 1,
+      "e": "실측에서 FREQUENCY였던 COL1이 복원 후 NONE이 됐다 — 히스토그램은 restore가 안 되므로 중요한 통계는 export_table_stats로 백업하는 쪽이 안전하다. 이력 보유는 기본 31일(get_stats_history_retention)."
+    }
+  ],
+  "ESSAY": [
+    {
+      "id": "e78a",
+      "d": 78,
+      "q": "통계가 없을 때 → size 1 수집 → 히스토그램 생성의 3단계에서 department_id=10 쿼리의 E-Rows가 어떻게 변했는지, 각 단계의 근거와 함께 설명하라.",
+      "a": "① 통계 삭제 상태: 딕셔너리에 근거가 없어 파싱 시점 dynamic sampling(level=2)으로 즉석 추정 — 플랜 Note에 표시된다. ② 'for all columns size 1'(히스토그램 없이) 수집 후: 균등 가정의 산수로 E-Rows = 107 × (1/11) ≈ 10 — 실제 1명인 부서 10번도, 45명인 50번도 똑같이 10으로 추정한다. ③ department_id에 히스토그램(FREQUENCY) 생성 후: 값별 분포(부서 10번=1명)를 알게 되어 E-Rows 1로 정확해졌다. 즉 E-Rows의 품질은 통계의 품질이고, 치우친 분포에서 그 격차를 메우는 것이 히스토그램이다.",
+      "k": [
+        "dynamic sampling",
+        "Note",
+        "균등 가정",
+        "107",
+        "1/11",
+        "10",
+        "FREQUENCY",
+        "1로 정확"
+      ]
+    },
+    {
+      "id": "e78b",
+      "d": 78,
+      "q": "운영 DB에서 '통계 재수집 후 특정 쿼리의 플랜이 나빠졌다'는 상황을 가정하고, 오늘 배운 도구들로 대응 시나리오를 설명하라(복원·백업·잠금·임계치).",
+      "a": "① 복원: dba_tab_stats_history에서 문제 발생 전 시점을 찾아 restore_table_stats('소유자','테이블','시각')로 되돌린다(이력 기본 31일 보관). 단 히스토그램은 restore가 안 되므로, 히스토그램이 중요한 테이블이면 미리 create_stat_table+export_table_stats로 백업해둔 stattab에서 import_table_stats로 복원한다. ② 원인 분석: diff_table_stats_in_stattab으로 백업본과 현재 통계를 비교해 무엇이 달라졌는지(행 수·NDV·히스토그램 유무) 리포트로 확인한다. ③ 재발 방지: 검증된 통계를 유지해야 하는 테이블은 lock_table_stats로 수집을 잠그거나, set_table_prefs('stale_percent','40')처럼 임계치를 올려 자동 수집 빈도를 낮춘다. 무효화 부담은 no_invalidate(기본 auto_invalidate, 18000초 분산)로 조절한다.",
+      "k": [
+        "restore_table_stats",
+        "31일",
+        "히스토그램은 안 됨",
+        "export",
+        "import",
+        "diff",
+        "lock_table_stats",
+        "stale_percent"
+      ]
+    }
+  ],
+  "TERMS": [
+    {
+      "t": "Query Transformer / Estimator / Plan Generator",
+      "e": "옵티마이저 3단 파이프라인",
+      "d": "변환(결과 동일 보장 시 SQL 재작성) → 비용 계산(selectivity·cardinality·cost) → 후보 실행계획 생성. 이후 Row Source Generator가 최적 계획을 받아 실행 가능한 형태로 출력한다."
+    },
+    {
+      "t": "selectivity",
+      "e": "조건으로 선택될 행 비율",
+      "d": "전체 대상 행 중 특정 조건에 의해 선택될 것으로 예상되는 행 비율 = 1/num_distinct (히스토그램 없을 때). JOB_ID(19종)=.0526, DEPARTMENT_ID(11종)=.0909."
+    },
+    {
+      "t": "cardinality",
+      "e": "단계별 예상 출력 건수 (=E-Rows)",
+      "d": "특정 액세스 단계를 거친 뒤 출력될 것으로 예상되는 결과 건수 = 총 행수 × selectivity. 107/11≈9.73→E-Rows 10. 플랜의 E-Rows가 바로 이 계산 결과다."
+    },
+    {
+      "t": "dynamic sampling",
+      "e": "통계 없을 때 즉석 샘플링",
+      "d": "딕셔너리 통계가 없거나 부족하면 파싱 시점에 샘플을 떠서 추정하는 기능. 플랜 Note에 'dynamic statistics used: dynamic sampling (level=2)'로 표시 — 통계 건강 상태 표시등."
+    },
+    {
+      "t": "method_opt",
+      "e": "히스토그램 생성 지시자",
+      "d": "gather_table_stats의 옵션. size 1(안 만듦)/'for columns size 20 job_id'(특정 컬럼)/size 254 전체(주의!)/repeat(기존 컬럼만)/auto(col_usage$ 기반)/skewonly(분포 분석). 버킷 최대 2048(11g 254)."
+    },
+    {
+      "t": "no_invalidate",
+      "e": "수집 후 커서 무효화 제어",
+      "d": "통계 수집 시 library cache의 연관 LCO 무효화 여부. true=안 함/false=즉시/auto_invalidate(기본)=_optimizer_invalidation_period(18000초)에 걸쳐 조금씩. hard parse 폭풍과 낡은 플랜 사이의 균형 장치."
+    },
+    {
+      "t": "자동 통계 수집 (autotask)",
+      "e": "밤에 도는 통계 관리자",
+      "d": "auto optimizer stats collection(10g~)이 유지보수 윈도우(평일 22시 4시간·주말 6시 20시간)에서 무통계+10% 변화 테이블을 수집. dba_autotask_client로 확인, dbms_auto_task_admin.disable로 중지. statistics_level=typical이 전제."
+    },
+    {
+      "t": "stale_stats / stale_percent",
+      "e": "낡은 통계 판정",
+      "d": "마지막 수집 이후 10% 변화율이 생기면 dba_tab_statistics.stale_stats=YES — 근거는 dba_tab_modifications의 DML 카운터(수집하면 리셋). 임계치는 set_table_prefs('stale_percent','40')로 테이블별 변경."
+    },
+    {
+      "t": "lock_table_stats",
+      "e": "통계 수집 잠금",
+      "d": "dbms_stats.lock_table_stats('hr','emp') — dba_tab_statistics.stattype_locked=ALL이 되어 통계 수집이 차단된다. 검증된 통계를 자동 수집으로부터 보호하는 장치."
+    },
+    {
+      "t": "통계 시간 여행 (export·restore)",
+      "e": "통계 백업·비교·복원",
+      "d": "create_stat_table+export_table_stats(백업) · diff_table_stats_in_stattab(비교 리포트) · import_table_stats/restore_table_stats(복원, 이력 31일). 주의: 히스토그램은 restore 안 됨 — export가 안전벨트."
+    }
+  ],
+  "PLANQ": [
+    {
+      "id": "pl78a",
+      "q": "통계를 삭제한 뒤 실행한 플랜이다. ① Note의 의미 ② E-Rows 5가 이번엔 어떻게 나왔는지 ③ 운영에서 이 Note를 봤을 때 할 일을 설명하라.",
+      "plan": "| Id | Operation         | Name | Starts | E-Rows | A-Rows | Buffers |\n|  0 | SELECT STATEMENT  |      |    1   |        |    5   |    5 |\n|* 1 |  TABLE ACCESS FULL| EMP  |    1   |    5   |    5   |    5 |\n\n   1 - filter(\"JOB_ID\"='IT_PROG')\n\nNote\n-----\n   - dynamic statistics used: dynamic sampling (level=2)",
+      "a": "① 딕셔너리에 이 테이블의 통계가 없어(delete_table_stats 직후) 옵티마이저가 파싱 시점에 즉석 샘플링으로 추정했다는 표시다. ② E-Rows 5는 num_distinct 나눗셈이 아니라 그 즉석 샘플에서 나온 값 — 마침 실제(5)와 일치했다. ③ 운영 플랜에서 이 Note가 보이면 그 테이블은 통계가 없거나 부족하다는 신호이므로 dbms_stats.gather_table_stats로 수집한다(치우친 컬럼이면 method_opt로 히스토그램까지)."
+    },
+    {
+      "id": "pl78b",
+      "q": "'for all columns size 1'로 수집한 상태의 두 플랜이다. 두 쿼리의 E-Rows가 모두 10인 이유와, 이를 바로잡는 방법·바로잡힌 결과를 설명하라.",
+      "plan": "-- department_id = 10 (실제 1명)\n|  1 |  TABLE ACCESS BY INDEX ROWID BATCHED| EMP | E-Rows 10 | A-Rows  1 |\n-- department_id = 50 (실제 45명)\n|  1 |  TABLE ACCESS BY INDEX ROWID BATCHED| EMP | E-Rows 10 | A-Rows 45 |",
+      "a": "size 1은 히스토그램을 만들지 않으므로 옵티마이저는 균등 가정으로 계산한다 — E-Rows = 107 × (1/11) ≈ 10. 값별 분포(10번=1명, 50번=45명)를 모르니 어떤 값이든 같은 10이 나온다. 바로잡으려면 department_id에 히스토그램을 생성한다: gather_table_stats(..., method_opt=>'for columns size 20 job_id,department_id') → FREQUENCY 히스토그램이 생기고 dept=10의 E-Rows가 1로 정확해졌다(실측). 50번은 노트 실측에서 여전히 10으로 찍혀 홈랩 재확인 대상."
+    }
+  ]
+}
