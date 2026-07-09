@@ -28,8 +28,8 @@ from pathlib import Path
 
 # 배열별 (키 순서, id 필드). TERMS 는 id 대신 t 로 중복 판단.
 SCHEMA = {
-    "MCQ": (["id", "d", "q", "o", "a", "e"], "id"),
-    "ESSAY": (["id", "d", "q", "a", "k"], "id"),
+    "MCQ": (["id", "d", "q", "o", "a", "e", "ref"], "id"),
+    "ESSAY": (["id", "d", "q", "a", "k", "ref"], "id"),
     "TERMS": (["t", "e", "d", "day"], "t"),
     "PLANQ": (["id", "q", "plan", "a", "k"], "id"),
 }
