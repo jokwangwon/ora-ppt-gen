@@ -1,0 +1,207 @@
+{
+  "deck_id": "day78",
+  "title": "E-Rows는 산수다 — 그리고 통계는 관리된다",
+  "subtitle": "78일차 — 옵티마이저 3단 파이프라인 · 히스토그램 · 통계의 수명주기",
+  "source": "assets/sql_tuning.html §9.4~9.9",
+  "slides": [
+    { "type": "title" },
+    {
+      "type": "section",
+      "num": "00",
+      "title": "오늘의 큰 그림",
+      "subtitle": "E-Rows의 정체, 그리고 통계의 일생"
+    },
+    {
+      "type": "content",
+      "title": "73일차부터 봐온 E-Rows — 오늘 그 계산식과 재료 관리법을 다 푼다",
+      "notes": "78일차입니다. 오늘은 두 가지 수수께끼가 풀리는 날이에요. 첫째, 73일차부터 플랜에서 계속 봐온 E-Rows — 이게 어디서 나오는 숫자인지. 옵티마이저의 3단 파이프라인 중 Estimator가 하는 산수, 총 행수 곱하기 selectivity입니다. 둘째, 그 산수의 재료인 통계가 실무에서 어떻게 관리되는지 — 없으면 어떻게 되고(dynamic sampling), 어떻게 만들고(method_opt·히스토그램), 누가 자동으로 돌리고(autotask·stale), 사고가 나면 어떻게 되돌리는지(export·restore)까지. 통계의 수명주기 전체를 한 바퀴 돕니다.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": ["장면", "핵심", "오늘의 실측"],
+          "rows": [
+            ["3단 파이프라인", "Transformer → Estimator → Plan Generator", "E-Rows = 107 × (1/종류 수)"],
+            ["통계가 없으면", "dynamic sampling · 균등 가정", "Note 표시 · 10번도 50번도 E-Rows 10"],
+            ["히스토그램", "method_opt로 치우친 컬럼에", "dept=10: E-Rows 10 → 1 정확"],
+            ["자동 수집·감시", "밤 윈도우 · stale 10%", "DML 카운터 2/15/5 → YES"],
+            ["시간 여행", "export·diff·restore(31일)", "히스토그램은 복원 안 됨!"]
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "why",
+          "head": "오늘의 축",
+          "body": "E-Rows는 산수다 — selectivity(1/값 종류) × 총 행수. 균등 가정이 빗나가는 곳에 히스토그램을, 통계는 수집·감시·잠금·백업·복원으로 수명주기 전체를 관리한다."
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "num": "01",
+      "title": "3단 파이프라인",
+      "subtitle": "Transformer → Estimator → Plan Generator"
+    },
+    {
+      "type": "content",
+      "title": "Estimator의 산수 — selectivity × 총 행수 = cardinality = E-Rows",
+      "notes": "옵티마이저 내부는 3단입니다. Query Transformer가 SQL을 최적화하기 쉬운 형태로 바꿉니다 — 결과 동일이 보장될 때만요. 지난 2주간 배운 Part 08 전체가 바로 이 단계였습니다. Estimator가 비용을 계산하고, Plan Generator가 후보 계획들을 만들어요. 최종 계획은 Row Source Generator가 받아 실행 가능한 형태로 출력합니다. 오늘의 주인공은 Estimator의 세 값이에요. selectivity는 조건으로 선택될 행 비율, 히스토그램이 없으면 1 나누기 값 종류 수입니다. cardinality는 총 행수 곱하기 selectivity — 이게 바로 플랜의 E-Rows예요. cost는 표준화된 I/O 예측 비용이고요. 직접 계산해봤습니다. JOB_ID는 19종이니 107 나누기 19, 약 5.63. DEPARTMENT_ID는 11종이니 9.73. 플랜에서 보던 E-Rows 6과 10이 정확히 이 나눗셈이었습니다. 마법이 아니라 산수였어요.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": ["단계 · 값", "정의", "실측 (num_rows 107)"],
+          "rows": [
+            ["Query Transformer", "결과 동일 보장 시 SQL 재작성 — Part 08 전체", "—"],
+            ["Estimator: selectivity", "선택될 행 비율 = 1/num_distinct", "JOB_ID(19종) .0526"],
+            ["Estimator: cardinality", "총 행수 × selectivity = E-Rows", "5.63 → 6 · DEPT 9.73 → 10"],
+            ["Plan Generator", "후보 실행계획들 생성", "→ Row Source Generator가 출력"]
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "why",
+          "head": "E-Rows의 정체",
+          "body": "73일차부터 봐온 E-Rows는 산수다 — 히스토그램이 없으면 '모든 값이 균등 분포'를 가정하고 총 행수를 값 종류 수로 나눈다. 이 가정이 언제 무너지는지가 다음 장면."
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "num": "02",
+      "title": "통계가 없으면",
+      "subtitle": "dynamic sampling — 그리고 균등 가정의 민낯"
+    },
+    {
+      "type": "content",
+      "title": "통계를 지우면 Note가 뜨고, size 1로 수집하면 균등 가정이 드러난다",
+      "notes": "실험으로 갑니다. delete_table_stats로 통계를 지우고 쿼리를 돌리면 — 플랜은 나오는데 Note에 dynamic statistics used: dynamic sampling (level=2)가 찍힙니다. 딕셔너리에 근거가 없으니 파싱 시점에 즉석으로 샘플을 떠서 추정한 거예요. 운영에서 이 Note가 보이면 그 테이블 통계가 없거나 부족하다는 건강 상태 표시등입니다. 이제 'for all columns size 1'로 수집합니다 — 히스토그램 없이요. Note는 사라지고 E-Rows가 산수로 돌아옵니다. IT_PROG는 107 나누기 19로 E-Rows 6. 그런데 department_id를 보세요. 부서 10번은 실제 1명인데 E-Rows 10, 부서 50번은 45명인데 역시 E-Rows 10. 균등 가정은 어떤 값이 와도 같은 답을 냅니다. 실제 분포를 group by로 확인해보면 — 10번 1명, 50번 45명, 80번 34명. 심하게 치우쳐 있죠. 이 격차를 메우는 게 히스토그램입니다.",
+      "blocks": [
+        {
+          "kind": "code",
+          "lines": [
+            "exec dbms_stats.delete_table_stats('hr','emp')",
+            "-- Note: dynamic statistics used: dynamic sampling (level=2)",
+            "exec dbms_stats.gather_table_stats('hr','emp',method_opt=>'for all columns size 1')",
+            "-- dept=10(실제 1명): E-Rows 10  /  dept=50(실제 45명): E-Rows 10  ← 같은 답"
+          ]
+        },
+        {
+          "kind": "bullets",
+          "items": [
+            "Note = 통계 건강 상태 표시등 — 보이면 수집이 필요하다는 신호",
+            "size 1 = 히스토그램 없이 — E-Rows는 107/종류 수 하나로 통일",
+            "실제 분포: 10번 1명 · 50번 45명 · 80번 34명 — 균등과 거리가 멀다"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "num": "03",
+      "title": "히스토그램 만들기",
+      "subtitle": "method_opt — 치우친 컬럼에만, 골라서"
+    },
+    {
+      "type": "content",
+      "title": "method_opt 사용법 — size 1부터 auto·skewonly까지",
+      "notes": "히스토그램 만들기의 문법이 method_opt입니다. 원칙부터 — 조건절에 자주 쓰이면서 분포가 균일하지 않은 컬럼에 만듭니다. 버킷은 최대 2048개, 11g까지는 254였고요. 유형은 두 가지 — 값의 수가 버킷 수와 같으면 Frequency(도수분포), 값의 수가 버킷보다 많으면 height balanced(높이균형)입니다. 옵션을 봅시다. size 1은 안 만들겠다, for columns size 20 job_id는 특정 컬럼에만, 콤마로 여러 컬럼, size를 따로 주면 컬럼별 버킷 수도 달리할 수 있어요. for all columns size 254는 모든 컬럼에 — 주의하라고 강조하셨습니다, 필요 없는 컬럼까지 만드니까요. 자동 계열이 실무형인데 — repeat는 기존에 있던 컬럼에만 다시, auto는 조건절 사용 비중이 높은 컬럼을 sys.col_usage$에서 찾아서, skewonly는 분포를 분석해 치우친 컬럼에만. 실제로 size auto로 수집하니 JOB_ID와 DEPARTMENT_ID에만 FREQUENCY가 생겼습니다 — 조건절에 쓴 이력이 있는 두 컬럼을 정확히 골라냈어요.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": ["method_opt", "뜻"],
+          "rows": [
+            ["'for all columns size 1'", "히스토그램을 만들지 않겠다"],
+            ["'for columns size 20 job_id'", "특정 컬럼에만 (여러 컬럼·컬럼별 size 가능)"],
+            ["'for all columns size 254'", "모든 컬럼에 — 주의!!"],
+            ["size repeat / auto / skewonly", "기존 컬럼만 / col_usage$ 기반 자동 / 치우친 컬럼만"]
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "tip",
+          "head": "유형 두 가지 · 버킷 한도",
+          "body": "Frequency = 값의 수 = 버킷 수(값마다 정확한 도수) · height balanced = 값의 수 > 버킷 수. 버킷 최대 2048(11g는 254). size auto 실측 — 조건절에 쓴 JOB_ID·DEPARTMENT_ID만 정확히 골라 FREQUENCY 생성."
+        }
+      ]
+    },
+    {
+      "type": "content",
+      "title": "히스토그램이 E-Rows를 바로잡는 순간 — 6→5, 10→1",
+      "notes": "효과를 실측으로 봅니다. job_id에 히스토그램을 만들고 shared_pool을 비운 뒤 IT_PROG를 조회하면 — E-Rows가 균등 가정의 6에서 5로, 실제와 정확히 일치합니다. 플랜도 EMP_JOB_IDX 인덱스를 타고요. department_id에도 만들면 부서 10번의 E-Rows가 10에서 1로 정확해집니다. 옵티마이저가 이제 '10번 부서는 1명'을 아는 거예요. 하나 정직하게 짚을 게 있습니다 — 노트 실측에서 SA_REP(30명)과 부서 50번(45명)은 히스토그램 후에도 E-Rows 10으로 찍혔어요. 수업 노트에 설명이 없는 부분이라 이유를 지어내지 않겠습니다. 홈랩에서 재현해 확인할 목록에 올려뒀고, 강사님께 질문할 항목입니다. 원칙은 분명해요 — 히스토그램은 치우친 분포에서 E-Rows의 격차를 메운다, 그리고 실측은 끝까지 검증한다.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": ["실험", "히스토그램 전", "히스토그램 후"],
+          "rows": [
+            ["job_id='IT_PROG' (5명)", "E-Rows 6 · full scan", "E-Rows 5 정확 · EMP_JOB_IDX"],
+            ["department_id=10 (1명)", "E-Rows 10", "E-Rows 1 정확"],
+            ["SA_REP(30명) · dept=50(45명)", "E-Rows 10", "여전히 10 — 노트에 설명 없음"]
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "why",
+          "head": "정직한 각주",
+          "body": "SA_REP·50번의 E-Rows 10은 수업 노트에 이유가 없다 — 지어내지 않고 홈랩 재현·강사 질문 목록으로. 확인된 것만 적는다: 히스토그램은 10번의 E-Rows를 10→1로 바로잡았다."
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "num": "04",
+      "title": "자동 수집과 감시",
+      "subtitle": "밤에 돌고, stale을 찾아내고, 잠글 수도 있다"
+    },
+    {
+      "type": "content",
+      "title": "autotask는 밤 윈도우에 돌고, DML 카운터가 stale을 판정한다",
+      "notes": "실무에선 이걸 매번 손으로 안 합니다. 10g부터 auto optimizer stats collection이 자동으로 돌아요. dba_autotask_client에서 ENABLED를 확인했고, 유지보수 윈도우는 dba_scheduler_windows에서 — 평일은 22시부터 4시간, 주말은 아침 6시부터 20시간입니다. DBMS_SCHEDULER.SET_ATTRIBUTE로 시각과 길이를 바꿀 수 있고, 끄려면 dbms_auto_task_admin.disable이에요. 수집 대상이 중요합니다 — 한 번도 수집 안 한 테이블, 그리고 마지막 수집 후 10% 변화율이 생긴 테이블. 그 10%를 어떻게 아느냐 — dba_tab_modifications가 DML 카운터를 쌓습니다. 실험으로 insert 2건, update 15건, delete 5건을 넣으니 카운터가 그대로 쌓이고, 10%를 넘는 순간 dba_tab_statistics의 stale_stats가 YES로 바뀌었어요. 재수집하면 카운터는 리셋되고 NO로 돌아갑니다. 임계치는 stale_percent로 테이블별 조정(기본 10, 실습에선 40으로), 아예 수집을 막으려면 lock_table_stats — stattype_locked가 ALL로 찍힙니다. 전제 하나 — statistics_level이 typical(기본)이어야 이 장치들이 작동합니다. basic이면 수집 자체를 안 해요.",
+      "blocks": [
+        {
+          "kind": "steps",
+          "items": [
+            { "n": "①", "head": "언제", "body": "유지보수 윈도우 — 평일 22시 4시간 · 주말 6시 20시간 (SET_ATTRIBUTE로 변경)" },
+            { "n": "②", "head": "무엇을", "body": "무통계 테이블 + 10% 변화율(stale_stats=YES) — 근거는 dba_tab_modifications 카운터" },
+            { "n": "③", "head": "조절", "body": "stale_percent(기본 10→40) · lock_table_stats(ALL) · statistics_level=typical 전제" }
+          ]
+        },
+        {
+          "kind": "callout",
+          "tone": "tip",
+          "head": "no_invalidate — 수집의 후폭풍 조절",
+          "body": "통계를 새로 수집하면 기존 커서(LCO)가 낡는다. 즉시 전부 무효화하면 hard parse 폭풍 — 기본값 auto_invalidate는 18000초에 걸쳐 조금씩 무효화한다. cascade=true면 인덱스 통계도 함께."
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "num": "05",
+      "title": "통계의 시간 여행",
+      "subtitle": "export · diff · restore — 단, 히스토그램은 예외"
+    },
+    {
+      "type": "content",
+      "title": "통계는 백업·비교·복원이 된다 — 히스토그램만 시간 여행이 안 된다",
+      "notes": "마지막 장면, 통계의 시간 여행입니다. 통계는 수집할 때마다 이력이 남아요 — dba_tab_stats_history, 기본 31일 보관입니다. 백업도 됩니다 — create_stat_table로 저장용 테이블을 만들고 export_table_stats로 내보내요. 그 상태에서 데이터 1000건을 넣고 재수집한 뒤 diff_table_stats_in_stattab을 돌리면 비교 리포트가 나옵니다 — 행 수 100 대 1100, COL1의 NDV 100 대 101, 히스토그램 NO 대 YES. 무엇이 달라졌는지 한눈에 보이죠. 되돌리기는 두 길입니다. import_table_stats는 백업본으로, restore_table_stats는 이력의 특정 시점으로. 그런데 여기 오늘의 최대 함정이 있습니다 — 히스토그램은 restore가 안 됩니다. 실측으로 FREQUENCY였던 COL1이 복원 후 NONE이 됐어요. 그래서 히스토그램이 중요한 테이블은 export 백업이 안전벨트입니다. 보유 기간은 get_stats_history_retention으로 확인(31일), alter로 변경, purge_stats로 시점 기준 정리, set_table_stats로 값을 수동 지정할 수도 있습니다. 통계 재수집 후 플랜이 나빠졌을 때 '어제의 통계로 돌아가기' — 이게 운영의 실전 카드예요.",
+      "blocks": [
+        {
+          "kind": "code",
+          "lines": [
+            "exec dbms_stats.export_table_stats('hr','tab',stattab=>'tab_stat')  -- 백업",
+            "select * from table(dbms_stats.diff_table_stats_in_stattab('hr','tab','tab_stat'));",
+            "--  ROWS 100 vs 1100 · COL1 NDV 100 vs 101 · HIST NO vs YES",
+            "exec dbms_stats.restore_table_stats('hr','tab','09-JUL-26 04.11.30 ...')",
+            "-- 주의!! 복원 후 COL1: FREQUENCY → NONE — 히스토그램은 restore 안 됨"
+          ]
+        },
+        {
+          "kind": "bullets",
+          "items": [
+            "이력 31일(dba_tab_stats_history) — retention 변경·purge_stats로 관리",
+            "플랜 회귀 시 실전 카드: restore(시점) 또는 import(백업본)",
+            "히스토그램은 restore 불가 — 중요하면 export가 안전벨트 · set_table_stats로 수동 지정도 가능"
+          ]
+        }
+      ]
+    }
+  ]
+}

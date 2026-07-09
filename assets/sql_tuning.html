@@ -1025,7 +1025,7 @@ Predicate Information:
 </section>
 
 <section class="part" id="opt">
-  <div class="phead"><div class="pnum">09</div><div><div class="ptitle">옵티마이저 & 통계 — 판단의 재료 <span class="db add">77일차</span></div><div class="psub">RBO→CBO · 시스템 통계(aux_stats$) · optimizer_mode · <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/optimizer-statistics-concepts.html" style="color:var(--muted)">공식 매뉴얼 § Optimizer Statistics Concepts ↗</a></div></div></div>
+  <div class="phead"><div class="pnum">09</div><div><div class="ptitle">옵티마이저 & 통계 — 판단의 재료 <span class="db add">77~78일차</span></div><div class="psub">RBO→CBO · 시스템 통계 · 3단 파이프라인 · 히스토그램 · 자동 수집 · 통계 시간 여행 · <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/optimizer-statistics-concepts.html" style="color:var(--muted)">공식 매뉴얼 § Optimizer Statistics Concepts ↗</a></div></div></div>
   <p><b class="k">Optimizer</b> = 요청된 SQL을 가장 효율적으로 수행할 <b>최저 비용의 처리 경로</b>를 만들어 주는 엔진. 실행계획(데이터 처리 방법·조인 방법·조인 순서)을 생성한다. 지금까지 배운 모든 변환·플랜 선택의 주체가 드디어 본편으로.</p>
 
   <h3 class="blk"><span class="ix">9.1</span>RBO에서 CBO로 — 규칙이 아니라 비용</h3>
@@ -1067,7 +1067,82 @@ Predicate Information:
   </table>
   <div class="why"><span class="h">같은 쿼리, 모드만 바꿨더니 — full 9 vs index</span>
   <code class="inl">department_id = 50</code>(45행): <code class="inl">all_rows</code>는 전체 처리율 기준이라 <b>full scan(9)</b>. <code class="inl">first_rows(10)</code> 힌트를 주면 "처음 10건만 빨리"가 목표라 <b>INDEX RANGE SCAN</b>을 태운다(E-Rows도 10으로) — Buffers 총량은 같아도(9) 첫 행이 나오는 시점이 다르다. 세션/시스템 레벨: <code class="inl">alter session set optimizer_mode = first_rows_10</code>.</div>
-  <div class="tip"><b>옵티마이저에게 영향을 주는 요소 7</b> — 오라클 버전 · 옵티마이저 파라미터 · 통계 정보 · 힌트 · SQL 연산자 · 인덱스 설계 · 제약 조건. 지금까지 배운 것들이 전부 이 목록 안에 있다(제약 조건→조인 제거, 힌트→3형제, 연산자→인덱스 무력화).</div>
+  <div class="tip"><b>옵티마이저에게 영향을 주는 요소 7</b> — 오라클 버전(<code class="inl">v$version</code>·<code class="inl">optimizer_features_enable</code>) · 옵티마이저 파라미터(<code class="inl">v$sys_optimizer_env</code>) · 통계 정보 · 힌트 · SQL 연산자 · 인덱스 설계 · 제약 조건. 지금까지 배운 것들이 전부 이 목록 안에 있다(제약 조건→조인 제거, 힌트→3형제, 연산자→인덱스 무력화).</div>
+
+  <h3 class="blk"><span class="ix">9.4</span>실행계획이 만들어지는 3단계 — Transformer · Estimator · Plan Generator <span class="db add">78일차</span></h3>
+  <p>옵티마이저 내부는 3단 파이프라인이다: <b class="k">Query Transformer</b>(최적화하기 쉬운 형태로 SQL 변환 — 결과 동일이 보장될 때만, Part 08 전체가 이 단계) → <b class="k">Estimator</b>(실행계획 전체의 총 비용 계산) → <b class="k">Plan Generator</b>(후보 실행계획들 생성). 그 뒤 <b>Row Source Generator</b>가 최적 계획을 받아 실행 가능한 형태로 출력한다. <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/sql-processing.html" style="color:var(--muted)">공식 매뉴얼 § SQL Processing ↗</a></p>
+  <table>
+    <tr><th>Estimator의 세 값</th><th>정의 · 계산</th></tr>
+    <tr><td><b>selectivity</b></td><td>조건으로 선택될 것으로 예상되는 <b>행 비율</b> = 1 / num_distinct</td></tr>
+    <tr><td><b>cardinality</b></td><td>그 액세스 단계를 거친 뒤 나올 <b>예상 건수</b> = 총 행수 × selectivity — 플랜의 <b>E-Rows가 바로 이 값</b></td></tr>
+    <tr><td><b>cost</b></td><td>문장 실행에 필요한 표준화된 I/O에 대한 최적 예측 비용 (<code class="inl">_optimizer_cost_model</code>=CHOOSE: 8i I/O → 10g CPU 비용)</td></tr>
+  </table>
+  <pre class="term"><span class="cm">-- E-Rows를 손으로 계산해보기 (num_rows=107)</span>
+<span class="pr">SYS&gt;</span> select num_rows, column_name, num_distinct, 1/num_distinct selectivity,
+     num_rows/num_distinct cardinality, histogram from dba_tables t, dba_tab_columns c ...
+<span class="out">JOB_ID          19   .052631579   5.63157895   ← job 하나당 예상 6명</span>
+<span class="hl">DEPARTMENT_ID   11   .090909091   9.72727273   ← 부서 하나당 예상 10명</span></pre>
+  <div class="why"><span class="h">E-Rows의 정체가 풀렸다</span>
+  73일차부터 봐온 E-Rows는 마법이 아니라 <b>산수</b>였다 — 총 행수 107 ÷ 값 종류 수. 히스토그램이 없으면 옵티마이저는 <b>모든 값이 균등하게 분포한다고 가정</b>하고 이 나눗셈 하나로 추정한다. 그래서 부서 10번(실제 1명)도 50번(실제 45명)도 똑같이 E-Rows 10 — 균등 가정의 한계가 다음 절의 주제다.</div>
+
+  <h3 class="blk"><span class="ix">9.5</span>통계가 없으면 — dynamic sampling, 균등 가정의 민낯 <span class="db add">78일차</span></h3>
+  <pre class="term"><span class="cm">-- ① 통계 삭제 후 실행 — 옵티마이저가 즉석 샘플링으로 버틴다</span>
+<span class="pr">SYS&gt;</span> exec dbms_stats.delete_table_stats('hr','emp')
+<span class="out">Note:  - dynamic statistics used: dynamic sampling (level=2)</span>
+<span class="cm">-- ② size 1(히스토그램 없이) 수집 — 균등 가정으로 계산</span>
+<span class="pr">SYS&gt;</span> exec dbms_stats.gather_table_stats('hr','emp',method_opt=&gt;'for all columns size 1')
+<span class="hl">job_id='IT_PROG' → E-Rows 6 (107/19 반올림) · department_id=10 → E-Rows 10 (107/11) vs 실제 1</span></pre>
+  <div class="why"><span class="h">플랜의 Note는 통계의 건강 상태 표시등</span>
+  통계를 지우면 플랜 Note에 <code class="inl">dynamic statistics used: dynamic sampling (level=2)</code>가 뜬다 — 파싱 시점에 즉석으로 샘플을 떠서 추정했다는 뜻. 운영에서 이 Note가 보이면 "이 테이블 통계가 없거나 부족하다"는 신호다. size 1로 수집하면 Note는 사라지지만 <b>균등 가정</b>이라 치우친 분포(부서 50번=45명 vs 10번=1명)에선 E-Rows가 크게 빗나간다.</div>
+
+  <h3 class="blk"><span class="ix">9.6</span>히스토그램 만들기 — method_opt 사용법 <span class="db add">78일차</span></h3>
+  <p>조건절에 자주 쓰이면서 <b>분포가 균일하지 않은</b> 컬럼에 히스토그램을 만든다. 버킷 수 최대 <b>2048</b>(11g는 254). 유형: <b>Frequency</b>(도수분포, 값의 수 = 버킷 수) / <b>height balanced</b>(높이균형, 값의 수 &gt; 버킷 수).</p>
+  <table>
+    <tr><th>method_opt</th><th>뜻</th></tr>
+    <tr><td><code class="inl">'for all columns size 1'</code></td><td>히스토그램을 만들지 않겠다</td></tr>
+    <tr><td><code class="inl">'for columns size 20 job_id'</code></td><td>특정 컬럼에만 (여러 컬럼: <code class="inl">job_id,department_id</code> · 컬럼별 버킷: <code class="inl">... size 12</code>)</td></tr>
+    <tr><td><code class="inl">'for all columns size 254'</code></td><td>모든 컬럼에 히스토그램 — <b>주의!!</b> (필요 없는 컬럼까지)</td></tr>
+    <tr><td>size <code class="inl">repeat</code></td><td>기존에 히스토그램이 있는 컬럼에만 다시 생성</td></tr>
+    <tr><td>size <code class="inl">auto</code></td><td>조건절 사용 비중 높은 컬럼(<code class="inl">sys.col_usage$</code>)을 찾아 생성</td></tr>
+    <tr><td>size <code class="inl">skewonly</code></td><td>분포를 분석해 균일하지 않은 컬럼에만 생성</td></tr>
+  </table>
+  <div class="why"><span class="h">실측 — 히스토그램이 E-Rows를 바로잡는 순간</span>
+  job_id에 히스토그램을 만들자(<code class="inl">size 20 job_id</code>) <code class="inl">IT_PROG</code>의 E-Rows가 균등 가정 6에서 <b>5(실제와 일치)</b>로 바뀌고 플랜도 EMP_JOB_IDX 인덱스를 탄다. 이어 department_id에도 만들자 부서 10번의 E-Rows가 10 → <b>1(정확)</b>. 단 노트 실측에서 <code class="inl">SA_REP</code>(30명)과 부서 50번(45명)은 여전히 E-Rows 10으로 찍혔다 — 수업 노트에 설명이 없는 부분이라 <b>홈랩 재확인 권장</b>(shared_pool flush 직후의 커서 상태 영향 가능성 등은 추정일 뿐).</div>
+
+  <h3 class="blk"><span class="ix">9.7</span>수집 운영 옵션 — no_invalidate · cascade · degree <span class="db add">78일차</span></h3>
+  <table>
+    <tr><th>옵션</th><th>동작</th></tr>
+    <tr><td><code class="inl">no_invalidate</code></td><td>library cache의 연관 <b>LCO 무효화</b> 여부 — true(무효화 안 함) / false(즉시 무효화) / <code class="inl">dbms_stats.auto_invalidate</code>(<b>기본값</b>, 정해진 시간 동안 조금씩 — <code class="inl">_optimizer_invalidation_period</code>=18000초)</td></tr>
+    <tr><td><code class="inl">cascade=&gt;true</code></td><td>테이블 통계와 함께 <b>관련 인덱스 통계도</b> 수집 (단독: <code class="inl">gather_index_stats('hr','emp_dept_idx')</code>)</td></tr>
+    <tr><td><code class="inl">degree=&gt;2</code></td><td>통계 수집을 병렬로 수행</td></tr>
+  </table>
+  <div class="tip"><b>왜 무효화가 문제인가</b> — 통계를 새로 수집하면 그 통계로 만든 기존 커서(LCO)들이 낡은 판단이 된다. 즉시 전부 무효화(false)하면 hard parse 폭풍, 안 하면(true) 낡은 플랜 지속 — 그래서 기본값은 18000초에 걸쳐 <b>조금씩</b> 무효화하는 auto_invalidate다.</div>
+
+  <h3 class="blk"><span class="ix">9.8</span>자동 통계 수집 — 밤에 돌고, stale을 찾아낸다 <span class="db add">78일차</span></h3>
+  <p>10g부터 <b>auto optimizer stats collection</b>이 유지보수 윈도우에서 자동으로 돈다(<code class="inl">dba_autotask_client</code>에서 ENABLED 확인). 윈도우는 <b>평일 22시부터 4시간, 주말 6시부터 20시간</b>(<code class="inl">dba_scheduler_windows</code>) — <code class="inl">DBMS_SCHEDULER.SET_ATTRIBUTE</code>로 시각(repeat_interval)·길이(duration, numtodsinterval)를 바꿀 수 있다. 수집 대상: ① <b>한 번도 통계 수집하지 않은</b> 테이블(<code class="inl">last_analyzed is null</code>) ② 마지막 수집 이후 <b>10% 변화율</b>이 생긴 테이블.</p>
+  <pre class="term"><span class="cm">-- stale 추적 실험: insert 2건 → update 15건 → delete 5건</span>
+<span class="pr">SYS&gt;</span> select * from dba_tab_modifications where table_name='EMP';
+<span class="out">INSERTS 2  UPDATES 15  DELETES 5   ← DML 누적 카운터 (수집하면 리셋)</span>
+<span class="pr">SYS&gt;</span> select stale_stats from dba_tab_statistics where table_name='EMP';
+<span class="hl">STALE_STATS: NO → (10% 초과 변경 후) YES → (재수집 후) NO</span>
+<span class="cm">-- 임계치 변경(기본 10%) · 수집 잠금</span>
+<span class="pr">SYS&gt;</span> exec dbms_stats.set_table_prefs('hr','emp','stale_percent','40')  <span class="cm">-- dba_tab_stat_prefs</span>
+<span class="pr">SYS&gt;</span> exec dbms_stats.lock_table_stats('hr','emp')  <span class="cm">-- stattype_locked=ALL, 수집 차단</span></pre>
+  <div class="why"><span class="h">statistics_level과 이 장치들의 관계</span>
+  <code class="inl">statistics_level=typical</code>(기본)이어야 DML 카운터(dba_tab_modifications)·stale 판정 같은 자체 관리 통계가 수집된다. basic은 수집 안 함(자동 장치들이 눈을 잃는다), all은 OS 정보까지 전부. 자동 수집을 끄려면 <code class="inl">dbms_auto_task_admin.disable(client_name=&gt;'auto optimizer stats collection', ...)</code> — DISABLED로 바뀐다.</div>
+
+  <h3 class="blk"><span class="ix">9.9</span>통계의 시간 여행 — export · diff · restore · purge <span class="db add">78일차</span></h3>
+  <p>통계는 수집 이력이 남고(<code class="inl">dba_tab_stats_history</code>, 기본 <b>31일</b> 보관), 백업·비교·복원이 된다:</p>
+  <table>
+    <tr><th>도구</th><th>동작</th></tr>
+    <tr><td><code class="inl">create_stat_table</code> → <code class="inl">export_table_stats</code></td><td>통계를 사용자 테이블(stattab)에 <b>백업</b></td></tr>
+    <tr><td><code class="inl">diff_table_stats_in_stattab</code></td><td>백업본 vs 현재 통계 <b>비교 리포트</b> — 실측: ROWS 100 vs 1100, COL1 NDV 100 vs 101, HIST NO vs YES</td></tr>
+    <tr><td><code class="inl">import_table_stats</code></td><td>백업본으로 되돌리기 (last_analyzed도 export 시점으로)</td></tr>
+    <tr><td><code class="inl">restore_table_stats('hr','tab','시각')</code></td><td>이력에서 <b>특정 시점으로 복원</b> — <b>주의!! 히스토그램은 restore 안 된다</b>(실측: 복원 후 COL1 FREQUENCY가 NONE)</td></tr>
+    <tr><td><code class="inl">get_stats_history_availability / _retention</code></td><td>복원 가능한 가장 오래된 시점 / 보유 기간(31일, <code class="inl">alter_stats_history_retention(7)</code>로 변경)</td></tr>
+    <tr><td><code class="inl">purge_stats(시각)</code> · <code class="inl">set_table_stats</code></td><td>그 시점 이전 이력 삭제 · 통계 값을 <b>수동으로</b> 지정(numrows 등)</td></tr>
+  </table>
+  <div class="tip"><b>왜 배우나</b> — 통계 재수집 후 플랜이 나빠졌을 때(플랜 회귀) "어제의 통계로 돌아가기"가 운영의 실전 카드다. 단 히스토그램은 이력 복원이 안 되니, 중요한 통계는 export로 백업해두는 쪽이 안전하다.</div>
 </section>
 
 <section class="part" id="road">
@@ -1076,7 +1151,7 @@ Predicate Information:
     <li class="done"><span class="n">01–06</span>개요 · 실행계획 읽기·도구·통계 · 액세스 경로 · 인덱스 · 버퍼 피닝 · <b>클러스터링 팩터 · SQL TRACE · 10046 · BCHR · 비트맵</b> <span class="tag">완료</span></li>
     <li class="done"><span class="n">07</span><a href="#join" style="color:var(--tune);font-weight:600">조인 방식</a> — Nested Loop · Sort Merge · Hash, 순서와 Starts로 반복 읽기 <span class="tag">완료</span></li>
     <li class="done"><span class="n">08</span><a href="#qt" style="color:var(--tune);font-weight:600">쿼리 변환</a> — filter↔unnest(semi/anti) · 조인 제거 · OR-expansion · push_subq · view merging · 조건절 이동 · 집계→분석함수 · bloom <span class="tag">완료</span></li>
-    <li><span class="n">09</span><a href="#opt" style="color:var(--tune);font-weight:600">옵티마이저 & 통계</a> — RBO→CBO·시스템 통계·optimizer_mode 완료 / 통계 수집·카디널리티·히스토그램 본편 예정 <span class="tag">진행 중</span></li>
+    <li class="done"><span class="n">09</span><a href="#opt" style="color:var(--tune);font-weight:600">옵티마이저 & 통계</a> — RBO→CBO · 3단 파이프라인(selectivity·cardinality) · 히스토그램(method_opt) · 자동 수집·stale · 통계 시간 여행 <span class="tag">완료</span></li>
     <li><span class="n">10</span>증상→원인→처방 안티패턴 + 자주 쓰는 힌트 <span class="tag">예정</span></li>
   </ul>
   <div class="why"><span class="h">메모</span>구조 지식(HWM·scattered read·버퍼 캐시·블록)은 <b>내부구조편 가이드</b>에, 그걸 활용하는 기법은 이 문서에 쌓는다. 새 수업이 오면 위 로드맵을 하나씩 완료로 바꿔 간다.</div>

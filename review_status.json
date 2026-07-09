@@ -74,6 +74,10 @@
     "77": {
       "status": "reviewing",
       "note": "축=조건은 이동하고 판단의 재료는 통계. 문서 §8.12~8.14(조건절 pushdown 6→2·pullup 4·_pred_move_around·집계 서브쿼리→분석함수 VW_WIF_1 17→8·분석함수 도구·rownum top-n 함정) + Part 09 개막 §9.1~9.3(RBO→CBO·aux_stats$ noworkload/workload·optimizer_mode full 9 vs first_rows index). 문제 MCQ7·ESSAY2·TERMS10·PLANQ2(편향0·근거0). 덱 17장."
+    },
+    "78": {
+      "status": "reviewing",
+      "note": "축=E-Rows는 산수(selectivity×총행수)·통계 수명주기. 문서 §9.4~9.9(3단 파이프라인·selectivity/cardinality 5.63/9.73·dynamic sampling·method_opt/히스토그램 6→5,10→1·no_invalidate 18000·자동수집 stale 10%·export/diff/restore 히스토그램 복원불가) — 로드맵 09 완료. SA_REP·dept50 E-Rows 10은 노트 미설명→홈랩 목록. 문제 MCQ7·ESSAY2·TERMS10·PLANQ2(편향0·근거0). 덱 17장."
     }
   }
 }
