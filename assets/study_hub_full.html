@@ -3441,31 +3441,30 @@ function noteUrl(d){return LS.get(PFX+'note:'+d)||'';}
 const TG='https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/';
 const CN='https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/';
 const DAY_REF={
-  62:{doc:'guide_62_68.html',dt:'내부구조 가이드',ext:CN,xt:'Concepts 매뉴얼'},
-  63:{doc:'guide_62_68.html',dt:'내부구조 가이드',ext:CN,xt:'Concepts 매뉴얼'},
-  64:{doc:'guide_62_68.html',dt:'내부구조 가이드',ext:CN,xt:'Concepts 매뉴얼'},
-  65:{doc:'guide_62_68.html',dt:'내부구조 가이드',ext:CN,xt:'Concepts 매뉴얼'},
-  66:{doc:'guide_62_68.html',dt:'내부구조 가이드',ext:CN,xt:'Concepts 매뉴얼'},
-  67:{doc:'guide_62_68.html',dt:'내부구조 가이드',ext:CN,xt:'Concepts 매뉴얼'},
-  68:{doc:'sql_tuning.html#p3',dt:'튜닝 문서 §4 Full Scan',ext:TG+'optimizer-access-paths.html',xt:'매뉴얼 § Access Paths'},
-  69:{doc:'sql_tuning.html#plan',dt:'튜닝 문서 §2 실행계획 읽기',ext:TG+'generating-and-displaying-execution-plans.html',xt:'매뉴얼 § Execution Plans'},
-  70:{doc:'sql_tuning.html#p5',dt:'튜닝 문서 §5.5 인덱스 스캔·§6 도구',ext:TG+'generating-and-displaying-execution-plans.html',xt:'매뉴얼 § Execution Plans'},
-  71:{doc:'sql_tuning.html#p6',dt:'튜닝 문서 §6.4 CF·§6.5 TRACE',ext:TG+'optimizer-statistics-concepts.html',xt:'매뉴얼 § Optimizer Statistics'},
-  72:{doc:'sql_tuning.html#p5',dt:'튜닝 문서 §5.6 접근경로·§6.6~·§7 조인',ext:TG+'optimizer-access-paths.html',xt:'매뉴얼 § Access Paths'},
-  73:{doc:'sql_tuning.html#join',dt:'튜닝 문서 §7 조인',ext:TG+'joins.html',xt:'매뉴얼 § Joins'},
-  74:{doc:'sql_tuning.html#join',dt:'튜닝 문서 §7 조인',ext:TG+'joins.html',xt:'매뉴얼 § Joins'},
-  75:{doc:'sql_tuning.html#qt',dt:'튜닝 문서 §8 쿼리 변환',ext:TG+'query-transformations.html',xt:'매뉴얼 § Query Transformations'},
-  76:{doc:'sql_tuning.html#qt',dt:'튜닝 문서 §8 쿼리 변환',ext:TG+'query-transformations.html',xt:'매뉴얼 § Query Transformations'},
-  77:{doc:'sql_tuning.html#qt',dt:'튜닝 문서 §8.12~·§9.1~',ext:TG+'query-transformations.html',xt:'매뉴얼 § Query Transformations'},
-  78:{doc:'sql_tuning.html#opt',dt:'튜닝 문서 §9 옵티마이저·통계',ext:TG+'optimizer-statistics-concepts.html',xt:'매뉴얼 § Optimizer Statistics'},
-  '심화':{doc:'guide_62_68.html',dt:'내부구조 가이드',ext:CN,xt:'Concepts 매뉴얼'}
+  62:{ext:TG+'sql-processing.html',xt:'매뉴얼 § SQL Processing'},
+  63:{ext:CN+'memory-architecture.html',xt:'Concepts § Memory Architecture'},
+  64:{ext:CN+'data-concurrency-and-consistency.html',xt:'Concepts § Concurrency'},
+  65:{ext:CN+'data-concurrency-and-consistency.html',xt:'Concepts § Concurrency'},
+  66:{ext:CN+'data-concurrency-and-consistency.html',xt:'Concepts § Concurrency'},
+  67:{ext:CN+'oracle-database-storage-structures.html',xt:'Concepts § Storage Structures'},
+  68:{ext:TG+'optimizer-access-paths.html',xt:'매뉴얼 § Access Paths'},
+  69:{ext:TG+'generating-and-displaying-execution-plans.html',xt:'매뉴얼 § Execution Plans'},
+  70:{ext:TG+'generating-and-displaying-execution-plans.html',xt:'매뉴얼 § Execution Plans'},
+  71:{ext:TG+'optimizer-statistics-concepts.html',xt:'매뉴얼 § Optimizer Statistics'},
+  72:{ext:TG+'optimizer-access-paths.html',xt:'매뉴얼 § Access Paths'},
+  73:{ext:TG+'joins.html',xt:'매뉴얼 § Joins'},
+  74:{ext:TG+'joins.html',xt:'매뉴얼 § Joins'},
+  75:{ext:TG+'query-transformations.html',xt:'매뉴얼 § Query Transformations'},
+  76:{ext:TG+'query-transformations.html',xt:'매뉴얼 § Query Transformations'},
+  77:{ext:TG+'query-transformations.html',xt:'매뉴얼 § Query Transformations'},
+  78:{ext:TG+'optimizer-statistics-concepts.html',xt:'매뉴얼 § Optimizer Statistics'},
+  '심화':{ext:CN,xt:'Concepts 매뉴얼'}
 };
 function linkHtml(d,ref){
   const u=noteUrl(d);
   const r=DAY_REF[d]||{ext:CN,xt:'Concepts 매뉴얼'};
   let h='<div class="links">';
   h+= u ? `<a class="lk note" target="_blank" href="${u}">📓 내 노트(${d==='심화'?'심화':d+'일'})</a>` : `<a class="lk note" onclick="tab('notes')">📓 노트 등록</a>`;
-  if(r.doc)h+=`<a class="lk" target="_blank" href="${r.doc}">📄 ${r.dt}</a>`;
   h+=`<a class="lk" target="_blank" href="${ref||r.ext}">📖 ${r.xt}</a></div>`;
   return h;
 }
