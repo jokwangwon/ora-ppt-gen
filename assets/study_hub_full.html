@@ -3436,14 +3436,37 @@ function tab(m){
 }
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 
-/* 노트/레퍼런스 링크 */
+/* 노트/레퍼런스 링크 — 일차별로 그날 주제의 문서 파트·매뉴얼 챕터로 딥링크 */
 function noteUrl(d){return LS.get(PFX+'note:'+d)||'';}
-function linkHtml(d){
+const TG='https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/';
+const CN='https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/';
+const DAY_REF={
+  62:{doc:'guide_62_68.html',dt:'내부구조 가이드',ext:CN,xt:'Concepts 매뉴얼'},
+  63:{doc:'guide_62_68.html',dt:'내부구조 가이드',ext:CN,xt:'Concepts 매뉴얼'},
+  64:{doc:'guide_62_68.html',dt:'내부구조 가이드',ext:CN,xt:'Concepts 매뉴얼'},
+  65:{doc:'guide_62_68.html',dt:'내부구조 가이드',ext:CN,xt:'Concepts 매뉴얼'},
+  66:{doc:'guide_62_68.html',dt:'내부구조 가이드',ext:CN,xt:'Concepts 매뉴얼'},
+  67:{doc:'guide_62_68.html',dt:'내부구조 가이드',ext:CN,xt:'Concepts 매뉴얼'},
+  68:{doc:'sql_tuning.html#p3',dt:'튜닝 문서 §4 Full Scan',ext:TG+'optimizer-access-paths.html',xt:'매뉴얼 § Access Paths'},
+  69:{doc:'sql_tuning.html#plan',dt:'튜닝 문서 §2 실행계획 읽기',ext:TG+'generating-and-displaying-execution-plans.html',xt:'매뉴얼 § Execution Plans'},
+  70:{doc:'sql_tuning.html#p5',dt:'튜닝 문서 §5.5 인덱스 스캔·§6 도구',ext:TG+'generating-and-displaying-execution-plans.html',xt:'매뉴얼 § Execution Plans'},
+  71:{doc:'sql_tuning.html#p6',dt:'튜닝 문서 §6.4 CF·§6.5 TRACE',ext:TG+'optimizer-statistics-concepts.html',xt:'매뉴얼 § Optimizer Statistics'},
+  72:{doc:'sql_tuning.html#p5',dt:'튜닝 문서 §5.6 접근경로·§6.6~·§7 조인',ext:TG+'optimizer-access-paths.html',xt:'매뉴얼 § Access Paths'},
+  73:{doc:'sql_tuning.html#join',dt:'튜닝 문서 §7 조인',ext:TG+'joins.html',xt:'매뉴얼 § Joins'},
+  74:{doc:'sql_tuning.html#join',dt:'튜닝 문서 §7 조인',ext:TG+'joins.html',xt:'매뉴얼 § Joins'},
+  75:{doc:'sql_tuning.html#qt',dt:'튜닝 문서 §8 쿼리 변환',ext:TG+'query-transformations.html',xt:'매뉴얼 § Query Transformations'},
+  76:{doc:'sql_tuning.html#qt',dt:'튜닝 문서 §8 쿼리 변환',ext:TG+'query-transformations.html',xt:'매뉴얼 § Query Transformations'},
+  77:{doc:'sql_tuning.html#qt',dt:'튜닝 문서 §8.12~·§9.1~',ext:TG+'query-transformations.html',xt:'매뉴얼 § Query Transformations'},
+  78:{doc:'sql_tuning.html#opt',dt:'튜닝 문서 §9 옵티마이저·통계',ext:TG+'optimizer-statistics-concepts.html',xt:'매뉴얼 § Optimizer Statistics'},
+  '심화':{doc:'guide_62_68.html',dt:'내부구조 가이드',ext:CN,xt:'Concepts 매뉴얼'}
+};
+function linkHtml(d,ref){
   const u=noteUrl(d);
-  const ref='https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/';
+  const r=DAY_REF[d]||{ext:CN,xt:'Concepts 매뉴얼'};
   let h='<div class="links">';
   h+= u ? `<a class="lk note" target="_blank" href="${u}">📓 내 노트(${d==='심화'?'심화':d+'일'})</a>` : `<a class="lk note" onclick="tab('notes')">📓 노트 등록</a>`;
-  h+=`<a class="lk" target="_blank" href="${ref}">📖 레퍼런스</a></div>`;
+  if(r.doc)h+=`<a class="lk" target="_blank" href="${r.doc}">📄 ${r.dt}</a>`;
+  h+=`<a class="lk" target="_blank" href="${ref||r.ext}">📖 ${r.xt}</a></div>`;
   return h;
 }
 
@@ -3462,7 +3485,7 @@ function renderMcq(){
   const it=mq[mi];const answered=mcqPicked>=0;
   box.innerHTML=`<div class="card"><span class="daytag dt${it.d==='심화'?'sim':it.d}">${dlab(it.d)}</span>
     <div class="q">${it.q}</div><div id="opts">${it.o.map((t,i)=>{let c='opt';if(answered){c+=' dim';if(i===it.a)c='opt correct';if(i===mcqPicked&&mcqPicked!==it.a)c='opt wrong';}return `<button class="${c}" ${answered?'disabled':''} onclick="mcqAns(${i})"><span class="k">${'ABCD'[i]}</span>${t}</button>`;}).join('')}</div>
-    <div class="ex ${answered?('show '+(mcqPicked===it.a?'ok':'no')):''}" id="ex">${answered?(`<b>${mcqPicked===it.a?'✓ 정답':'✗ 오답 — 오답노트에 추가됨'}</b> · ${it.e}`):''}</div>${linkHtml(it.d)}
+    <div class="ex ${answered?('show '+(mcqPicked===it.a?'ok':'no')):''}" id="ex">${answered?(`<b>${mcqPicked===it.a?'✓ 정답':'✗ 오답 — 오답노트에 추가됨'}</b> · ${it.e}`):''}</div>${linkHtml(it.d,it.ref)}
     <button class="btn ${answered?'':'hidden'}" id="next" onclick="mcqNext()">${mi===mq.length-1?'결과':'다음 →'}</button></div>`;
 }
 function mcqAns(i){
@@ -3507,7 +3530,7 @@ function renderEssay(){
           <span class="mk again ${mark==='again'?'on':''}" onclick="setMark('${it.id}','again')">△ 다시</span>
         </span>
       </div>
-      ${linkHtml(it.d)}
+      ${linkHtml(it.d,it.ref)}
       <div class="chat" id="chat-${it.id}"></div>
       <div class="model" id="m-${it.id}"><h4>모범답안</h4><p>${it.a}</p>
         ${(it.k&&it.k.length)?`<div class="kw"><span class="lab">채점 포인트</span>${it.k.map(w=>`<span>${w}</span>`).join('')}</div>`:''}</div>
@@ -3755,7 +3778,7 @@ function renderWrong(){
   let h=items.map(it=>`<div class="card"><span class="daytag dt${it.d==='심화'?'sim':it.d}">${dlab(it.d)}</span>
     <div class="q" style="font-size:15.5px">${it.q}</div>
     <div class="ex ok show" style="display:block"><b>정답:</b> ${it.o[it.a]} · ${it.e}</div>
-    ${linkHtml(it.d)}
+    ${linkHtml(it.d,it.ref)}
     <div class="row"><button class="btn ghost" onclick="removeWrong('${it.id}');renderWrong()">해결함(제거)</button></div></div>`).join('');
   if(againEssays.length){
     h+=`<div class="meta" style="margin-top:16px">△ 다시 볼 서술형</div>`+
