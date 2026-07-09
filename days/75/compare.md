@@ -21,7 +21,7 @@
 6. **qb_name(sub) / @sub** — unnest된 서브쿼리 테이블을 힌트로 잡는 법(10g~) · [문서 §8.3](assets/sql_tuning.html#qt)
 7. **서브쿼리 ≠ 조인** — 결과 건수부터 다름(1:m), m:1처럼 보장될 때만 변환. distinct inline view 우회는 곤란 · [문서 §8.3](assets/sql_tuning.html#qt)
 8. **조인 제거(join elimination)** — 1쪽 미참조 + **PK·FK 제약** 있으면 1쪽을 아예 안 읽음(내부적으로 `is not null` 문장) · [문서 §8.4](assets/sql_tuning.html#qt)
-9. **semi join** — IN/EXISTS, 변환된 쪽 항상 후행, match되면 브레이크. `nl_sj·merge_sj·hash_sj`, SORT UNIQUE=1쪽화 · [문서 §8.5](assets/sql_tuning.html#qt)
+9. **semi join** — IN/EXISTS, 변환된 쪽 기본 후행(RIGHT 변형 예외), match되면 브레이크. `nl_sj·merge_sj·hash_sj`, SORT UNIQUE=1쪽화 · [문서 §8.5](assets/sql_tuning.html#qt)
 10. **NOT IN의 null 함정** — 서브쿼리에 null 있으면 0건(AND 진리표) · [문서 §8.5](assets/sql_tuning.html#qt)
 11. **anti join** — NOT IN/NOT EXISTS, 없는 행을 찾음. `nl_aj·merge_aj·hash_aj` · [문서 §8.5](assets/sql_tuning.html#qt)
 
@@ -41,7 +41,7 @@
 | 10 | emp_dept_idx 생성 → `leading(e,d@sub) use_nl(d@sub)` | 진입 인덱스 태우기 (수치 캡처 없음 → 홈랩) |
 | 11 | employees⋈departments `e.*` 조회 | **조인 제거** — DEPT를 안 읽음, 내부적으로 `where department_id is not null` |
 | 12 | `_optimizer_join_elimination_enabled` false/true | 세션 레벨 on/off — false면 다시 조인 플랜 |
-| 13 | emp에 FK 추가 → IN 서브쿼리 재실행 | CTAS 사본도 조인 제거 작동 · `no_eliminated_join(d)`로 개별 비활성 |
+| 13 | emp에 FK 추가 → IN 서브쿼리 재실행 | CTAS 사본도 조인 제거 작동 · `no_eliminate_join(d)`로 개별 비활성(수업 표기 no_eliminated_join은 오타) |
 | 14 | `location_id=1500` 서브쿼리 vs 조인 vs no_unnest | 같은 결과 3가지 플랜 비교 — 작은 쪽 driving으로 unnest |
 | 15 | `d.*` 조인 vs `(select distinct ...)` inline view | 수동 unnest 우회 — "이러시면 곤란해요" |
 | 16 | dept where IN emp → SEMI · `merge_sj` · `hash_sj` | operation에 **SEMI** · merge_sj의 **SORT UNIQUE**=m쪽 1쪽화 |

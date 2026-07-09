@@ -18,9 +18,9 @@
       "note": "검은박스 .nal 정의 추가",
       "accuracy": {
         "checked": true,
-        "at": "2026-07-01",
-        "issues": 0,
-        "method": "LLM 정독"
+        "at": "2026-07-09",
+        "issues": 9,
+        "method": "LLM 정독(6-agent: 문서 5구간+문제 대조)"
       }
     },
     "buffer_cache_dbwr_checkpoint.html": {

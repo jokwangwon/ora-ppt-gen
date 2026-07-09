@@ -86,7 +86,7 @@
       "id": "e73b",
       "d": 73,
       "q": "optimizer_features_enable('10.1.0') 상태에서 full(e) full(d)까지 강제하자 e→d 순서는 232, d→e 순서는 95가 나왔다. 이 실험이 보여주는 NL 최악의 조건과 처방을 설명하라.",
-      "a": "NL 안쪽은 바깥 행 수만큼 반복 조회된다. full 힌트로 안쪽 인덱스를 빼앗으면 매 반복이 full scan이 된다 — e→d는 4블록짜리 DEPT full을 107번 반복해 안쪽에서만 222, 총 232. d→e는 EMP full을 27번 반복해 88, 총 95. 같은 최악 조건에서도 바깥이 작은 쪽(27)이 2.4배 싸다. 즉 NL 최악 = 큰 바깥(반복 승수) × 안쪽 인덱스 부재(반복마다 full)이고, 처방은 ①바깥 행 수 최소화(필터 쪽·작은 쪽에서 출발) ②driven 조인키에 진입 인덱스다.",
+      "a": "NL 안쪽은 바깥 행 수만큼 반복 조회된다. full 힌트로 안쪽 인덱스를 빼앗으면 매 반복이 full scan이 된다 — e→d는 2블록짜리 DEPT full을 107번 반복해 안쪽에서만 222, 총 232. d→e는 EMP full을 27번 반복해 88, 총 95. 같은 최악 조건에서도 바깥이 작은 쪽(27)이 2.4배 싸다. 즉 NL 최악 = 큰 바깥(반복 승수) × 안쪽 인덱스 부재(반복마다 full)이고, 처방은 ①바깥 행 수 최소화(필터 쪽·작은 쪽에서 출발) ②driven 조인키에 진입 인덱스다.",
       "k": [
         "Starts × full",
         "DEPT full×107=222",
@@ -106,7 +106,7 @@
     {
       "t": "table prefetch (nlj_prefetch)",
       "e": "곧 읽을 블록을 미리 버퍼 캐시에 올리는 NL 최적화.",
-      "d": "디스크 I/O call이 비싸서, I/O가 필요한 시점에 이어 읽을 가능성 높은 블록들을 한 번의 I/O call로 미리 적재한다(여러 single block 동시, db file sequential read). inner 쪽 non-unique 인덱스 range scan에서 발생하고 clustering factor가 나쁠 때 효과적. 플랜에선 inner 테이블 접근이 NL 위쪽에 표시 — 단 모양이 나와도 항상 작동하는 건 아니다(활성화 표시). 힌트 nlj_prefetch / no_nlj_prefetch."
+      "d": "디스크 I/O call이 비싸서, I/O가 필요한 시점에 이어 읽을 가능성 높은 블록들을 한 번의 I/O call로 미리 적재한다(여러 single block 읽기를 한 call에 묶는 db file parallel read — 1블록/1call인 db file sequential read와 구분). inner 쪽 non-unique 인덱스 range scan에서 발생하고 clustering factor가 나쁠 때 효과적. 플랜에선 inner 테이블 접근이 NL 위쪽에 표시 — 단 모양이 나와도 항상 작동하는 건 아니다(활성화 표시). 힌트 nlj_prefetch / no_nlj_prefetch."
     },
     {
       "t": "optimizer_features_enable",

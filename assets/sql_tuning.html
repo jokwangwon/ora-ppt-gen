@@ -179,8 +179,8 @@ footer{padding:30px 0 50px;color:var(--muted);font-size:13px}
 <span class="out">|  1 |  NESTED LOOPS                 |             |     45 |     45 |</span>
 <span class="hl">|* 2 |   TABLE ACCESS BY INDEX ROWID | EMPLOYEES   |     45 |     45 |</span>
 <span class="hl">|* 3 |    INDEX RANGE SCAN           | EMP_DEPT_IX |     45 |     45 |</span>
-<span class="out">|  4 |   TABLE ACCESS BY INDEX ROWID | DEPARTMENTS |      1 |      1 |</span>
-<span class="hl">|* 5 |    INDEX UNIQUE SCAN          | DEPT_ID_PK  |      1 |      1 |</span>
+<span class="out">|  4 |   TABLE ACCESS BY INDEX ROWID | DEPARTMENTS |      1 |     45 |</span>
+<span class="hl">|* 5 |    INDEX UNIQUE SCAN          | DEPT_ID_PK  |      1 |     45 |</span>
 <span class="out">----------------------------------------------------------------------</span>
 Predicate Information:
    3 - access("E"."DEPARTMENT_ID"=50)
@@ -189,6 +189,7 @@ Predicate Information:
     <li><b class="k">E-Rows = A-Rows (45 = 45)</b> → 옵티마이저 추정이 정확하다. 괴리가 없으니 통계는 건강하다.</li>
     <li>핵심 조건이 <code class="inl">access(... =50)</code> → 인덱스로 바로 범위를 좁혔다(좋음). filter가 아니다.</li>
     <li>50번 부서 45명만 인덱스로 집어 각자 부서를 unique scan으로 붙였다 — 소량이라 <b>NESTED LOOPS</b>가 적합.</li>
+    <li>안쪽(Id 4·5)의 <b>E-Rows 1은 1회 기준</b>, A-Rows 45는 바깥 45행만큼 반복된 <b>누적치</b>(§2.6 ④의 E×Starts 규칙).</li>
   </ul>
   <div class="why"><span class="h">무엇을 의심하나 (체크 순서)</span>
   ① 큰 테이블에 <code class="inl">TABLE ACCESS FULL</code>인데 소량만 찾나? → 인덱스 기회. ② 핵심 조건이 <code class="inl">filter</code>로만 처리되나? → 인덱스 기회. ③ <b>E-Rows ≪ A-Rows</b>로 추정이 크게 빗나갔나? → 통계 갱신·카디널리티 문제. ④ 소량인데 HASH JOIN, 대량인데 NESTED LOOPS? → 조인 방식 의심.</div>
@@ -200,7 +201,7 @@ Predicate Information:
   <table>
     <tr><th>단계</th><th>보는 것</th><th>질문</th></tr>
     <tr><td><b>① 실행 순서</b></td><td>들여쓰기</td><td>가장 깊은 줄부터, 같은 깊이면 위→아래</td></tr>
-    <tr><td><b>② Starts</b></td><td>반복 횟수</td><td>어디서 반복이 터졌나? NL 안쪽에서만 커진다 — 크면 바깥(driving) 선택을 의심</td></tr>
+    <tr><td><b>② Starts</b></td><td>반복 횟수</td><td>어디서 반복이 터졌나? 주로 NL 안쪽과 FILTER 서브쿼리(§8.2)에서 커진다 — 크면 바깥(driving) 선택을 의심</td></tr>
     <tr><td><b>③ A-Rows</b></td><td>행의 여정</td><td>실행 순서대로 읽으면 어디서 불어나고 어디서 잘리나가 보인다</td></tr>
     <tr><td><b>④ E-Rows</b></td><td>견적 확인</td><td><b class="k">E-Rows는 1회 실행 기준</b> — Starts 있는 줄은 E×Starts로 A-Rows와 비교. 10배↑ 벌어지면 통계 의심</td></tr>
     <tr><td><b>⑤ Predicate</b></td><td>access/filter</td><td>그 테이블에 <b>처음 들어가는 조건</b>이 filter면 인덱스 기회. "진입 후 확인" filter는 정상</td></tr>
@@ -717,14 +718,15 @@ Predicate Information:
 <span class="hl">|  6 |  EMPLOYEES  (BY INDEX ROWID)         |    2    |    5   |    5   |  ← 안쪽·Starts=5</span>
 <span class="out">-----------------------------------------------------------------------</span></pre>
   <div class="why"><span class="h">Starts=5가 곧 다섯 번 반복</span>
-  Id 6(사원 행 읽기)의 <b>Starts=5</b>는 안쪽을 다섯 번 실행했다는 뜻이다. 그래서 실행 순서가 ①처럼 3→2→5→4→1에서 끝나지 않고 <b>3 → 2 → 5 → 4 → 5 → 4 … → 1</b>로 안쪽을 5번 반복하며 길어진다. ①(emp_id=100)에선 사원이 바깥이었는데 여기선 뒤집혔다 — <b class="k">먼저 걸러지는 쪽이 driving이고, 그 건수가 안쪽 반복(Starts)을 정한다.</b> 실행 순서가 헷갈리면 순서를 세지 말고 <b>Starts부터 봐라</b> — 안쪽이 몇 번 돌았는지가 거기 다 있다.</div>
+  Id 6(사원 행 읽기)의 <b>Starts=5</b>는 안쪽을 다섯 번 실행했다는 뜻이다. 그래서 ①처럼 한 바퀴로 끝나지 않고 <b>안쪽 반복이 5번</b> 낀다 — 단 이 플랜은 batched 모양이라 인덱스(Id 5)는 <b>1번의 Starts로 5건을 모아</b> 주고, 테이블 행 읽기(Id 6)가 5번 반복됐다. ①(emp_id=100)에선 사원이 바깥이었는데 여기선 뒤집혔다 — <b class="k">먼저 걸러지는 쪽이 driving이고, 그 건수가 안쪽 반복(Starts)을 정한다.</b> 실행 순서가 헷갈리면 순서를 세지 말고 <b>Starts부터 봐라</b> — 안쪽이 몇 번 돌았는지가 거기 다 있다.</div>
 
   <h3 class="blk"><span class="ix">7.4</span>인덱스가 조인 방법을 바꾼다 — PK를 하나씩 만들며 <span class="db add">73일차</span></h3>
   <p>emp·dept·loc를 <b>인덱스 없이</b> 새로 만들고(CTAS), 같은 쿼리(<code class="inl">employee_id=100</code> 3테이블 조인)를 PK를 하나씩 만들어 가며 4번 돌렸다.</p>
-  <pre class="term"><span class="cm">-- 인덱스 0개일 때 — NL을 힌트로 시켜도 이렇게 짠다</span>
+  <pre class="term"><span class="cm">-- 인덱스 0개일 때의 옵티마이저 기본 플랜 (힌트 실험은 아래 tip — 별도 실행)</span>
 <span class="out">|  1 |  HASH JOIN            |      | Buffers 8 |</span>
 <span class="hl">|  2 |   MERGE JOIN CARTESIAN|      |         5 |</span>
 <span class="out">|  3 |    TABLE ACCESS FULL  | EMP  |         3 |  filter(EMPLOYEE_ID=100)</span>
+<span class="out">|  4 |    BUFFER SORT        |      |         2 |</span>
 <span class="out">|  5 |     TABLE ACCESS FULL | LOC  |         2 |</span>
 <span class="out">|  6 |   TABLE ACCESS FULL   | DEPT |         3 |</span></pre>
   <table>
@@ -736,7 +738,7 @@ Predicate Information:
   </table>
   <div class="why"><span class="h">옵티마이저는 "있는 도구"로만 짠다</span>
   인덱스가 없으면 NL 안쪽을 매번 full로 돌아야 하니, 옵티마이저는 hash·cartesian이 낫다고 판단한다(emp가 1행으로 걸러지니 1행×loc 23행 조합도 싸다고 본 것). <b>인덱스가 생길 때마다 선택지가 열려 플랜 모양이 바뀐다.</b> 이 실험은 바깥이 1행이라 Buffers 차이는 작지만(8→6), 모양의 변화가 포인트다.</div>
-  <div class="tip"><b>"힌트를 줬는데 무시됐다?"의 진상</b> — <code class="inl">leading(e,d,l) use_nl(d) nse_nl(l)</code> — 세 힌트 중 무엇이 적용됐는지 플랜으로 따져보자. <b>leading과 use_nl(d)은 전부 먹혔다</b>(순서 e→d→l 유지, d는 NL로 — 단 인덱스가 없어 안쪽 full). 무시된 건 <code class="inl">nse_nl(l)</code> 하나 — <b>use_nl의 오타</b>다. <b class="k">잘못된 힌트는 에러 없이 조용히 무시된다.</b> 힌트가 안 먹은 것 같으면 오타부터 확인하라.</div>
+  <div class="tip"><b>"힌트를 줬는데 무시됐다?"의 진상</b> — <code class="inl">leading(e,d,l) use_nl(d) nse_nl(l)</code> — 세 힌트 중 무엇이 적용됐는지 플랜으로 따져보자. <b>leading과 use_nl(d)은 전부 먹혔다</b> — 그 실행의 플랜(위 기본 플랜과는 <b>다른 실행</b>)은 순서 e→d→l에 d가 NL(인덱스가 없어 안쪽 full)이었다. 무시된 건 <code class="inl">nse_nl(l)</code> 하나 — <b>use_nl의 오타</b>라 l만 hash로 붙었다. <b class="k">잘못된 힌트는 에러 없이 조용히 무시된다.</b> 힌트가 안 먹은 것 같으면 오타부터 확인하라.</div>
 
   <h3 class="blk"><span class="ix">7.5</span>순서·진입 인덱스가 Buffers를 가른다 — Seattle 실험 <span class="db add">73일차</span></h3>
   <p>같은 쿼리(<code class="inl">l.city='Seattle'</code>, 3테이블)를 네 방식으로 돌렸다. 결과는 모두 같은 18행.</p>
@@ -779,7 +781,7 @@ Predicate Information:
   </table>
   <div class="why"><span class="h">전화 돌리기 — NL 비용의 구조</span>
   <b>NL 총비용 ≈ 바깥 1회 읽기 + (바깥 행 수 × 안쪽 1회 비용)</b>. 바깥은 한 번뿐이라 10이든 7이든 큰 차이가 없고, 진짜 비용은 <b>반복 승수(바깥 행 수)</b>다. 주목 — ①의 안쪽은 UNIQUE SCAN(가장 좋은 스캔)인데도 107번 곱해지니 116, ②는 RANGE SCAN인데 27번이라 28. <b class="k">probe 한 번의 질보다 probe 횟수가 지배한다.</b> 안쪽 인덱스까지 빼앗으면(full 강제) 매 반복이 full이 되어 232 — <b>NL 최악 = 큰 바깥 × 안쪽 인덱스 부재</b>다.</div>
-  <div class="tip"><b>driving 선택 원칙(완성)</b> — driving = <b class="k">바깥 행 수를 최소로 만드는 쪽</b>. 필터가 있으면 가장 세게 걸러지는 쪽(Seattle 1행·AD_VP 2행), 없으면 그냥 작은 테이블(27&lt;107). 그리고 <b>E-Rows는 1회 기준</b>이라 Starts 있는 줄은 E×Starts로 A-Rows와 비교한다(② Id 4: 10×27=270이 아니라 Id 3 기준 4×27=108≈106 ✓).</div>
+  <div class="tip"><b>driving 선택 원칙(완성)</b> — driving = <b class="k">바깥 행 수를 최소로 만드는 쪽</b>. 필터가 있으면 가장 세게 걸러지는 쪽(Seattle 1행·AD_VP 2행), 없으면 그냥 작은 테이블(27&lt;107). 그리고 <b>E-Rows는 1회 기준</b>이라 Starts 있는 줄은 E×Starts로 A-Rows와 비교한다(② 검산: 안쪽 E-Rows 4는 <b>1회 기준</b> — 4×27=108 ≈ A-Rows 106 ✓. 누적으로 오독해 10×27=270처럼 읽으면 틀린다).</div>
 
   <h3 class="blk"><span class="ix">7.8</span>같은 NL, 세 가지 그림 — table prefetch와 batch i/o <span class="db add">73일차</span></h3>
   <p>요즘 버전의 NL 플랜은 I/O 최적화 때문에 <b>모양이 다르게 그려진다</b>. <code class="inl">optimizer_features_enable('버전')</code>으로 옵티마이저를 버전별로 고정해 같은 쿼리를 비교했다(유효 버전은 <code class="inl">v$parameter_valid_values</code>에서 조회).</p>
@@ -787,10 +789,10 @@ Predicate Information:
     <tr><th>모양</th><th>알아보는 법</th><th>힌트</th></tr>
     <tr><td><b>classic</b> (10.1)</td><td>NL 아래에 인덱스·테이블이 나란히 — 교과서 모양</td><td><code class="inl">no_nlj_prefetch</code></td></tr>
     <tr><td><b>table prefetch</b> (10.2.0.5)</td><td>inner <b>테이블 접근이 NL 위쪽</b>에 표시</td><td><code class="inl">nlj_prefetch / no_nlj_prefetch</code></td></tr>
-    <tr><td><b>batch i/o</b> (11g~)</td><td>NL이 <b>두 겹</b> + 테이블 접근에 <code class="inl">BATCHED</code></td><td><code class="inl">nlj_batching / no_nlj_batching</code></td></tr>
+    <tr><td><b>batch i/o</b> (11g~)</td><td>NL이 <b>두 겹</b> + 테이블 접근에 <code class="inl">BATCHED</code>(이 표기는 12c부터)</td><td><code class="inl">nlj_batching / no_nlj_batching</code></td></tr>
   </table>
   <div class="why"><span class="h">둘 다 목적은 디스크 I/O 절감</span>
-  <b>table prefetch</b> — 디스크 I/O call은 비싸니, 곧이어 읽을 가능성 높은 블록들을 <b>한 번의 I/O call로 미리</b> 버퍼 캐시에 적재한다(여러 single block 동시 수행, <span class="we">db file sequential read</span>). inner 쪽 <b>non-unique 인덱스 range scan</b>에서 발생하고, inner 행들의 <b>clustering factor가 나쁠 때</b> 효과적이다. <b>batch i/o</b> — inner 인덱스와 조인해 <b>중간 결과집합을 만든 뒤</b>, inner 테이블 접근을 <b>일괄(fetch call 단위)</b> 처리해 디스크 I/O를 줄인다(prefetch에 이어 추가 도입). 주의 — <b class="k">prefetch 모양이 그려져 있다고 항상 작동하는 건 아니다</b>. 기능이 활성화됐다는 표시일 뿐이다.</div>
+  <b>table prefetch</b> — 디스크 I/O call은 비싸니, 곧이어 읽을 가능성 높은 블록들을 <b>한 번의 I/O call로 미리</b> 버퍼 캐시에 적재한다(여러 single block 읽기를 한 call에 묶는 <span class="we">db file parallel read</span> — 블록 1개씩 읽을 때의 <span class="we">db file sequential read</span>와 구분). inner 쪽 <b>non-unique 인덱스 range scan</b>에서 발생하고, inner 행들의 <b>clustering factor가 나쁠 때</b> 효과적이다. <b>batch i/o</b> — inner 인덱스와 조인해 <b>중간 결과집합을 만든 뒤</b>, inner 테이블 접근을 <b>일괄(fetch call 단위)</b> 처리해 디스크 I/O를 줄인다(prefetch에 이어 추가 도입). 주의 — <b class="k">prefetch 모양이 그려져 있다고 항상 작동하는 건 아니다</b>. 기능이 활성화됐다는 표시일 뿐이다.</div>
   <div class="tip"><b>optimizer_features_enable</b> — 옵티마이저 동작을 특정 버전으로 고정하는 힌트/파라미터. 실무에선 업그레이드 회귀 비교, 학습에선 이번처럼 <b>버전별 플랜 모양 비교</b>에 쓴다. §7.7 실험에서 교과서 모양(10.1)을 만든 것도 이것.</div>
 
   <h3 class="blk"><span class="ix">7.9</span>Sort Merge Join — 정렬 두 번, 병합 한 번 <span class="db add">74일차</span></h3>
@@ -815,7 +817,7 @@ Predicate Information:
   <div class="tip"><b>Buffers 5의 함정</b> — SM full 강제가 NL(35)·hash(13)보다 Buffers가 낮다. 하지만 <b class="k">정렬 비용은 Buffers에 안 찍힌다</b> — CPU와 PGA 메모리(Used-Mem 16K)로 치른다. Buffers만 보고 SM이 최고라 판정하면 오독. <b>Buffers + Used-Mem(정렬량)을 같이</b> 본다. 3테이블 merge(l→d→e)도 같은 원리로 중첩되며 Buffers 7 — 중간 조인 결과를 다시 SORT JOIN으로 정렬해 다음 단계로 넘긴다.</div>
 
   <h3 class="blk"><span class="ix">7.10</span>Hash Join — 작은 쪽으로 해시 테이블, 큰 쪽으로 probe <span class="db add">74일차</span></h3>
-  <p>NL은 대량에서 random access가 부담, SM은 정렬이 부담 — 그럴 때 <b class="k">Hash Join</b>. <b>작은 집합을 build table(해시 테이블)</b>로 만들어 <code class="inl">hash_area_size</code> 영역에 올리고, <b>큰 집합을 probe</b>하며 해시 탐색으로 조인한다. 해시 키 컬럼에 <b>중복이 적을수록</b>(충돌 없을수록) 유리하고, <b class="k">= 조건에서만</b> 쓸 수 있다. 힌트 <code class="inl">use_hash</code>.</p>
+  <p>NL은 대량에서 random access가 부담, SM은 정렬이 부담 — 그럴 때 <b class="k">Hash Join</b>. <b>작은 집합을 build table(해시 테이블)</b>로 만들어 <code class="inl">hash_area_size</code> 영역(수동 PGA 관리 파라미터 — 기본인 자동 관리에선 pga_aggregate_target 기반 작업영역이 대신함)에 올리고, <b>큰 집합을 probe</b>하며 해시 탐색으로 조인한다. 해시 키 컬럼에 <b>중복이 적을수록</b> 유리하고(같은 값이 몰리면 그 버킷을 길게 뒤진다 — 다른 값이 같은 버킷에 드는 <b>해시 충돌</b>과는 별개 개념, 아래 60·210이 충돌의 예), <b class="k">= 조건에서만</b> 쓸 수 있다. 힌트 <code class="inl">use_hash</code>.</p>
   <pre class="term"><span class="cm">-- leading(d,e) use_hash(e) — Buffers 13</span>
 <span class="out">|*1 |  HASH JOIN         |      | 13 | Used-Mem 1500K |</span>
 <span class="hl">| 2 |   TABLE ACCESS FULL| DEPT |  2 |  ← build (작은 쪽 27행)</span>
@@ -824,7 +826,7 @@ Predicate Information:
 <span class="pr">SYS&gt;</span> select ora_hash(department_id,10), department_id, department_name from hr.dept order by 1;
 <span class="out">  1   60  IT          ← dept 60은 버킷 1에</span>
 <span class="out">  1  210  IT Support     (버킷 하나에 여럿 = 충돌도 있다)</span>
-<span class="pr">SYS&gt;</span> select ora_hash(department_id,10), employee_id, last_name from hr.emp order by 1;
+<span class="pr">SYS&gt;</span> select ora_hash(department_id,10), department_id, employee_id, last_name from hr.emp order by 1;
 <span class="out">  1   60  103 Hunold  ← emp의 60번 사원들도 같은 버킷 1로 찾아간다</span></pre>
   <div class="why"><span class="h">동작 그림</span>
   ① DEPT 27행을 <code class="inl">ora_hash(department_id)</code>류의 해시로 <b>버킷에 분류</b>해 메모리에 올린다(build). ② EMP 107행을 하나씩 읽으며 <b>같은 해시 함수</b>를 통과시켜 해당 버킷만 뒤진다(probe) — 정렬도, 반복 인덱스 탐색도 없다. 조인 자체는 메모리에서 끝나 Buffers는 두 full scan(2+10)+α다. 등호(=)가 아니면 해시 버킷 매칭이 성립하지 않아 못 쓴다.</div>
@@ -836,10 +838,10 @@ Predicate Information:
 <span class="out">|2|  HASH JOIN (d build)    |2|  TABLE ACCESS FULL LOC</span>
 <span class="out">|5|  TABLE ACCESS FULL LOC  |3|  HASH JOIN (d⋈e 결과가 probe)</span>
 <span class="cm">-- 원위치 강제: no_swap_join_inputs(l) / 반대 강제: swap_join_inputs</span></pre>
-  <div class="tip"><b>outer join은 순서가 문법으로 강제된다</b> — <code class="inl">(+)가 붙지 않은 테이블이 항상 선행(outer·first·build)</code>. 그래서 <code class="inl">where e.department_id = d.department_id(+)</code>에선 <code class="inl">leading(d,e)</code>를 줘도 <b>무시되고</b> EMP가 선행인 <code class="inl">HASH JOIN OUTER</code>가 나온다(결과 107행 — 부서 없는 사원도 살아남음). 뒤집고 싶으면 <code class="inl">swap_join_inputs(d)</code> → <code class="inl">HASH JOIN RIGHT OUTER</code>(DEPT build, Buffers 13). 그리고 오늘도 오타 사례 — <code class="inl">gather_plan_statistcs</code>(i 누락)로 돌리자 플랜에 <b>"basic plan statistics not available" 경고</b>가 남고 Starts/A-Rows가 안 찍혔다. 힌트 오타는 조용히 무시되지만, 이번엔 플랜 Note가 알려줬다.</div>
+  <div class="tip"><b>outer join은 순서가 문법으로 강제된다</b> — <code class="inl">(+)가 붙지 않은 테이블이 항상 선행</code> — 문법이 강제하는 건 <b>조인 순서</b>이고, build/probe는 비용 판단이라 옵티마이저가 스스로 RIGHT OUTER로 바꿔 (+)쪽을 build로 올리기도 한다. 그래서 <code class="inl">where e.department_id = d.department_id(+)</code>에선 <code class="inl">leading(d,e)</code>를 줘도 <b>무시되고</b> EMP가 선행인 <code class="inl">HASH JOIN OUTER</code>가 나온다(결과 107행 — 부서 없는 사원도 살아남음). 뒤집고 싶으면 <code class="inl">swap_join_inputs(d)</code> → <code class="inl">HASH JOIN RIGHT OUTER</code>(DEPT build, Buffers 13). 그리고 오늘도 오타 사례 — <code class="inl">gather_plan_statistcs</code>(i 누락)로 돌리자 플랜에 <b>"basic plan statistics not available" 경고</b>가 남고 Starts/A-Rows가 안 찍혔다. 힌트 오타는 조용히 무시되지만, 이번엔 플랜 Note가 알려줬다.</div>
 
   <h3 class="blk"><span class="ix">7.12</span>Index Join — 테이블에 안 가고 인덱스끼리 조인 <span class="db add">74일차</span></h3>
-  <p><b class="k">한 테이블에 속한 여러 인덱스</b>를 이용해 random access 없이 결과를 만드는 방식. <b>SELECT 컬럼이 전부 인덱스에 포함될 때만</b> 작동한다.</p>
+  <p><b class="k">한 테이블에 속한 여러 인덱스</b>를 이용해 random access 없이 결과를 만드는 방식. <b>질의가 참조하는 컬럼(SELECT와 WHERE 모두)이 전부 인덱스에 포함될 때만</b> 작동한다.</p>
   <pre class="term"><span class="cm">-- loc의 city·location_id 둘 다 인덱스에 있음 → 테이블 접근 없이</span>
 <span class="out">| 3 |    VIEW                  | index$_join$_003 | 23행 | 8 |</span>
 <span class="hl">|*4 |     HASH JOIN            |  access(ROWID=ROWID)  | 8 |</span>
@@ -891,7 +893,7 @@ Predicate Information:
 <span class="hl">|* 3 |   TABLE ACCESS FULL| DEPT |   12   |    11  |   36 |  ← Starts 12 (107이 아니다!)</span>
 <span class="out">   1 - filter( IS NOT NULL)      3 - filter("DEPARTMENT_ID"=:B1)</span></pre>
   <div class="why"><span class="h">filter operation cache (filter optimization)</span>
-  FILTER는 <b>메인 루프의 행마다 서브 루프를 돌리는</b> 구조라 NL과 실행 방식이 같다. dept full 1회가 2블록이니 <b>최악은 107번 × 2 = 214블록</b>. 그런데 실측은 서브쿼리 수행이 <b>12번</b>뿐 — 오라클이 filter 조건의 <b>input 값(:B1)을 cache</b>해서, 같은 department_id가 또 오면 읽지 않고 캐시를 쓴다. emp의 department_id 종류가 12가지(null 제외 11 + 1)라 <b>종류 수만큼만</b> 돌았다. 술어의 <code class="inl">:B1</code>이 이 바인딩의 흔적이고, <code class="inl">filter(IS NOT NULL)</code>은 null 행 제외의 흔적이다.</div>
+  FILTER는 <b>메인 루프의 행마다 서브 루프를 돌리는</b> 구조라 NL과 실행 방식이 같다. dept full 1회가 2블록(단독 count(*) 실측 — 본 플랜의 반복 실행에선 회당 3블록으로 찍힘: 36÷12)이니 <b>최악은 107번 × 2 = 214블록</b>. 그런데 실측은 서브쿼리 수행이 <b>12번</b>뿐 — 오라클이 filter 조건의 <b>input 값(:B1)을 cache</b>해서, 같은 department_id가 또 오면 읽지 않고 캐시를 쓴다. emp의 department_id 종류가 12가지(null 제외 11 + 1)라 <b>종류 수만큼만</b> 돌았다. 술어의 <code class="inl">:B1</code>이 이 바인딩의 흔적이고, <code class="inl">filter(IS NOT NULL)</code>은 null 행 제외의 흔적이다.</div>
 
   <h3 class="blk"><span class="ix">8.3</span>unnest — 서브쿼리를 조인으로 푼다 (semi join)</h3>
   <p>동일한 결과가 보장되면 옵티마이저는 서브쿼리를 <b>조인문으로 변환</b>한다(unnest). 조인이 되는 순간 <b>액세스 경로·조인 방법·조인 순서를 고를 수 있게</b> 된다 — 73~74일차의 3형제 도구가 전부 열린다. 힌트 <code class="inl">unnest</code> / <code class="inl">no_unnest</code>.</p>
@@ -912,16 +914,16 @@ Predicate Information:
 <span class="cm">-- 내부적으로 이 문장이 돌아간다:</span>
 <span class="hl">     select * from hr.employees where department_id is not null;</span>
 <span class="cm">-- 확인: _optimizer_join_elimination_enabled = TRUE (기본)</span>
-<span class="cm">-- 비활성화 힌트: no_eliminated_join(d)</span></pre>
+<span class="cm">-- 비활성화 힌트: no_eliminate_join(d)  (수업 노트 표기 no_eliminated_join은 오타 — 잘못된 힌트는 조용히 무시됨)</span></pre>
   <div class="why"><span class="h">FK가 있어야 하는 이유 · FK의 덤</span>
-  FK가 보장하는 건 "emp의 department_id는 반드시 dept에 존재한다"는 사실 — 그래서 dept를 안 읽어도 결과가 같다고 <b>증명</b>이 되고, 그때만 제거한다. FK(+not null)를 걸면 ① 데이터 품질이 좋아지고 ② 조인 제거가 돌아간다. null을 포함해야 하면 outer join을 쓰되, null이 포함될 컬럼에 FK를 걸지 않는 관행도 있다(현장에선 버그로 본다). 제약조건 때문에 PK 쪽 lock이 걸리는 문제는 9i에서 해결됐다.</div>
+  FK가 보장하는 건 "emp의 department_id는 반드시 dept에 존재한다"는 사실 — 그래서 dept를 안 읽어도 결과가 같다고 <b>증명</b>이 되고, 그때만 제거한다. FK(+not null)를 걸면 ① 데이터 품질이 좋아지고 ② 조인 제거가 돌아간다. null을 포함해야 하면 outer join을 쓰되, null이 포함될 컬럼에 FK를 걸지 않는 관행도 있다(현장에선 버그로 본다). 제약조건 관련 lock 문제 — 미인덱스 FK 상태에서 부모 PK를 갱신/삭제할 때 <b>자식(FK 쪽) 테이블이 잠기던</b> 이슈 — 는 9i에서 완화됐다.</div>
 
   <h3 class="blk"><span class="ix">8.5</span>semi join & anti join — 만나면 멈추고, 없으면 찾는다</h3>
   <table>
     <tr><th></th><th>semi join</th><th>anti join</th></tr>
     <tr><td>찾는 것</td><td>서브쿼리에 <b>존재하는</b> 메인 행 (IN·EXISTS)</td><td>존재하지 <b>않는</b> 행 (NOT IN·NOT EXISTS)</td></tr>
     <tr><td>동작</td><td>match되면 <b>그 행의 조인 검색을 멈춤</b>(브레이크)</td><td>match되면 버리고, <b>없으면</b> 결과로</td></tr>
-    <tr><td>공통</td><td colspan="2">서브쿼리를 조인으로 변환 · 변환된 쪽은 <b>항상 후행(inner)</b></td></tr>
+    <tr><td>공통</td><td colspan="2">서브쿼리를 조인으로 변환 · 변환된 쪽은 <b>기본적으로 후행(inner)</b> — 단 <b>RIGHT SEMI/ANTI</b> 변형에선 서브쿼리 쪽이 build(선행)로 온다(§8.3의 HASH JOIN RIGHT SEMI가 그 예)</td></tr>
     <tr><td>힌트</td><td><code class="inl">nl_sj · merge_sj · hash_sj</code></td><td><code class="inl">nl_aj · merge_aj · hash_aj</code></td></tr>
   </table>
   <div class="why"><span class="h">플랜에서 읽는 신호</span>
@@ -956,7 +958,7 @@ Predicate Information:
 <span class="out">DEPARTMENT_ID   11   11  FREQUENCY   ← 값 종류 11개, 버킷 11개</span>
 <span class="hl">JOB_ID          19   19  FREQUENCY   · LAST_NAME 102 FREQUENCY ...</span></pre>
   <div class="why"><span class="h">히스토그램 = 값별 분포표</span>
-  <b>FREQUENCY 히스토그램</b>은 값 종류마다 버킷 하나 — "50번 부서는 45명, 10번 부서는 1명"을 옵티마이저가 안다. 그래서 같은 술어라도 <b>값에 따라 index/full을 바꿔 태운다</b>. <code class="inl">or department_id = 50</code>으로 OR-expansion을 걸면 job 가지는 index, 50 가지는 full — <b>가지마다 다른 접근</b>(13)을 조합한다. 인덱스를 강제해도(9) full(9)과 같았다 — 45행이면 인덱스 이득이 없다. 통계·히스토그램 본편은 로드맵 09에서.</div>
+  <b>FREQUENCY 히스토그램</b>은 값 종류마다 버킷 하나 — "50번 부서는 45명, 10번 부서는 1명"을 옵티마이저가 안다. 그래서 같은 술어라도 <b>값에 따라 index/full을 바꿔 태운다</b>. <code class="inl">job_id = 'IT_PROG' or department_id = 50</code>으로 OR-expansion을 걸면 job 가지는 index, 50 가지는 full — <b>가지마다 다른 접근</b>(13)을 조합한다. 인덱스를 강제해도(9) full(9)과 같았다 — 45행이면 인덱스 이득이 없다. 통계·히스토그램 본편은 로드맵 09에서.</div>
 
   <h3 class="blk"><span class="ix">8.9</span>pushing subquery — 서브쿼리 필터를 앞 단계로 <span class="db add">76일차</span></h3>
   <p>emp⋈dept 조인에 <code class="inl">exists (London인 location)</code> 서브쿼리를 단 3테이블 문장. <code class="inl">no_unnest</code>로 filter 방식을 강제하면 서브쿼리 필터가 <b>맨 마지막</b>에 돈다 — MERGE JOIN으로 <b>106행을 다 만들어 놓고</b> 걸러낸다(Buffers 25). <b class="k">push_subq</b>는 unnest <b>안 된</b> 서브쿼리의 처리 순서를 제어해 <b>가능한 앞 단계에서 먼저</b> 필터링한다:</p>
@@ -1073,7 +1075,7 @@ Predicate Information:
   <p>옵티마이저 내부는 3단 파이프라인이다: <b class="k">Query Transformer</b>(최적화하기 쉬운 형태로 SQL 변환 — 결과 동일이 보장될 때만, Part 08 전체가 이 단계) → <b class="k">Estimator</b>(실행계획 전체의 총 비용 계산) → <b class="k">Plan Generator</b>(후보 실행계획들 생성). 그 뒤 <b>Row Source Generator</b>가 최적 계획을 받아 실행 가능한 형태로 출력한다. <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/sql-processing.html" style="color:var(--muted)">공식 매뉴얼 § SQL Processing ↗</a></p>
   <table>
     <tr><th>Estimator의 세 값</th><th>정의 · 계산</th></tr>
-    <tr><td><b>selectivity</b></td><td>조건으로 선택될 것으로 예상되는 <b>행 비율</b> = 1 / num_distinct</td></tr>
+    <tr><td><b>selectivity</b></td><td>조건으로 선택될 것으로 예상되는 <b>행 비율</b> — 등호(=) 조건·히스토그램 없음 기준으로 1 / num_distinct</td></tr>
     <tr><td><b>cardinality</b></td><td>그 액세스 단계를 거친 뒤 나올 <b>예상 건수</b> = 총 행수 × selectivity — 플랜의 <b>E-Rows가 바로 이 값</b></td></tr>
     <tr><td><b>cost</b></td><td>문장 실행에 필요한 표준화된 I/O에 대한 최적 예측 비용 (<code class="inl">_optimizer_cost_model</code>=CHOOSE: 8i I/O → 10g CPU 비용)</td></tr>
   </table>
@@ -1096,14 +1098,14 @@ Predicate Information:
   통계를 지우면 플랜 Note에 <code class="inl">dynamic statistics used: dynamic sampling (level=2)</code>가 뜬다 — 파싱 시점에 즉석으로 샘플을 떠서 추정했다는 뜻. 운영에서 이 Note가 보이면 "이 테이블 통계가 없거나 부족하다"는 신호다. size 1로 수집하면 Note는 사라지지만 <b>균등 가정</b>이라 치우친 분포(부서 50번=45명 vs 10번=1명)에선 E-Rows가 크게 빗나간다.</div>
 
   <h3 class="blk"><span class="ix">9.6</span>히스토그램 만들기 — method_opt 사용법 <span class="db add">78일차</span></h3>
-  <p>조건절에 자주 쓰이면서 <b>분포가 균일하지 않은</b> 컬럼에 히스토그램을 만든다. 버킷 수 최대 <b>2048</b>(11g는 254). 유형: <b>Frequency</b>(도수분포, 값의 수 = 버킷 수) / <b>height balanced</b>(높이균형, 값의 수 &gt; 버킷 수).</p>
+  <p>조건절에 자주 쓰이면서 <b>분포가 균일하지 않은</b> 컬럼에 히스토그램을 만든다. 버킷 수 최대 <b>2048</b>(11g는 254). 유형: <b>Frequency</b>(도수분포, 값의 수 = 버킷 수) / <b>height balanced</b>(높이균형, 값의 수 &gt; 버킷 수) — 수업 기준의 고전 2유형이며, 12c부터는 hybrid·top frequency가 추가되고 height balanced는 잘 만들어지지 않는다.</p>
   <table>
     <tr><th>method_opt</th><th>뜻</th></tr>
     <tr><td><code class="inl">'for all columns size 1'</code></td><td>히스토그램을 만들지 않겠다</td></tr>
     <tr><td><code class="inl">'for columns size 20 job_id'</code></td><td>특정 컬럼에만 (여러 컬럼: <code class="inl">job_id,department_id</code> · 컬럼별 버킷: <code class="inl">... size 12</code>)</td></tr>
     <tr><td><code class="inl">'for all columns size 254'</code></td><td>모든 컬럼에 히스토그램 — <b>주의!!</b> (필요 없는 컬럼까지)</td></tr>
     <tr><td>size <code class="inl">repeat</code></td><td>기존에 히스토그램이 있는 컬럼에만 다시 생성</td></tr>
-    <tr><td>size <code class="inl">auto</code></td><td>조건절 사용 비중 높은 컬럼(<code class="inl">sys.col_usage$</code>)을 찾아 생성</td></tr>
+    <tr><td>size <code class="inl">auto</code></td><td>조건절 사용 비중(<code class="inl">sys.col_usage$</code>)<b>과 데이터 분포 치우침을 함께</b> 보고 필요한 컬럼에만 생성</td></tr>
     <tr><td>size <code class="inl">skewonly</code></td><td>분포를 분석해 균일하지 않은 컬럼에만 생성</td></tr>
   </table>
   <div class="why"><span class="h">실측 — 히스토그램이 E-Rows를 바로잡는 순간</span>
@@ -1119,7 +1121,7 @@ Predicate Information:
   <div class="tip"><b>왜 무효화가 문제인가</b> — 통계를 새로 수집하면 그 통계로 만든 기존 커서(LCO)들이 낡은 판단이 된다. 즉시 전부 무효화(false)하면 hard parse 폭풍, 안 하면(true) 낡은 플랜 지속 — 그래서 기본값은 18000초에 걸쳐 <b>조금씩</b> 무효화하는 auto_invalidate다.</div>
 
   <h3 class="blk"><span class="ix">9.8</span>자동 통계 수집 — 밤에 돌고, stale을 찾아낸다 <span class="db add">78일차</span></h3>
-  <p>10g부터 <b>auto optimizer stats collection</b>이 유지보수 윈도우에서 자동으로 돈다(<code class="inl">dba_autotask_client</code>에서 ENABLED 확인). 윈도우는 <b>평일 22시부터 4시간, 주말 6시부터 20시간</b>(<code class="inl">dba_scheduler_windows</code>) — <code class="inl">DBMS_SCHEDULER.SET_ATTRIBUTE</code>로 시각(repeat_interval)·길이(duration, numtodsinterval)를 바꿀 수 있다. 수집 대상: ① <b>한 번도 통계 수집하지 않은</b> 테이블(<code class="inl">last_analyzed is null</code>) ② 마지막 수집 이후 <b>10% 변화율</b>이 생긴 테이블.</p>
+  <p>자동 통계 수집은 10g부터(당시 이름 GATHER_STATS_JOB) — 지금 형태인 <b>auto optimizer stats collection</b>·<code class="inl">dba_autotask_client</code>·아래 윈도우 체계는 <b>11g 이후</b>다. 유지보수 윈도우에서 자동으로 돈다(ENABLED 확인). 윈도우는 <b>평일 22시부터 4시간, 주말 6시부터 20시간</b>(<code class="inl">dba_scheduler_windows</code>) — <code class="inl">DBMS_SCHEDULER.SET_ATTRIBUTE</code>로 시각(repeat_interval)·길이(duration, numtodsinterval)를 바꿀 수 있다. 수집 대상: ① <b>한 번도 통계 수집하지 않은</b> 테이블(<code class="inl">last_analyzed is null</code>) ② 마지막 수집 이후 <b>10% 변화율</b>이 생긴 테이블.</p>
   <pre class="term"><span class="cm">-- stale 추적 실험: insert 2건 → update 15건 → delete 5건</span>
 <span class="pr">SYS&gt;</span> select * from dba_tab_modifications where table_name='EMP';
 <span class="out">INSERTS 2  UPDATES 15  DELETES 5   ← DML 누적 카운터 (수집하면 리셋)</span>
@@ -1138,11 +1140,11 @@ Predicate Information:
     <tr><td><code class="inl">create_stat_table</code> → <code class="inl">export_table_stats</code></td><td>통계를 사용자 테이블(stattab)에 <b>백업</b></td></tr>
     <tr><td><code class="inl">diff_table_stats_in_stattab</code></td><td>백업본 vs 현재 통계 <b>비교 리포트</b> — 실측: ROWS 100 vs 1100, COL1 NDV 100 vs 101, HIST NO vs YES</td></tr>
     <tr><td><code class="inl">import_table_stats</code></td><td>백업본으로 되돌리기 (last_analyzed도 export 시점으로)</td></tr>
-    <tr><td><code class="inl">restore_table_stats('hr','tab','시각')</code></td><td>이력에서 <b>특정 시점으로 복원</b> — <b>주의!! 히스토그램은 restore 안 된다</b>(실측: 복원 후 COL1 FREQUENCY가 NONE)</td></tr>
+    <tr><td><code class="inl">restore_table_stats('hr','tab','시각')</code></td><td>이력에서 <b>특정 시점으로 복원</b> — <b>주의!! 수업 실측에선 히스토그램이 복원되지 않았다</b>(FREQUENCY→NONE). 단 공식 문서상 복원 제약은 ANALYZE 수집분·사용자 정의 통계뿐이고 히스토그램 이력도 보관되므로, 케이스 의존일 수 있다 — <b>홈랩 재확인 권장</b></td></tr>
     <tr><td><code class="inl">get_stats_history_availability / _retention</code></td><td>복원 가능한 가장 오래된 시점 / 보유 기간(31일, <code class="inl">alter_stats_history_retention(7)</code>로 변경)</td></tr>
     <tr><td><code class="inl">purge_stats(시각)</code> · <code class="inl">set_table_stats</code></td><td>그 시점 이전 이력 삭제 · 통계 값을 <b>수동으로</b> 지정(numrows 등)</td></tr>
   </table>
-  <div class="tip"><b>왜 배우나</b> — 통계 재수집 후 플랜이 나빠졌을 때(플랜 회귀) "어제의 통계로 돌아가기"가 운영의 실전 카드다. 단 히스토그램은 이력 복원이 안 되니, 중요한 통계는 export로 백업해두는 쪽이 안전하다.</div>
+  <div class="tip"><b>왜 배우나</b> — 통계 재수집 후 플랜이 나빠졌을 때(플랜 회귀) "어제의 통계로 돌아가기"가 운영의 실전 카드다. 단 수업 실측에선 히스토그램이 이력 복원에서 빠졌으니(공식 문서와 어긋나는 지점 — 재확인 권장), 히스토그램이 중요한 통계는 export로 백업해두는 쪽이 안전하다.</div>
 </section>
 
 <section class="part" id="road">
