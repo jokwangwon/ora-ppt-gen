@@ -642,7 +642,7 @@ Predicate Information:
 </section>
 
 <section class="part" id="join">
-  <div class="phead"><div class="pnum">07</div><div><div class="ptitle">조인 — 방법은 건수로, 순서는 힌트로 <span class="db add">72일차</span></div><div class="psub">NL·Sort Merge·Hash, 그리고 반복 횟수를 Starts로 읽는다</div></div></div>
+  <div class="phead"><div class="pnum">07</div><div><div class="ptitle">조인 — 방법은 건수로, 순서는 힌트로 <span class="db add">72일차</span></div><div class="psub">NL·Sort Merge·Hash, 그리고 반복 횟수를 Starts로 읽는다 · <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/joins.html" style="color:var(--muted)">공식 매뉴얼 § Joins ↗</a></div></div></div>
   <p>조인에는 <b class="k">두 축</b>이 있고 둘은 별개다 — <b class="k">방법</b>(어떻게 붙이나)과 <b class="k">순서</b>(누가 먼저 도나). 방법은 대체로 <b>건수</b>가, 순서는 <b>힌트</b>가 정한다.</p>
   <table>
     <tr><th>구분</th><th>언제 유리</th><th>힌트</th></tr>
@@ -869,7 +869,7 @@ Predicate Information:
 </section>
 
 <section class="part" id="qt">
-  <div class="phead"><div class="pnum">08</div><div><div class="ptitle">쿼리 변환 — 옵티마이저는 내 SQL을 다시 쓴다 <span class="db add">75~76일차</span></div><div class="psub">서브쿼리 → filter / unnest(semi·anti) / 조인 제거 · OR-expansion · push_subq · view merging · pushdown · bloom</div></div></div>
+  <div class="phead"><div class="pnum">08</div><div><div class="ptitle">쿼리 변환 — 옵티마이저는 내 SQL을 다시 쓴다 <span class="db add">75~76일차</span></div><div class="psub">서브쿼리 → filter / unnest(semi·anti) / 조인 제거 · OR-expansion · push_subq · view merging · pushdown · bloom · <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/query-transformations.html" style="color:var(--muted)">공식 매뉴얼 § Query Transformations ↗</a></div></div></div>
   <p><b class="k">Query Transformation(쿼리 변환)</b> — 옵티마이저가 실행계획을 만들기 <b>전에</b>, 결과가 동일하면서 비용이 더 적을 것 같으면 SQL을 재작성하는 것(8i부터 단계적 도입). 내가 쓴 문장과 실제 도는 문장이 다를 수 있다 — <b>플랜에 filter 술어가 보이면 꼭 다시 확인</b>하라는 것이 오늘의 경고다.</p>
 
   <h3 class="blk"><span class="ix">8.1</span>서브쿼리 4종 — 어디에 있느냐로 갈린다</h3>
@@ -1025,7 +1025,7 @@ Predicate Information:
 </section>
 
 <section class="part" id="opt">
-  <div class="phead"><div class="pnum">09</div><div><div class="ptitle">옵티마이저 & 통계 — 판단의 재료 <span class="db add">77일차</span></div><div class="psub">RBO→CBO · 시스템 통계(aux_stats$) · optimizer_mode</div></div></div>
+  <div class="phead"><div class="pnum">09</div><div><div class="ptitle">옵티마이저 & 통계 — 판단의 재료 <span class="db add">77일차</span></div><div class="psub">RBO→CBO · 시스템 통계(aux_stats$) · optimizer_mode · <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/optimizer-statistics-concepts.html" style="color:var(--muted)">공식 매뉴얼 § Optimizer Statistics Concepts ↗</a></div></div></div>
   <p><b class="k">Optimizer</b> = 요청된 SQL을 가장 효율적으로 수행할 <b>최저 비용의 처리 경로</b>를 만들어 주는 엔진. 실행계획(데이터 처리 방법·조인 방법·조인 순서)을 생성한다. 지금까지 배운 모든 변환·플랜 선택의 주체가 드디어 본편으로.</p>
 
   <h3 class="blk"><span class="ix">9.1</span>RBO에서 CBO로 — 규칙이 아니라 비용</h3>
