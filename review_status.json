@@ -78,6 +78,10 @@
     "78": {
       "status": "reviewing",
       "note": "축=E-Rows는 산수(selectivity×총행수)·통계 수명주기. 문서 §9.4~9.9(3단 파이프라인·selectivity/cardinality 5.63/9.73·dynamic sampling·method_opt/히스토그램 6→5,10→1·no_invalidate 18000·자동수집 stale 10%·export/diff/restore 히스토그램 복원불가) — 로드맵 09 완료. SA_REP·dept50 E-Rows 10은 노트 미설명→홈랩 목록. 문제 MCQ7·ESSAY2·TERMS10·PLANQ2(편향0·근거0). 덱 17장."
+    },
+    "79": {
+      "status": "reviewing",
+      "note": "축=첫 값이 플랜을 정하고(peeking) where절 키가 세그먼트를 정한다(pruning). 문서 §10.1~10.7(리터럴 5커서→FORCE :SYS_B_0·peeking 3재료·히스토그램+50먼저=full·bind_capture·ACS Y/N·FILTER 게이트 분기) + §11.1~11.7(파티션 뷰 NULL IS NOT NULL·range/interval SYS_P769·hash 2^n·list default(Grant NULL)·composite 4×4 Pstart/Pstop 일련번호). 히스토그램+FORCE 실측 불일치(index cost6 vs full)는 재확인 표기. 문제 MCQ8·ESSAY2·TERMS11·PLANQ2(편향0·근거0). 덱 23장. DAY_REF 79→Cursor Sharing 챕터, 파티션 문제 ref→VLDB 가이드."
     }
   }
 }

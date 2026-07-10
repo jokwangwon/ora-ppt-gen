@@ -86,6 +86,8 @@ footer{padding:30px 0 50px;color:var(--muted);font-size:13px}
   <a href="#join">7. 조인</a>
   <a href="#qt">8. 쿼리 변환</a>
   <a href="#opt">9. 옵티마이저</a>
+  <a href="#cs">10. 커서 공유</a>
+  <a href="#pt">11. 파티션</a>
   <a href="#road">로드맵</a>
 </div></nav>
 
@@ -1147,6 +1149,272 @@ Predicate Information:
   <div class="tip"><b>왜 배우나</b> — 통계 재수집 후 플랜이 나빠졌을 때(플랜 회귀) "어제의 통계로 돌아가기"가 운영의 실전 카드다. 단 수업 실측에선 히스토그램이 이력 복원에서 빠졌으니(공식 문서와 어긋나는 지점 — 재확인 권장), 히스토그램이 중요한 통계는 export로 백업해두는 쪽이 안전하다.</div>
 </section>
 
+<section class="part" id="cs">
+  <div class="phead"><div class="pnum">10</div><div><div class="ptitle">커서 공유 &amp; Bind Peeking — 첫 값이 모두의 플랜을 정한다 <span class="db add">79일차</span></div><div class="psub">literal vs bind · cursor_sharing · bind peeking · adaptive cursor sharing · <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/improving-rwp-cursor-sharing.html" style="color:var(--muted)">공식 매뉴얼 § Cursor Sharing ↗</a></div></div></div>
+  <p>파싱은 비싸다(내부구조편 §Parse) — 그래서 오라클은 <b class="k">같은 SQL이면 커서(실행계획)를 공유</b>한다. 그런데 공유란 "플랜 하나를 여럿이 같이 쓴다"는 뜻이다. 데이터가 치우쳐 있으면(50번 부서 45명, 10번 부서 1명) 그 하나의 플랜이 누군가에게는 최악이 된다. 오늘은 공유의 이득(§10.1~10.2), 함정(§10.3~10.5), 오라클의 해법 ACS(§10.6), 그리고 수동 처방(§10.7).</p>
+  <pre class="term"><span class="cm">-- 실습 준비: 무작위 순서로 emp 재생성 + 인덱스 2개</span>
+<span class="pr">SQL&gt;</span> create table hr.emp tablespace users as select * from hr.employees order by dbms_random.value;
+<span class="pr">SQL&gt;</span> create unique index hr.emp_idx on hr.emp(employee_id);   <span class="cm">-- + PK 제약</span>
+<span class="pr">SQL&gt;</span> create index hr.emp_dept_idx on hr.emp(department_id);</pre>
+
+  <h3 class="blk"><span class="ix">10.1</span>리터럴 5문장 = 커서 5개 — sql_id는 '텍스트'의 해시</h3>
+  <p>값만 다른 다섯 문장을 리터럴로 실행하면, v$sql에 <b>커서 다섯 개</b>가 생긴다.</p>
+  <pre class="term"><span class="pr">SQL&gt;</span> select * from hr.emp where employee_id = 100;   <span class="cm">-- 101, 102, 103, 104도 각각 실행</span>
+<span class="out">SQL_ID        SQL_TEXT                                       PARSE_CALLS LOADS EXECUTIONS  HASH_VALUE PLAN_HASH_VALUE
+5g6ygund8wa94 select * from hr.emp where employee_id = 100             1     1          1   445524260      <span class="hl">2466118986</span>
+9z06k8rm2hfsf select * from hr.emp where employee_id = 101             1     1          1  3861396238      <span class="hl">2466118986</span>
+2j2qaayc7xh8q select * from hr.emp where employee_id = 102             1     1          1  2558443798      <span class="hl">2466118986</span>
+fczhk3xx8k3bm select * from hr.emp where employee_id = 103             1     1          1  2055802227      <span class="hl">2466118986</span>
+dczf7ww35yukm select * from hr.emp where employee_id = 104             1     1          1   106916435      <span class="hl">2466118986</span></span></pre>
+  <p>SQL_ID·HASH_VALUE는 전부 다른데 <b>PLAN_HASH_VALUE는 다섯 개 모두 2466118986</b> — 하는 일(INDEX UNIQUE SCAN → TABLE ACCESS BY INDEX ROWID)은 완전히 같다. LOADS가 1씩이니 <b>hard parse를 5번</b> 한 것이다.</p>
+  <div class="why"><span class="h">해시 두 개를 구분하라</span><code class="inl">sql_id</code>/<code class="inl">hash_value</code>는 <b>SQL 텍스트</b>의 해시, <code class="inl">plan_hash_value</code>는 <b>실행계획</b>의 해시다. 텍스트가 한 글자라도 다르면 다른 커서 — 같은 플랜을 5번 만들어 shared pool 5자리를 차지하고, 만들 때마다 라이브러리 캐시 latch를 잡는다(내부구조편 hard parse 동시성). 값만 다른 SQL이 수만 개면 이게 그대로 장애 재료다.</div>
+
+  <h3 class="blk"><span class="ix">10.2</span>cursor_sharing=FORCE — 리터럴을 시스템 바인드로</h3>
+  <table>
+    <tr><th>값</th><th>동작</th></tr>
+    <tr><td><b>EXACT</b> (기본값)</td><td>SQL문이 똑같은 경우만 커서를 공유한다</td></tr>
+    <tr><td><b>FORCE</b></td><td>다른 문자열은 모두 같고 일부 값만 다를 때, 그 값들을 바인드 변수로 대체해 공유 가능한 커서를 만들어 쓴다</td></tr>
+  </table>
+  <pre class="term"><span class="pr">SQL&gt;</span> alter session set cursor_sharing = force;
+<span class="pr">SQL&gt;</span> <span class="cm">-- 같은 5문장 실행 후 v$sql:</span>
+<span class="out">SQL_ID        SQL_TEXT                                              PARSE_CALLS LOADS EXECUTIONS
+awdc07c3dg4qv select * from hr.emp where employee_id = <span class="hl">:"SYS_B_0"</span>            5     1          5</span>
+<span class="out">   2 - access("EMPLOYEE_ID"=:SYS_B_0)</span></pre>
+  <p>리터럴 100~104가 시스템 바인드 <code class="inl">:"SYS_B_0"</code>으로 치환되어 <b>커서 하나에 5번 실행</b>(LOADS 1 — hard parse 1번)으로 바뀌었다. employee_id는 unique 컬럼이라 어떤 값이든 1행 — 플랜을 공유해도 손해 볼 사람이 없다. 여기까지는 순수 이득.</p>
+  <div class="tip"><b>FORCE는 응급처치.</b> 애플리케이션이 리터럴을 남발할 때 서버 쪽에서 강제로 바인드화하는 수단이고, 근본 해법은 앱이 바인드 변수를 쓰는 것. 그리고 바로 다음 절부터, 바인드에는 바인드의 함정이 있다.</div>
+
+  <h3 class="blk"><span class="ix">10.3</span>bind peeking — 첫 hard parse가 값을 '훔쳐본다'</h3>
+  <p>바인드 변수의 딜레마: 파싱 시점에는 값을 모른다 → 값을 모르면 히스토그램(§9.6)을 쓸 수 없다. 그래서 <code class="inl">_optim_peek_user_binds=TRUE</code>: <b>바인드 변수를 포함한 SQL이 최초로 실행될 때, 그 바인드 값을 이용해 실행계획을 수립</b>한다. 문제는 그렇게 정해진 플랜을 <b>이후의 모든 값이 재사용</b>한다는 것.</p>
+  <figure>
+  <svg viewBox="0 0 760 150" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="cs1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aab3c0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <rect class="ncor" x="14" y="40" width="170" height="62" rx="10"/><text class="svg-lbl" x="99" y="64" text-anchor="middle">첫 실행 :b_id = 50</text><text class="svg-sub" x="99" y="84" text-anchor="middle">hard parse 시점에 peek</text>
+    <rect class="nal" x="234" y="40" width="180" height="62" rx="10"/><text class="svg-lbl" x="324" y="64" text-anchor="middle">플랜 확정: FULL</text><text class="svg-sub" x="324" y="84" text-anchor="middle">50 = 45명 → full이 이득</text>
+    <rect class="nmut" x="464" y="14" width="282" height="50" rx="10"/><text class="svg-lbl" x="605" y="35" text-anchor="middle">:b_id = 10 (1명) → FULL 재사용</text><text class="svg-sub" x="605" y="52" text-anchor="middle">index가 이득인데 full로 — 손해</text>
+    <rect class="nmut" x="464" y="80" width="282" height="50" rx="10"/><text class="svg-lbl" x="605" y="101" text-anchor="middle">:b_id = 80 (34명) → FULL 재사용</text><text class="svg-sub" x="605" y="118" text-anchor="middle">soft parse — 플랜은 다시 안 세운다</text>
+    <path class="edge" d="M184 71 H228" marker-end="url(#cs1)"/>
+    <path class="edge" d="M414 62 L458 40" marker-end="url(#cs1)"/>
+    <path class="edge" d="M414 82 L458 104" marker-end="url(#cs1)"/>
+  </svg>
+  <figcaption>bind peeking: 첫 실행의 값이 플랜을 정하고, 이후 값들은 soft parse로 그 플랜을 그대로 재사용한다.</figcaption>
+  </figure>
+  <p><b>히스토그램이 없을 때는 함정이 보이지 않는다.</b> dept 10·20·50·80을 어떤 순서로 실행해도 E-Rows 10(107행÷11종 균등 가정)의 INDEX RANGE SCAN — 값이 뭐든 계산이 같으니 플랜이 갈릴 일 자체가 없다.</p>
+  <pre class="term"><span class="cm">-- FORCE + 리터럴 dept 10→20→50→80 (히스토그램 없음) — 순서를 50 먼저로 바꿔도 동일</span>
+<span class="out">| 1 |  TABLE ACCESS BY INDEX ROWID BATCHED| EMP          |   <span class="hl">10</span> |   690 |  2 (0)|
+|*2 |   INDEX RANGE SCAN                  | EMP_DEPT_IDX |   10 |       |  1 (0)|</span></pre>
+  <div class="why"><span class="h">함정의 3재료</span>peeking 단독으로는 무해하다. <b>peeking + 치우친 분포 + 히스토그램</b>이 모이면 "첫 값이 누구냐"에 따라 전체의 운명이 갈린다 — 다음 절.</div>
+
+  <h3 class="blk"><span class="ix">10.4</span>히스토그램이 생기면 — 50이 먼저 오면 전원 full scan</h3>
+  <pre class="term"><span class="pr">SQL&gt;</span> exec dbms_stats.gather_table_stats('hr','emp',method_opt=&gt;'for columns department_id size 12')
+<span class="out">DEPARTMENT_ID   NUM_DISTINCT 11   CARDINALITY 10   HISTOGRAM <span class="hl">FREQUENCY</span></span>
+<span class="cm">-- 이제 옵티마이저는 "50번=45명, 10번=1명"을 안다 (§9.6의 도수 히스토그램)</span></pre>
+  <p>FORCE 상태에서 <b>dept=50이 먼저</b> 들어온 재현 실측 — 공유 커서의 플랜이 통째로 바뀐다:</p>
+  <pre class="term"><span class="cm">-- flush 후 FORCE + 리터럴 50→10→20→80: plan_hash 3956160932</span>
+<span class="out">| Id | Operation         | Name | Rows | Bytes | Cost (%CPU)|
+|  0 | SELECT STATEMENT  |      |      |       |     2 (100)|
+|* 1 |  <span class="hl">TABLE ACCESS FULL</span>| EMP  |   45 |  3105 |     2   (0)|
+   1 - filter("DEPARTMENT_ID"=:SYS_B_0)</span></pre>
+  <p>peek된 50에게는 full(45명, 2블록 비용)이 정답이지만, 뒤따라온 10(1명)·20(2명)도 <b>같은 full 플랜</b>을 쓴다. 첫 값이 10이었다면 반대로 전원이 index 플랜을 썼을 것이다.</p>
+  <div class="tip"><b>실측 메모(재확인 권장).</b> 같은 조건의 다른 실측 한 번은 E-Rows만 45로 재산정된 <b>index 플랜(cost 6)</b>이 나왔다(LOADS 3 — 커서 재적재 흔적, 노트에 원인 설명 없음). 강사 결론은 "히스토그램 후 peek=50이면 full" — 홈랩에서 flush로 순서를 통제해 재확인.</div>
+
+  <h3 class="blk"><span class="ix">10.5</span>진짜 바인드 변수로 — 순서가 운명을 정한다 (v$sql_bind_capture)</h3>
+  <pre class="term"><span class="cm">-- 시나리오 A: 10이 먼저 → index 플랜 확정</span>
+<span class="pr">SQL&gt;</span> var b_id number
+<span class="pr">SQL&gt;</span> exec :b_id := 10
+<span class="pr">SQL&gt;</span> select * from hr.emp where department_id = :b_id;   <span class="cm">-- 이어서 :b_id := 50 재실행</span>
+<span class="out">| 1 |  TABLE ACCESS BY INDEX ROWID BATCHED| EMP          |  <span class="hl">1</span> |  2 (0)|   ← E-Rows 1 (peek=10)</span>
+<span class="pr">SQL&gt;</span> select value_string from v$sql_bind_capture where sql_id='dgcptsda7xr71';
+<span class="out">VALUE_STRING: <span class="hl">10</span>          ← 플랜을 정한 첫 값의 증거</span>
+
+<span class="cm">-- 시나리오 B: flush 후 50이 먼저 → full 플랜 확정, 10도 full을 쓴다</span>
+<span class="out">|* 1 |  <span class="hl">TABLE ACCESS FULL</span>| EMP  |   45 |  3105 |  2 (0)|      VALUE_STRING: 50</span></pre>
+  <p>같은 커서를 값만 바꿔 재사용할 때 무슨 일이 나는지, <code class="inl">allstats last</code>로 값별 실측:</p>
+  <table>
+    <tr><th>:b_id</th><th>플랜 (peek=10이 정함)</th><th>A-Rows</th><th>Buffers</th></tr>
+    <tr><td>10</td><td>INDEX RANGE SCAN</td><td>1</td><td><b>3</b> — 적정</td></tr>
+    <tr><td>50</td><td>INDEX RANGE SCAN (재사용)</td><td>45</td><td><b>9</b> — full이면 6</td></tr>
+    <tr><td>80</td><td>INDEX RANGE SCAN (재사용)</td><td>34</td><td>8</td></tr>
+    <tr><td>50 + <code>full(e)</code> 힌트</td><td>TABLE ACCESS FULL</td><td>45</td><td><b>6</b></td></tr>
+  </table>
+  <p>50에게 index는 9블록, full은 6블록 — <b>첫 값이 10이었다는 이유만으로</b> 50은 실행할 때마다 3블록씩 손해를 본다. 107행짜리 실습이라 3블록이지, 치우친 대용량이면 이 차이가 그대로 사고가 된다.</p>
+  <div class="why"><span class="h">v$sql_bind_capture</span>커서가 잡은 바인드 값(첫 캡처 값)을 보여준다 — "이 커서의 플랜은 누가 정했나"를 추적하는 증거. datatype·max_length도 함께 나온다.</div>
+
+  <h3 class="blk"><span class="ix">10.6</span>Adaptive Cursor Sharing — 관찰(sensitive)에서 분화(aware)로</h3>
+  <pre class="term"><span class="pr">SQL&gt;</span> select a.ksppinm, b.ksppstvl from x$ksppi a, x$ksppsv b
+     where a.indx=b.indx and a.ksppinm in ('_optimizer_adaptive_cursor_sharing','_optim_peek_user_binds');
+<span class="out">_optimizer_adaptive_cursor_sharing   TRUE
+_optim_peek_user_binds               TRUE</span></pre>
+  <ul class="tight">
+    <li><code class="inl">_optim_peek_user_binds</code> — bind 변수를 포함한 SQL문이 최초로 실행될 때 bind 변수 값을 이용해 실행계획을 수립하는 기능.</li>
+    <li><code class="inl">_optimizer_adaptive_cursor_sharing</code> — bind peeking으로 최초 실행 시점에 실행계획이 결정되더라도, 이후 <b>새로운 bind 값이 사용되면 이에 맞게 실행계획을 세분화</b>한다(child cursor를 생성). 즉 bind 값의 분포도에 따라 실행계획을 분리해 사용한다.</li>
+  </ul>
+  <pre class="term"><span class="pr">SQL&gt;</span> select sql_id, plan_hash_value, is_bind_sensitive, is_bind_aware from v$sql where ...;
+<span class="out">dgcptsda7xr71   3956160932   <span class="hl">Y</span> <span class="hl">N</span>   ← sensitive=Y, aware=N</span></pre>
+  <table>
+    <tr><th>플래그</th><th>뜻</th><th>수업 실측</th></tr>
+    <tr><td><b>is_bind_sensitive</b></td><td>bind 값에 민감한 커서라는 표시 — 오라클이 값별 실행 통계를 관찰 중</td><td>Y (50↔10 반복 후)</td></tr>
+    <tr><td><b>is_bind_aware</b></td><td>bind 값에 따라 적절한 child cursor를 생성해 플랜을 분리 운용</td><td>N — 아직 분화 전</td></tr>
+  </table>
+  <div class="tip"><b>홈랩 관찰 과제.</b> 수업 실측은 sensitive=Y까지 — 같은 커서를 값을 바꿔가며 더 실행하면 aware=Y로 넘어가 child cursor가 갈라지는 순간을 볼 수 있을 것(전환 시점·횟수는 실측으로 재확인).</div>
+
+  <h3 class="blk"><span class="ix">10.7</span>수동 처방 — 값 범위로 SQL을 분기한다</h3>
+  <p>요구: <b>50·80 부서가 들어오면 full scan, 그 외 부서는 index range scan</b>. ACS를 기다리는 대신 SQL 자체를 분기한다:</p>
+  <pre class="term"><span class="pr">SQL&gt;</span> select /*+ full(e) */ * from hr.emp e
+     where :b_id in (50,80) and department_id = :b_id
+     <span class="hl">union all</span>
+     select /*+ index(e emp_dept_idx) */ * from hr.emp e
+     where :b_id not in (50,80) and department_id = :b_id;
+<span class="cm">-- :b_id = 50 실측: 위 브랜치만 산다</span>
+<span class="out">|  1 |  UNION-ALL                          |              |     1 |    45 |
+|* 2 |   FILTER  filter((:B_ID=50 OR :B_ID=80))           | <span class="hl">Starts 1</span> → A-Rows 45, Buffers 6
+|* 3 |    TABLE ACCESS FULL                | EMP          |
+|* 4 |   FILTER  filter((:B_ID&lt;&gt;80 AND :B_ID&lt;&gt;50))        | Starts 1 → 자식 <span class="hl">Starts 0</span>, Buffers 0
+|  5 |    TABLE ACCESS BY INDEX ROWID BATCHED| EMP        |
+|* 6 |     INDEX RANGE SCAN                | EMP_DEPT_IDX |</span></pre>
+  <p>FILTER의 조건 <code class="inl">(:B_ID=50 OR :B_ID=80)</code>은 테이블 필터가 아니라 <b>브랜치를 실행할지 말지 정하는 게이트</b>다. 거짓이면 자식 Starts 0·블록 0 — 실행계획 수준에서 잠긴다. PL/SQL이면 같은 분기를 <code class="inl">if :b_id in (50,80) then … full 힌트 … else … index 힌트</code>로 쓰면 된다(수업의 bulk collect 예제).</p>
+  <div class="why"><span class="h">이 무늬를 기억하라</span>항상 참/거짓이 갈리는 상수 게이트 FILTER — §11.2 파티션 뷰의 <code class="inl">NULL IS NOT NULL</code>과 같은 원리다. "이 브랜치는 볼 필요 없음"을 옵티마이저가 플랜에 박아 넣은 것.</div>
+</section>
+
+<section class="part" id="pt">
+  <div class="phead"><div class="pnum">11</div><div><div class="ptitle">파티션 — 읽을 범위를 설계로 줄인다 <span class="db add">79일차</span></div><div class="psub">파티션 뷰 · range · interval · hash · list · composite · Pstart/Pstop · <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/partition-concepts.html" style="color:var(--muted)">공식 매뉴얼 § Partitioning Concepts ↗</a></div></div></div>
+  <p><b class="k">Partition</b> = 테이블 또는 인덱스를 파티션 단위로 나누어 저장하는 객체. 하나의 테이블이라도 <b>파티션 키에 따라 물리적으로 별도의 세그먼트</b>에 데이터가 저장된다. 관리 측면 — 보관주기가 지난 데이터를 별도로 백업하고 지우는 일이 아주 쉬워진다. 성능 측면 — 대용량에서 인덱스를 통한 테이블 액세스(random I/O)는 일정량이 넘는 순간 full scan보다 못한 결과가 나오는데, 그렇다고 full scan도 부담스럽다. 파티션으로 나누면 <b>일부 파티션 세그먼트만 읽고 멈출 수 있다</b>(partition pruning).</p>
+
+  <h3 class="blk"><span class="ix">11.1</span>왜 파티션인가 — random I/O의 한계와 pruning</h3>
+  <figure>
+  <svg viewBox="0 0 760 168" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="pt1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aab3c0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <text class="svg-lbl" x="170" y="24" text-anchor="middle">비파티션 테이블</text>
+    <rect class="nal" x="40" y="36" width="260" height="96" rx="10"/>
+    <text class="svg-lbl" x="170" y="80" text-anchor="middle">세그먼트 1개</text>
+    <text class="svg-sub" x="170" y="100" text-anchor="middle">full이든 인덱스든 전 범위가 후보</text>
+    <text class="svg-lbl" x="590" y="24" text-anchor="middle">range(hire_date) 파티션</text>
+    <rect class="nmut" x="460" y="36" width="260" height="26" rx="7"/><text class="svg-mono" x="590" y="53" text-anchor="middle">P2004 — 건너뜀</text>
+    <rect class="ntune" x="460" y="70" width="260" height="26" rx="7"/><text class="svg-mono" x="590" y="87" text-anchor="middle">P2005 — 이 세그먼트만 읽음</text>
+    <rect class="nmut" x="460" y="104" width="260" height="26" rx="7"/><text class="svg-mono" x="590" y="121" text-anchor="middle">P2006 — 건너뜀</text>
+    <path class="edge" d="M304 84 H454" marker-end="url(#pt1)"/>
+    <text class="svg-sub" x="378" y="76" text-anchor="middle">where hire_date …</text>
+    <text class="svg-sub" x="378" y="102" text-anchor="middle">= pruning</text>
+  </svg>
+  <figcaption>파티션 키 조건이 있으면 옵티마이저는 해당 세그먼트만 읽는다 — 읽을 범위를 튜닝이 아니라 설계로 줄인다.</figcaption>
+  </figure>
+  <table>
+    <tr><th>측면</th><th>이득</th></tr>
+    <tr><td>관리</td><td>보관주기 지난 파티션만 백업·삭제 — 테이블 전체를 건드리지 않는다</td></tr>
+    <tr><td>성능</td><td>파티션 키 조건 → 일부 세그먼트만 스캔(pruning). 인덱스 random I/O의 한계와 full scan의 부담 사이 세 번째 길</td></tr>
+    <tr><td>동시성</td><td>hash 파티션은 동시 입력을 여러 세그먼트로 흩어 경합을 줄인다(§11.5)</td></tr>
+  </table>
+
+  <h3 class="blk"><span class="ix">11.2</span>파티션 뷰 (~7버전) — CHECK + UNION ALL로 흉내 낸 pruning</h3>
+  <p>7버전까지는 파티션 테이블이 없었다 — 테이블 3개에 <b>CHECK 제약</b>을 걸고 <b>UNION ALL 뷰</b>로 묶어 파티션을 구현했다:</p>
+  <pre class="term"><span class="pr">SQL&gt;</span> alter table hr.p1 add constraint c_dept_10 check(department_id &lt; 20);
+<span class="pr">SQL&gt;</span> alter table hr.p2 add constraint c_dept_20 check(department_id &gt;= 20 and department_id &lt; 30);
+<span class="pr">SQL&gt;</span> alter table hr.p3 add constraint c_dept_30 check(department_id &gt;= 30 and department_id &lt; 40);
+<span class="pr">SQL&gt;</span> create or replace view hr.emp_view as
+     select * from hr.p1 union all select * from hr.p2 union all select * from hr.p3;
+
+<span class="pr">SQL&gt;</span> select * from hr.emp_view where department_id = 10;
+<span class="out">|   2 |   UNION-ALL          |          |      1 |        |      1 |       7 |
+|*  3 |    TABLE ACCESS FULL | P1       |      1 |      1 |      1 |       7 |  ← 실제로 읽음
+|*  4 |    FILTER <span class="hl">filter(NULL IS NOT NULL)</span>  |      1 |        |      0 |       0 |
+|*  5 |     TABLE ACCESS FULL| P2       |      <span class="hl">0</span> |      1 |      0 |       0 |  ← Starts 0
+|*  6 |    FILTER <span class="hl">filter(NULL IS NOT NULL)</span>  |      1 |        |      0 |       0 |
+|*  7 |     TABLE ACCESS FULL| P3       |      <span class="hl">0</span> |      1 |      0 |       0 |  ← Starts 0</span></pre>
+  <p>CHECK 제약이 "P2·P3에는 dept=10이 있을 수 없다"를 보증하므로, 옵티마이저는 그 브랜치 위에 <b>항상 거짓인 게이트</b> <code class="inl">filter(NULL IS NOT NULL)</code>를 심는다 → 자식 Starts 0·Buffers 0. dept=10이면 7블록, 조건이 없으면 3테이블 전부 18블록.</p>
+  <div class="why"><span class="h">왜 NULL IS NOT NULL인가</span>옵티마이저가 "이 브랜치는 결과가 없다"를 표현하는 관용구다 — 항상 거짓이므로 자식을 시작조차 안 한다. 근거는 데이터가 아니라 <b>CHECK 제약이라는 약속</b>: 제약이 없으면 세 테이블을 다 읽어야 한다. §10.7 분기 union all의 <code class="inl">:B_ID=50 OR :B_ID=80</code> 게이트와 같은 무늬 — 저쪽은 바인드 값이, 이쪽은 제약이 게이트의 진릿값을 정한다.</div>
+
+  <h3 class="blk"><span class="ix">11.3</span>range 파티션 (8버전) — 이력 데이터의 기본형</h3>
+  <ul class="tight">
+    <li>이력성 데이터 조회에 유리 — 기간 조건이 파티션 키에 떨어진다.</li>
+    <li>여러 컬럼을 파티션 키로 지정 가능(<b>최대 16개</b>).</li>
+    <li><code class="inl">maxvalue</code> 파티션으로 경계 밖 값을 받는다.</li>
+  </ul>
+  <pre class="term"><span class="pr">SQL&gt;</span> create table hr.emp_year
+     partition by range(hire_date)
+     ( partition p2004 values less than(to_date('2005-01-01','yyyy-mm-dd')),
+       partition p2005 values less than(to_date('2006-01-01','yyyy-mm-dd')),
+       partition p2006 values less than(to_date('2007-01-01','yyyy-mm-dd')),
+       partition pmax  values less than(<span class="hl">maxvalue</span>) )
+     as select employee_id, last_name, salary, hire_date, department_id from hr.employees;
+<span class="cm">-- less than(2005-01-01) = "&lt; 2005-01-01(미만)" · pmax = "&gt;= 2007-01-01 전부"</span>
+<span class="pr">SQL&gt;</span> select partition_name, high_value from dba_tab_partitions where table_name='EMP_YEAR';
+<span class="out">P2004  TO_DATE(' 2005-01-01 00:00:00', 'SYYYY-MM-DD...')   ← 경계는 딕셔너리에
+P2005  TO_DATE(' 2006-01-01 ...)   P2006  TO_DATE(' 2007-01-01 ...)   PMAX  <span class="hl">MAXVALUE</span></span>
+<span class="pr">SQL&gt;</span> select * from hr.emp_year <span class="hl">partition(p2004)</span>;   <span class="cm">-- 파티션 지정 조회</span>
+<span class="pr">SQL&gt;</span> select column_name from dba_part_key_columns where name='EMP_YEAR';   <span class="out">→ HIRE_DATE</span></pre>
+  <div class="why"><span class="h">왜 range가 기본형인가</span>보관주기 관리와 조건이 <b>같은 축</b>(기간)이기 때문이다. "2004년 데이터"는 조회 조건이면서 동시에 백업·삭제의 단위 — pruning(성능)과 파티션 drop(관리)이 한 설계에서 나온다. 경계 정의는 딕셔너리(<code class="inl">high_value</code>)가 문서 역할을 하므로, 파티션 구성이 궁금하면 DDL이 아니라 dba_tab_partitions를 본다.</div>
+
+  <h3 class="blk"><span class="ix">11.4</span>interval 파티션 (11g) — 정해진 간격으로 자동 증설</h3>
+  <p>range는 경계를 사람이 미리 만들어야 한다. <b>interval 기준으로 정의하면 정해진 간격으로 파티션이 자동 추가</b>된다:</p>
+  <pre class="term"><span class="pr">SQL&gt;</span> create table hr.emp_year
+     partition by range(hire_date) <span class="hl">interval(numtoyminterval(1,'year'))</span>
+     ( partition p2004 values less than(to_date('2005-01-01','yyyy-mm-dd')),
+       partition p2005 values less than(to_date('2006-01-01','yyyy-mm-dd')),
+       partition p2006 values less than(to_date('2007-01-01','yyyy-mm-dd')) ) ...
+<span class="cm">-- 2007 이후 데이터가 들어오자 1년 간격 파티션이 자동 생성:</span>
+<span class="pr">SQL&gt;</span> select * from hr.emp_year partition(<span class="hl">SYS_P769</span>);   <span class="cm">-- SYS_P770 …</span></pre>
+  <p>maxvalue 파티션 없이도 넘치는 값이 자동 수용된다는 점이 range와의 차이. 자동 생성 파티션 이름은 <code class="inl">SYS_P&lt;n&gt;</code>. 간격 정의에 쓰는 interval 함수들(78일차 곁가지의 연장):</p>
+  <table>
+    <tr><th>함수</th><th>뜻</th><th>실측</th></tr>
+    <tr><td><code>to_yminterval('1-10')</code></td><td>1년 10개월 (interval year to month 리터럴)</td><td>sysdate + → 10-MAY-28</td></tr>
+    <tr><td><code>numtoyminterval(1,'year')</code></td><td>숫자 → year/month interval</td><td>interval 파티션 간격 정의에 사용</td></tr>
+    <tr><td><code>to_dsinterval('10 10:10:10')</code></td><td>10일 10:10:10 (day to second 리터럴)</td><td>localtimestamp + → 21-JUL-26 02:29:58</td></tr>
+    <tr><td><code>numtodsinterval(10,'day')</code></td><td>숫자 → day/hour/minute/second interval</td><td>'hour'·'minute'·'second'도 동일</td></tr>
+  </table>
+  <div class="why"><span class="h">왜 interval이 필요한가</span>range의 약점은 <b>미래 경계를 사람이 계속 만들어야 한다</b>는 것 — 연말마다 파티션 추가 작업을 잊으면 maxvalue에 데이터가 쌓이거나 insert가 실패한다. interval은 "간격"만 약속하면 경계 밖 첫 데이터가 도착하는 순간 오라클이 파티션을 만들어 준다(실측 SYS_P769·770). 운영 실수 한 종류가 설계로 사라지는 셈.</div>
+
+  <h3 class="blk"><span class="ix">11.5</span>hash 파티션 (8i) — 의미가 아니라 양으로 나눈다</h3>
+  <ul class="tight">
+    <li>파티션 키 값에 <b>해시 함수</b>를 적용해 분할 — 경계(high_value)가 없다.</li>
+    <li>중복이 많은 값보다 <b>유일한 키·분포가 고른 컬럼</b>을 파티션 키로 선정한다.</li>
+    <li>파티션 개수는 <b>2의 제곱</b>(2, 4, 8, 16, …)으로.</li>
+    <li>pruning은 <b><code class="inl">=</code>·<code class="inl">in</code> 조건에서만</b> 동작한다 — 해시라 범위 조건은 못 자른다.</li>
+    <li>병렬 쿼리 성능뿐 아니라 <b>동시 입력이 많은 테이블·인덱스의 경합을 줄일 목적</b>으로 쓴다.</li>
+  </ul>
+  <pre class="term"><span class="pr">SQL&gt;</span> create table hr.emp_hash partition by <span class="hl">hash(employee_id) partitions 4</span> ...
+<span class="pr">SQL&gt;</span> select partition_name, high_value from dba_tab_partitions where table_name='EMP_HASH';
+<span class="out">SYS_P771 (high_value 없음)  SYS_P772  SYS_P773  SYS_P774</span></pre>
+  <div class="why"><span class="h">range/list vs hash</span>range·list는 데이터의 <b>의미</b>(기간·그룹)로 나눠 검색 범위를 줄이는 게 목적이고, hash는 <b>양</b>으로 균등하게 흩어 넣을 때의 경합(같은 세그먼트로 몰림)을 줄이는 게 목적이다.</div>
+
+  <h3 class="blk"><span class="ix">11.6</span>list 파티션 (9i) — 정해진 그룹, 그리고 default</h3>
+  <ul class="tight">
+    <li>미리 정해진 <b>값 목록</b>을 기준으로 분할 저장.</li>
+    <li>파티션 키는 <b>단일 컬럼만</b> 지정 가능.</li>
+  </ul>
+  <pre class="term"><span class="pr">SQL&gt;</span> create table hr.emp_list partition by <span class="hl">list(department_id)</span>
+     ( partition p_dept_1 values(10,20,30,40),
+       partition p_dept_2 values(50),
+       partition p_dept_3 values(60,70,80,90,100,110),
+       partition p_dept_4 values(<span class="hl">default</span>) ) ...
+<span class="pr">SQL&gt;</span> select * from hr.emp_list partition(p_dept_4);
+<span class="out">178  Grant   7000  24-MAY-07   (DEPARTMENT_ID <span class="hl">null</span>)  ← 목록 밖 값·NULL은 default로</span></pre>
+
+  <h3 class="blk"><span class="ix">11.7</span>composite 조합 파티션 — range-hash 4×4와 Pstart/Pstop 읽기</h3>
+  <p>주 파티션 키로 1차 분배하고, <b>서브 파티션 키가 최종 저장 위치(세그먼트)를 결정</b>한다 — 세그먼트는 서브 파티션마다 하나씩. 조합 연혁: range-hash(8i) · range-list(9i) · range-range·list-hash·list-list·list-range(11g).</p>
+  <pre class="term"><span class="pr">SQL&gt;</span> create table hr.emp_comp
+     partition by <span class="hl">range(salary)</span> subpartition by <span class="hl">hash(employee_id) subpartitions 4</span>
+     ( partition p4999 values less than(5000), partition p9999 values less than(10000),
+       partition p19999 values less than(20000), partition pmax values less than(maxvalue) ) ...
+<span class="cm">-- 4 파티션 × 4 서브파티션 = 세그먼트 16개 (SYS_SUBP1084~1099):
+--   p4999  [h1 h2 h3 h4]     p9999  [h5 h6 h7 h8]
+--   p19999 [h9 h10 h11 h12]  pmax   [h13 h14 h15 h16]  ← 서브파티션은 전체 일련번호</span></pre>
+  <p><code class="inl">display_cursor(...,'allstats last <b>+partition</b>')</code>으로 Pstart/Pstop을 보면, 어떤 조건이 몇 개 세그먼트를 읽는지가 그대로 드러난다:</p>
+  <table>
+    <tr><th>조건</th><th>RANGE 연산</th><th>HASH 연산</th><th>읽은 세그먼트</th><th>Buffers</th></tr>
+    <tr><td>salary&lt;5000 and emp_id=200</td><td>SINGLE (1·1)</td><td>SINGLE (1·1)</td><td><b>1</b>/16</td><td>3</td></tr>
+    <tr><td>salary&lt;5000 and emp_id=105</td><td>SINGLE (1·1)</td><td>SINGLE (3·3)</td><td><b>1</b>/16</td><td>4</td></tr>
+    <tr><td>salary&lt;5000 (범위 키만)</td><td>SINGLE (1·1)</td><td>ALL (1–4), Starts 4</td><td>4/16</td><td>12</td></tr>
+    <tr><td>salary&gt;20000</td><td>SINGLE (4·4)</td><td>ALL (<b>13–16</b>)</td><td>4/16</td><td>2</td></tr>
+    <tr><td>emp_id=100 (해시 키만)</td><td><b>ALL (1–4)</b></td><td>SINGLE (3·3), Starts 4</td><td>4/16</td><td>8</td></tr>
+    <tr><td>salary&gt;20000 and emp_id=100</td><td>SINGLE (4·4)</td><td>SINGLE (<b>15·15</b>)</td><td><b>1</b>/16</td><td>2</td></tr>
+  </table>
+  <pre class="term"><span class="cm">-- 두 키를 다 주면 16분의 1만 읽는다:</span>
+<span class="out">|  1 |  PARTITION RANGE <span class="hl">SINGLE</span>|          | Pstart 4  Pstop 4  |
+|  2 |   PARTITION HASH <span class="hl">SINGLE</span>|          | Pstart <span class="hl">15</span> Pstop <span class="hl">15</span> |  ← pmax의 3번째 = 전체 15번
+|* 3 |    TABLE ACCESS FULL   | EMP_COMP | Buffers 2 |</span></pre>
+  <p>키 하나만 확정되면 그 축은 SINGLE, 못 정한 축은 ALL(Starts가 그 개수만큼 반복). HASH의 Pstart/Pstop이 13–16, 15처럼 나오는 것은 <b>서브 파티션의 전체 일련번호</b>다(4번 파티션의 h1~h4 = 13~16).</p>
+  <div class="why"><span class="h">pruning도 산수다</span>E-Rows가 산수였듯(§9.4), pruning은 "조건이 파티션 키를 확정하는가"의 문제다. 조건에 어느 키를 넣느냐가 읽을 세그먼트 수(1/16 vs 4/16 vs 16/16)를 정한다 — where절 설계가 곧 I/O 설계.</div>
+</section>
+
 <section class="part" id="road">
   <div class="phead"><div class="pnum">▶</div><div><div class="ptitle">앞으로 다룰 것 (로드맵)</div><div class="psub">수업이 진행되며 채워 나갈 목차</div></div></div>
   <ul class="road">
@@ -1154,7 +1422,9 @@ Predicate Information:
     <li class="done"><span class="n">07</span><a href="#join" style="color:var(--tune);font-weight:600">조인 방식</a> — Nested Loop · Sort Merge · Hash, 순서와 Starts로 반복 읽기 <span class="tag">완료</span></li>
     <li class="done"><span class="n">08</span><a href="#qt" style="color:var(--tune);font-weight:600">쿼리 변환</a> — filter↔unnest(semi/anti) · 조인 제거 · OR-expansion · push_subq · view merging · 조건절 이동 · 집계→분석함수 · bloom <span class="tag">완료</span></li>
     <li class="done"><span class="n">09</span><a href="#opt" style="color:var(--tune);font-weight:600">옵티마이저 & 통계</a> — RBO→CBO · 3단 파이프라인(selectivity·cardinality) · 히스토그램(method_opt) · 자동 수집·stale · 통계 시간 여행 <span class="tag">완료</span></li>
-    <li><span class="n">10</span>증상→원인→처방 안티패턴 + 자주 쓰는 힌트 <span class="tag">예정</span></li>
+    <li class="done"><span class="n">10</span><a href="#cs" style="color:var(--tune);font-weight:600">커서 공유 & Bind Peeking</a> — literal vs bind · cursor_sharing=FORCE · peeking+히스토그램 함정 · ACS(sensitive/aware) · 분기 SQL <span class="tag">완료</span></li>
+    <li class="done"><span class="n">11</span><a href="#pt" style="color:var(--tune);font-weight:600">파티션</a> — 파티션 뷰(CHECK+UNION ALL) · range·interval·hash·list·composite · Pstart/Pstop <span class="tag">진행 중(79일차~)</span></li>
+    <li><span class="n">12</span>증상→원인→처방 안티패턴 + 자주 쓰는 힌트 <span class="tag">예정</span></li>
   </ul>
   <div class="why"><span class="h">메모</span>구조 지식(HWM·scattered read·버퍼 캐시·블록)은 <b>내부구조편 가이드</b>에, 그걸 활용하는 기법은 이 문서에 쌓는다. 새 수업이 오면 위 로드맵을 하나씩 완료로 바꿔 간다.</div>
 </section>

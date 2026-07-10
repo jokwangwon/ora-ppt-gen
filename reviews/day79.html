@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>79일차 복습 시트</title>
+<style>
+body{margin:0;background:#f6f8fa;color:#34343c;font-family:'Lato','Noto Sans KR',-apple-system,sans-serif;line-height:1.7}
+.wrap{max-width:820px;margin:0 auto;padding:36px 22px 80px}
+.top{font-size:12px;color:#7c828a;margin-bottom:6px}
+h2{color:#1b1b1f;font-size:22px;margin:4px 0 14px}
+h3{color:#1b1b1f;font-size:16px;margin:26px 0 8px;padding-top:14px;border-top:1px solid #e7ebef}
+h4{font-size:14px;color:#7c828a;margin:16px 0 4px}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(23,32,50,.05)}
+th{text-align:left;font-size:12px;color:#7c828a;padding:9px 12px;border-bottom:2px solid #e7ebef;background:#fbfcfd}
+td{padding:8px 12px;border-bottom:1px solid #eef1f4;vertical-align:top}
+code{font-family:ui-monospace,monospace;font-size:.85em;background:#eef1f4;padding:1px 6px;border-radius:5px}
+.note{background:#e9f2fb;border:1px solid #cfe0fb;border-radius:11px;padding:11px 14px;font-size:13px;color:#1f4f9e;margin:10px 0}
+hr{border:none;border-top:1px dashed #e7ebef;margin:18px 0}
+ul,ol{padding-left:22px}
+.back{position:fixed;right:16px;bottom:16px;background:#1d7dcc;color:#fff;font:700 13px/1 system-ui;text-decoration:none;padding:11px 15px;border-radius:24px;box-shadow:0 4px 14px rgba(0,0,0,.22)}
+</style></head><body><div class="wrap">
+<div class="top">Oracle DBA 학습 자료실 · 일일 복습</div>
+<h2>79일차 복습 시트</h2>
+<div class='note'>오늘 하루를 한 장으로 — 축·개념·명령어·요약. 막히는 개념은 옆의 [문서 §] 링크로 바로 이동해 다시 읽고, 마지막에 허브에서 문제로 마무리.</div>
+<hr>
+<h3>[오늘의 축]</h3>
+<div class='note'><b>공유된 플랜은 '첫 값'이 정하고(bind peeking), 읽을 세그먼트는 'where절의 키'가 정한다(partition pruning) — 둘 다 실행계획에 증거(bind_capture · Pstart/Pstop)가 찍힌다.</b></div>
+<p>전반부는 커서 공유의 이득(리터럴 5커서→FORCE 1커서)과 함정(peeking+치우침+히스토그램), 오라클의 해법 ACS와 수동 분기. 후반부는 파티션 5형제(뷰·range·interval·hash·list·composite)와 Pstart/Pstop 읽기.</p>
+<h3>[개념 제목] (수업 등장 순)</h3>
+<ol>
+<li><b>리터럴 5문장 = 커서 5개</b> — sql_id/hash_value는 텍스트 해시, plan_hash_value(2466118986)는 플랜 해시 · <a href='../assets/sql_tuning.html#cs' class='cmp-link'>문서 §10.1</a></li>
+<li><b>cursor_sharing=FORCE</b> — 리터럴→<code>:"SYS_B_0"</code> 치환, 커서 1개(PARSE 5·LOADS 1) · <a href='../assets/sql_tuning.html#cs' class='cmp-link'>문서 §10.2</a></li>
+<li><b>bind peeking</b> — <code>_optim_peek_user_binds</code>, 첫 실행 값으로 플랜 수립→전원 재사용 · <a href='../assets/sql_tuning.html#cs' class='cmp-link'>문서 §10.3</a></li>
+<li><b>히스토그램+FORCE 함정</b> — peek=50이면 전원 full(plan_hash 3956160932) · <a href='../assets/sql_tuning.html#cs' class='cmp-link'>문서 §10.4</a></li>
+<li><b>v$sql_bind_capture</b> — 첫 캡처 값(10 or 50)만 — "플랜을 누가 정했나"의 증거 · <a href='../assets/sql_tuning.html#cs' class='cmp-link'>문서 §10.5</a></li>
+<li><b>ACS</b> — is_bind_sensitive(Y=관찰 중) / is_bind_aware(N=분화 전), child cursor 세분화 · <a href='../assets/sql_tuning.html#cs' class='cmp-link'>문서 §10.6</a></li>
+<li><b>수동 분기</b> — <code>:b_id in (50,80)</code> FILTER 게이트 + union all, 거짓 브랜치 Starts 0 · <a href='../assets/sql_tuning.html#cs' class='cmp-link'>문서 §10.7</a></li>
+<li><b>파티션 왜</b> — 관리(보관주기)·성능(random I/O 한계→pruning)·경합(hash) · <a href='../assets/sql_tuning.html#pt' class='cmp-link'>문서 §11.1</a></li>
+<li><b>파티션 뷰(~7)</b> — CHECK+UNION ALL, <code>filter(NULL IS NOT NULL)</code> 게이트 · <a href='../assets/sql_tuning.html#pt' class='cmp-link'>문서 §11.2</a></li>
+<li><b>range(8)·interval(11g)</b> — less than·maxvalue / 간격 자동 증설(SYS_P769) · <a href='../assets/sql_tuning.html#pt' class='cmp-link'>문서 §11.3~11.4</a></li>
+<li><b>hash(8i)·list(9i)</b> — 2^n·=/in만 pruning·경합 완화 / 값 목록·default(NULL 포함) · <a href='../assets/sql_tuning.html#pt' class='cmp-link'>문서 §11.5~11.6</a></li>
+<li><b>composite 4×4 — Pstart/Pstop</b> — 확정 축=SINGLE·미확정 축=ALL, 서브번호는 전체 일련번호(13~16) · <a href='../assets/sql_tuning.html#pt' class='cmp-link'>문서 §11.7</a></li>
+</ol>
+<h3>[실습 명령어 정리] (실행 순서 + 결과 요지)</h3>
+<table><tr><th>#</th><th>명령</th><th>결과 요지</th></tr>
+<tr><td>1</td><td>emp 재생성(random) + emp_idx(unique)·emp_dept_idx</td><td>실습 준비 — 107행, dept 10=1명·50=45명·80=34명</td></tr>
+<tr><td>2</td><td>리터럴 employee_id=100~104 ×5 → v$sql</td><td>sql_id <b>5개</b>·LOADS 1씩(hard parse 5번), plan_hash <b>동일</b></td></tr>
+<tr><td>3</td><td><code>alter session set cursor_sharing=force</code> 후 동일 5문장</td><td><code>:"SYS_B_0"</code> 커서 <b>1개</b> — PARSE 5·LOADS 1·EXEC 5</td></tr>
+<tr><td>4</td><td>FORCE + dept 10→20→50→80 (히스토그램 없음)</td><td>E-Rows 10 index plan — 순서 바꿔도 동일(균등 가정)</td></tr>
+<tr><td>5</td><td>EXACT + 리터럴 dept 50, 10</td><td>커서 2개, 둘 다 같은 index plan(E-Rows 10)</td></tr>
+<tr><td>6</td><td><code>gather_table_stats(... 'for columns department_id size 12')</code></td><td>DEPARTMENT_ID <b>FREQUENCY</b> — 이제 50=45명을 안다</td></tr>
+<tr><td>7</td><td>FORCE + 50 먼저 (재현)</td><td>plan_hash <b>3956160932 = FULL</b>, E-Rows 45 — 10·20·80도 full</td></tr>
+<tr><td>8</td><td>(같은 조건 1차 실측)</td><td>E-Rows 45의 <b>index plan(cost 6, LOADS 3)</b> — 원인 미설명, 홈랩 재확인</td></tr>
+<tr><td>9</td><td><code>var b_id</code> :b_id=10 먼저 → 50 재사용</td><td>index 플랜 고정 — bind_capture VALUE_STRING <b>10</b></td></tr>
+<tr><td>10</td><td>flush 후 :b_id=50 먼저 → 10 재사용</td><td><b>FULL</b> 플랜 고정 — bind_capture <b>50</b></td></tr>
+<tr><td>11</td><td><code>is_bind_sensitive, is_bind_aware</code> 조회</td><td><b>Y / N</b> — 관찰 시작, child 분화 전</td></tr>
+<tr><td>12</td><td>allstats last 값별 실측</td><td>10→A-Rows 1·Buf 3 / 50→45·<b>9</b>(index) vs <b>6</b>(full 힌트) / 80→34·8</td></tr>
+<tr><td>13</td><td><code>:b_id in (50,80)</code> full + <code>not in</code> index, union all</td><td>FILTER 게이트 — :b_id=50: full 브랜치 Starts 1, index 브랜치 <b>Starts 0·Buf 0</b></td></tr>
+<tr><td>14</td><td>PL/SQL if-else + bulk collect</td><td>같은 분기를 절차적으로 — 부서 없으면 안내 메시지</td></tr>
+<tr><td>15</td><td>p1/p2/p3 + CHECK + UNION ALL 뷰, dept=10</td><td>P1만 읽음(Buf 7) — P2/P3 <code>filter(NULL IS NOT NULL)</code> <b>Starts 0</b> (전체 조회는 Buf 18)</td></tr>
+<tr><td>16</td><td><code>partition by range(hire_date)</code> 4개(pmax 포함)</td><td>high_value는 dba_tab_partitions에 — <code>partition(p2004)</code> 지정 조회</td></tr>
+<tr><td>17</td><td><code>interval(numtoyminterval(1,'year'))</code> 재생성</td><td>경계 밖 값 → <b>SYS_P769·770 자동 생성</b> (maxvalue 불필요)</td></tr>
+<tr><td>18</td><td>interval 함수 4종</td><td>to_yminterval('1-10')→10-MAY-28 · to_dsinterval('10 10:10:10')→21-JUL-26</td></tr>
+<tr><td>19</td><td><code>partition by hash(employee_id) partitions 4</code></td><td>SYS_P771~774, high_value 없음 — =·in만 pruning</td></tr>
+<tr><td>20</td><td><code>partition by list(department_id)</code> + values(default)</td><td>dept NULL인 <b>Grant(178)</b>가 default 파티션에</td></tr>
+<tr><td>21</td><td><code>range(salary) subpartition by hash(employee_id) subpartitions 4</code></td><td>4×4 = <b>세그먼트 16개</b>(SYS_SUBP1084~1099)</td></tr>
+<tr><td>22</td><td><code>+partition</code> 포맷으로 6가지 조건 실측</td><td>두 키=1/16(Buf 2~3) · 한 키=4/16(Starts 4) · HASH 번호는 <b>전체 일련번호</b>(pmax h3=15)</td></tr>
+</table>
+<h3>[5줄 요약]</h3>
+<ol>
+<li><b>sql_id는 텍스트의 해시</b> — 값만 다른 리터럴 5문장이 같은 플랜을 5번 hard parse했다. FORCE가 <code>:"SYS_B_0"</code>으로 묶어 커서 1개로.</li>
+<li><b>bind peeking은 첫 값이 모두의 플랜을 정한다</b> — 10 먼저면 50도 index(9블록, full이면 6), 50 먼저면 10도 full. 증거는 v$sql_bind_capture의 첫 캡처 값.</li>
+<li><b>함정의 재료는 3개</b> — peeking + 치우친 분포 + 히스토그램. 히스토그램이 없으면 어떤 값이든 E-Rows 10이라 함정 자체가 안 보인다.</li>
+<li><b>해법은 ACS(sensitive→aware child 분화) 또는 분기 SQL</b> — FILTER 게이트(<code>:B_ID=50 OR 80</code>)가 거짓 브랜치를 Starts 0으로 잠근다. 파티션 뷰의 <code>NULL IS NOT NULL</code>과 같은 무늬.</li>
+<li><b>파티션은 읽을 범위를 설계로 줄인다</b> — range=이력·interval=자동 증설·hash=경합(=·in만)·list=그룹+default. composite의 Pstart/Pstop: 확정 축 SINGLE·미확정 축 ALL, 두 키를 다 주면 16분의 1(Buffers 2).</li>
+</ol>
+<h3>[건너뛴 것 — 매뉴얼 대비]</h3>
+<table><tr><th>안 다룬 것</th><th>추정 이유</th><th>공부하러 가기</th></tr>
+<tr><td>히스토그램+FORCE 실측 불일치(index cost 6 vs full)</td><td>노트에 원인 설명 없음</td><td>? → 홈랩 flush로 순서 통제 재현</td></tr>
+<tr><td>ACS aware=Y 전환(child cursor 실제 분화)</td><td>수업은 sensitive=Y까지</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/improving-rwp-cursor-sharing.html' class='cmp-link'>매뉴얼 § Cursor Sharing</a> · 홈랩 관찰</td></tr>
+<tr><td>파티션 인덱스(local/global)</td><td>① 다음 차시 추정</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/partition-concepts.html' class='cmp-link'>매뉴얼 § Partitioning Concepts</a></td></tr>
+<tr><td>reference·system 등 그 외 파티션 유형</td><td>④ 심화</td><td>위 매뉴얼 같은 장</td></tr>
+</table>
+<h3>홈랩 재현 목록</h3>
+<ol>
+<li><b>peek 순서 통제 실험</b> — flush → FORCE+히스토그램에서 50 먼저/10 먼저 각각 → 공유 플랜이 full/index로 갈리는지 재확인 (수업 실측 8번 불일치 해소)</li>
+<li><b>aware=Y 잡기</b> — :b_id 10↔50 반복 실행하며 v$sql의 is_bind_aware·child_number 관찰</li>
+<li>(이월) SA_REP·dept=50 E-Rows 10 — 히스토그램 후에도 10인 이유</li>
+</ol>
+<hr>
+<h3>복습 동선 (10분)</h3>
+<ol>
+<li><b>[오늘의 축]</b> 한 줄을 소리 내어 설명해보기 — peeking의 3재료와 pruning의 SINGLE/ALL 규칙</li>
+<li><b>[개념 제목]</b> 을 훑으며 설명 안 되는 것만 [문서 §] 링크로 이동해 그 부분 재독</li>
+<li><b>[명령어 표]</b> 의 결과 숫자(5커서→1커서 / Buf 9 vs 6 / 7 vs 18블록 / 1/16·4/16·Pstop 15)를 가리고 떠올려보기</li>
+<li>마무리 — <a href='../assets/study_hub_full.html' class='cmp-link'>허브에서 79일차 문제 풀기</a> (날짜칩 79 필터)</li>
+</ol>
+</div><a class="back" href="../index.html">&larr; 자료실</a></body></html>

@@ -1,0 +1,155 @@
+{
+  "MCQ": [
+    {
+      "id": "m79a",
+      "d": 79,
+      "q": "값만 다른 리터럴 SQL 5문장(employee_id=100~104)을 실행한 뒤 v$sql에서 관찰된 것은?",
+      "o": [
+        "sql_id가 5개 생겼고 plan_hash_value도 5개 모두 달랐다",
+        "sql_id가 5개 생겼지만 plan_hash_value는 5개 모두 같았다",
+        "sql_id 1개에 EXECUTIONS만 5로 올라가 커서가 공유됐다",
+        "sql_id 1개 아래에 child cursor가 5개 생겨 분화됐다"
+      ],
+      "a": 1,
+      "e": "sql_id·hash_value는 SQL '텍스트'의 해시라 값만 달라도 커서가 갈린다(5개). 하는 일은 같아서 plan_hash_value는 2466118986으로 동일 — 같은 플랜을 hard parse 5번으로 5자리에 만든 낭비다."
+    },
+    {
+      "id": "m79b",
+      "d": 79,
+      "q": "cursor_sharing 파라미터에 대한 설명으로 옳은 것은?",
+      "o": [
+        "EXACT가 기본값 — SQL문이 똑같은 경우에만 커서를 공유한다",
+        "FORCE가 기본값 — 모든 리터럴을 자동으로 바인드 변수로 바꾼다",
+        "EXACT는 리터럴을 :\"SYS_B_0\" 같은 시스템 바인드로 치환한다",
+        "FORCE는 바인드 변수를 리터럴로 되돌려 히스토그램을 활용한다"
+      ],
+      "a": 0,
+      "e": "기본값 EXACT는 텍스트가 완전히 같아야 공유. FORCE로 바꾸면 값만 다른 리터럴을 :\"SYS_B_0\"으로 대체해 커서 하나(PARSE_CALLS 5·LOADS 1·EXECUTIONS 5)로 합친다."
+    },
+    {
+      "id": "m79c",
+      "d": 79,
+      "q": "bind peeking이 '전원 full scan' 같은 사고로 이어지기 위해 함께 필요한 재료의 조합은?",
+      "o": [
+        "치우친 데이터 분포 + 해당 컬럼의 히스토그램",
+        "unique 인덱스 + PK 제약이 걸린 조인 컬럼",
+        "cursor_sharing=EXACT + 리터럴로 작성된 SQL",
+        "통계 삭제 + dynamic sampling(level=2) 동작"
+      ],
+      "a": 0,
+      "e": "peeking 단독은 무해 — 히스토그램이 없으면 어떤 값이든 E-Rows 10(균등 가정)으로 계산이 같아 플랜이 갈릴 일이 없다(실측). 치우침+히스토그램이 더해지면 peek된 첫 값(50이면 full)이 모두의 플랜이 된다."
+    },
+    {
+      "id": "m79d",
+      "d": 79,
+      "q": ":b_id=10으로 먼저 실행하고 :b_id=50으로 재실행한 커서를 v$sql_bind_capture에서 조회하면 VALUE_STRING은?",
+      "o": [
+        "10 — 커서가 캡처한 첫 값만 보인다",
+        "50 — 가장 최근에 실행된 값이 보인다",
+        "10과 50이 각각 한 행씩 두 행 보인다",
+        "NULL — SELECT의 바인드는 캡처되지 않는다"
+      ],
+      "a": 0,
+      "e": "실측 VALUE_STRING은 10. v$sql_bind_capture는 커서가 잡은 첫 캡처 값을 보여준다 — '이 커서의 플랜은 누가 정했나'를 추적하는 증거다."
+    },
+    {
+      "id": "m79e",
+      "d": 79,
+      "q": "수업 실측에서 값(10↔50)을 바꿔 재실행한 커서의 (is_bind_sensitive, is_bind_aware) 조합은?",
+      "o": [
+        "(Y, N) — 값에 민감하다는 관찰 표시까지, child 분화는 아직",
+        "(Y, Y) — 값 분포별 child cursor 분화까지 완료된 상태",
+        "(N, N) — 히든 파라미터가 꺼져 있어 ACS가 동작 안 함",
+        "(N, Y) — aware 플래그가 sensitive보다 먼저 켜진 상태"
+      ],
+      "a": 0,
+      "e": "실측은 Y, N. sensitive=오라클이 값별 실행 통계를 관찰 중이라는 표시, aware=값 분포에 따라 child cursor를 분리 운용하는 단계. 분화가 일어나는 시점은 홈랩 관찰 과제."
+    },
+    {
+      "id": "m79f",
+      "d": 79,
+      "q": "파티션 뷰(CHECK 제약 + UNION ALL)에서 dept=10을 조회했을 때 P2·P3 브랜치에 나타난 것은?",
+      "ref": "https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/partition-concepts.html",
+      "o": [
+        "filter(NULL IS NOT NULL) 게이트가 붙고 자식 Starts 0",
+        "CHECK 제약이 access predicate로 변환되어 인덱스 스캔",
+        "PARTITION RANGE SINGLE 연산으로 해당 브랜치만 접근",
+        "VIEW PUSHED PREDICATE로 조건이 각 브랜치에 내려감"
+      ],
+      "a": 0,
+      "e": "CHECK 제약이 'P2·P3에는 dept=10이 없다'를 보증하므로 옵티마이저가 항상 거짓인 게이트 filter(NULL IS NOT NULL)를 심는다 → Starts 0·Buffers 0. 7버전까지 파티션을 이렇게 흉내 냈다."
+    },
+    {
+      "id": "m79g",
+      "d": 79,
+      "q": "range(salary)-hash(employee_id) 4×4 조합 파티션에서 employee_id=100만 조건으로 준 실측 플랜은?",
+      "ref": "https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/partition-concepts.html",
+      "o": [
+        "PARTITION RANGE ALL + HASH SINGLE — 파티션마다 같은 해시 위치만 4곳",
+        "PARTITION RANGE SINGLE + HASH SINGLE — 두 키 확정으로 세그먼트 1개",
+        "PARTITION RANGE ALL + HASH ALL — 어느 축도 못 잘라 16개 전부 스캔",
+        "TABLE ACCESS FULL 단독 — 서브 파티션 키만으로는 pruning이 안 된다"
+      ],
+      "a": 0,
+      "e": "range 키(salary)가 없어 RANGE ALL(1–4), 해시 키는 확정이라 각 파티션 안에서 HASH SINGLE(3·3) — Starts 4, 4/16 세그먼트, Buffers 8. 두 키를 다 주면 1/16(Buffers 2)까지 줄어든다."
+    },
+    {
+      "id": "m79h",
+      "d": 79,
+      "q": "hash 파티션에서 partition pruning이 동작하는 조건은?",
+      "ref": "https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/partition-concepts.html",
+      "o": [
+        "=, in 조건을 검색할 때만",
+        "between 같은 범위 조건일 때만",
+        "where 조건이면 종류와 무관하게 항상",
+        "파티션 키에 인덱스가 함께 있을 때만"
+      ],
+      "a": 0,
+      "e": "해시 함수로 위치를 정하므로 값이 확정되는 =·in만 자를 수 있다 — 범위 조건은 어느 파티션인지 계산할 수 없다. 그래서 유일하고 분포가 고른 컬럼, 2의 제곱 개수가 권장."
+    }
+  ],
+  "ESSAY": [
+    {
+      "id": "e79a",
+      "d": 79,
+      "q": "bind peeking이 무엇인지 설명하고, ':b_id=10 먼저'와 ':b_id=50 먼저' 두 실측이 왜 서로 다른 플랜(index vs full)을 모두에게 강제했는지, 50이 index 플랜을 재사용할 때의 비용 차이(Buffers)까지 근거로 들어 설명하라.",
+      "a": "bind peeking(_optim_peek_user_binds)은 바인드 변수 SQL이 최초 실행될 때 그 바인드 값을 훔쳐봐 실행계획을 수립하는 기능이다. 파싱 시점엔 값을 몰라 히스토그램을 쓸 수 없기 때문. 문제는 그렇게 정한 플랜을 이후 모든 값이 soft parse로 재사용한다는 것 — 10(1명)이 먼저면 E-Rows 1의 index 플랜이 확정되어 50(45명)도 index로 9블록을 읽고(full이면 6블록), 50이 먼저면 full 플랜이 확정되어 10도 full을 쓴다. v$sql_bind_capture의 첫 캡처 값(10 또는 50)이 '누가 플랜을 정했나'의 증거다. 치우친 분포 + 히스토그램이 있을 때만 이 함정이 드러난다.",
+      "k": ["최초 실행", "훔쳐봐", "재사용", "히스토그램", "Buffers 9", "bind_capture"]
+    },
+    {
+      "id": "e79b",
+      "d": 79,
+      "q": "range·interval·hash·list 파티션이 각각 어떤 상황을 위한 것인지 설명하고, composite(range-hash 4×4) 파티션에서 Pstart/Pstop으로 '읽은 세그먼트 수'를 읽는 법을 실측 예와 함께 설명하라.",
+      "ref": "https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/partition-concepts.html",
+      "a": "range(8버전)는 기간 경계(less than, maxvalue)로 나누는 이력 데이터의 기본형, interval(11g)은 정해진 간격(numtoyminterval)으로 파티션을 자동 증설(SYS_P769…), hash(8i)는 해시 함수로 양을 균등 분배해 동시 입력 경합을 줄이며(=·in만 pruning, 2의 제곱 개수), list(9i)는 미리 정한 값 목록으로 나누고 default 파티션이 목록 밖 값과 NULL을 받는다(단일 컬럼만). composite는 주 파티션 키로 1차 분배, 서브 파티션 키가 최종 세그먼트를 정한다(세그먼트=서브 파티션 단위). 플랜에서 키가 확정된 축은 SINGLE, 못 정한 축은 ALL — salary<5000 and emp_id=200이면 RANGE SINGLE(1)+HASH SINGLE(1)로 1/16(Buffers 3), emp_id=100만이면 RANGE ALL(1–4)+HASH SINGLE(3)로 4/16(Starts 4), salary>20000만이면 HASH ALL의 Pstart/Pstop이 13–16처럼 전체 일련번호로 찍힌다.",
+      "k": ["maxvalue", "자동 증설", "경합", "default", "SINGLE/ALL", "일련번호"]
+    }
+  ],
+  "TERMS": [
+    { "t": "cursor sharing", "e": "동일 SQL이면 커서(플랜) 공유", "d": "sql_id·hash_value는 SQL 텍스트의 해시라 값만 달라도 커서가 갈린다(리터럴 5문장=커서 5개·hard parse 5번). plan_hash_value는 실행계획의 해시 — 5개 커서가 모두 2466118986로 같았다. 텍스트를 통일해야 공유가 된다." },
+    { "t": "cursor_sharing=FORCE", "e": "리터럴을 시스템 바인드로 치환", "d": "기본값 EXACT는 텍스트가 똑같아야 공유. FORCE는 값만 다른 리터럴을 :\"SYS_B_0\"으로 대체해 공유 가능한 커서를 만든다 — 실측 5문장이 커서 1개(PARSE_CALLS 5·LOADS 1)로. 앱이 리터럴을 남발할 때의 응급처치." },
+    { "t": "bind peeking", "e": "첫 실행의 바인드 값으로 플랜 수립", "d": "_optim_peek_user_binds=TRUE. 파싱 시점엔 값을 몰라 히스토그램을 못 쓰므로 최초 실행의 값을 훔쳐봐 플랜을 세운다. 이후 값들은 그 플랜을 재사용 — 치우친 분포+히스토그램이면 첫 값(50=full/10=index)이 모두의 운명이 된다." },
+    { "t": "v$sql_bind_capture", "e": "커서가 캡처한 바인드 값 조회", "d": "커서의 첫 캡처 값(VALUE_STRING)·datatype·max_length를 보여준다. :b_id=10 먼저 후 50 재실행이어도 10만 보인다 — '이 커서의 플랜은 누가 정했나'를 추적하는 증거." },
+    { "t": "adaptive cursor sharing", "e": "bind 값 분포별로 플랜 분화(ACS)", "d": "_optimizer_adaptive_cursor_sharing=TRUE. peeking으로 플랜이 고정돼도 새로운 bind 값이 오면 child cursor를 만들어 실행계획을 세분화한다. v$sql의 is_bind_sensitive(관찰 중)→is_bind_aware(분화됨) 순 — 수업 실측은 Y/N까지." },
+    { "t": "partition pruning", "e": "일부 파티션 세그먼트만 읽고 멈춤", "d": "파티션 키 조건이 있으면 해당 세그먼트만 스캔. 인덱스 random I/O는 일정량을 넘으면 full보다 못하고 full도 부담 — 그 사이의 세 번째 길이 '읽을 범위를 설계로 줄이기'다. hash 파티션은 =·in에서만 동작." },
+    { "t": "파티션 뷰", "e": "CHECK+UNION ALL로 흉내 낸 파티션(~7버전)", "d": "테이블별 CHECK 제약이 '여긴 그 값이 없다'를 보증하면, 옵티마이저가 안 읽어도 되는 브랜치에 항상 거짓인 filter(NULL IS NOT NULL) 게이트를 심는다 — Starts 0·Buffers 0. dept=10 실측: 7블록 vs 전체 18블록." },
+    { "t": "interval 파티션", "e": "정한 간격으로 파티션 자동 증설(11g)", "d": "range 정의에 interval(numtoyminterval(1,'year'))을 더하면 경계 밖 데이터가 올 때 파티션이 자동 추가된다(이름 SYS_P769…). maxvalue 없이도 넘치는 값이 수용되는 점이 range와의 차이." },
+    { "t": "hash 파티션", "e": "해시로 양을 균등 분배(8i)", "d": "파티션 키에 해시 함수를 적용해 분할 — 경계(high_value)가 없다. 유일·고른 분포 컬럼, 2의 제곱 개수 권장. 검색 범위 축소보다 동시 입력이 많은 테이블·인덱스의 경합을 흩는 목적이 크고, pruning은 =·in만." },
+    { "t": "list 파티션", "e": "정해진 값 목록으로 분할(9i)", "d": "partition by list(department_id) values(10,20,30,40)…처럼 그룹을 명시. 단일 컬럼만 지정 가능. values(default) 파티션이 목록 밖 값과 NULL을 받는다 — 실측: dept가 NULL인 Grant가 default 파티션에 저장됐다." },
+    { "t": "composite 파티션", "e": "주 키로 1차, 서브 키가 세그먼트 결정", "d": "range-hash(8i)·range-list(9i)·11g에 range-range와 list-* 추가. 세그먼트는 서브 파티션마다 하나(4×4=16). 플랜의 Pstart/Pstop: 키가 확정된 축은 SINGLE, 못 정한 축은 ALL — 서브 파티션 번호는 13–16처럼 전체 일련번호로 찍힌다." }
+  ],
+  "PLANQ": [
+    {
+      "id": "pl79a",
+      "q": ":b_id=50으로 실행한 분기 union all의 플랜이다. Id 4의 FILTER 조건이 거짓인데도 Starts가 1인 이유, 그 아래 Id 5~6의 Starts가 0인 이유, 그리고 이 패턴이 해결하는 문제(bind peeking)를 설명하라.",
+      "plan": "| Id | Operation                             | Name         | Starts | A-Rows | Buffers |\n|  0 | SELECT STATEMENT                      |              |      1 |     45 |       6 |\n|  1 |  UNION-ALL                            |              |      1 |     45 |       6 |\n|* 2 |   FILTER (:B_ID=50 OR :B_ID=80)       |              |      1 |     45 |       6 |\n|* 3 |    TABLE ACCESS FULL                  | EMP          |      1 |     45 |       6 |\n|* 4 |   FILTER (:B_ID<>80 AND :B_ID<>50)    |              |      1 |      0 |       0 |\n|  5 |    TABLE ACCESS BY INDEX ROWID BATCHED| EMP          |      0 |      0 |       0 |\n|* 6 |     INDEX RANGE SCAN                  | EMP_DEPT_IDX |      0 |      0 |       0 |",
+      "a": "FILTER 자체는 게이트라서 평가를 위해 한 번 실행된다(Starts 1). :b_id=50이면 Id 4의 조건이 거짓 → 자식(Id 5~6)을 아예 시작하지 않아 Starts 0·Buffers 0. 반대로 Id 2의 게이트는 참이라 full scan 브랜치만 산다(45행·6블록). 이렇게 값 범위별로 SQL을 분기하면 bind peeking이 정한 단일 플랜(첫 값이 모두의 플랜을 정하는 문제)을 우회해, 50·80은 full, 그 외는 index로 각자 최적 경로를 탄다."
+    },
+    {
+      "id": "pl79b",
+      "q": "range(salary) × hash(employee_id) 4×4 조합 파티션에서 salary>20000 and employee_id=100을 조회한 플랜이다. Pstart/Pstop 값(4·4, 15·15)의 의미와 실제로 읽은 세그먼트 수, 그리고 Pstop 15가 왜 4보다 큰 숫자인지 설명하라.",
+      "plan": "| Id | Operation              | Name     | Starts | Pstart| Pstop | A-Rows | Buffers |\n|  0 | SELECT STATEMENT       |          |      1 |       |       |      1 |       2 |\n|  1 |  PARTITION RANGE SINGLE|          |      1 |     4 |     4 |      1 |       2 |\n|  2 |   PARTITION HASH SINGLE|          |      1 |    15 |    15 |      1 |       2 |\n|* 3 |    TABLE ACCESS FULL   | EMP_COMP |      1 |    15 |    15 |      1 |       2 |",
+      "a": "salary>20000이 range 축을 4번 파티션(pmax)으로 확정(RANGE SINGLE 4·4), employee_id=100이 해시 축을 그 안의 3번째 서브 파티션으로 확정(HASH SINGLE). Pstart/Pstop 15는 서브 파티션의 전체 일련번호 — 4번 파티션의 h1~h4가 13~16이므로 그중 3번째가 15다. 결과적으로 16개 세그먼트 중 1개만 읽었고(Buffers 2), 두 파티션 키를 모두 조건에 넣는 것이 pruning을 최대로 만든다."
+    }
+  ]
+}
