@@ -96,6 +96,7 @@ DECK_LABELS = {
     "day78.pptx": "78일차 — E-Rows의 산수 · 히스토그램 · 통계 수명주기",
     "day79.pptx": "79일차 — 커서 공유 · bind peeking · 파티션과 pruning",
     "day80.pptx": "80일차 — 부분범위처리 · arraysize · 파티션 관리(결석 보강)",
+    "day81.pptx": "81일차 — 파티션 인덱스(local/global) · Data Pump · 병렬 개막",
     "sql_tuning.pptx": "SQL 튜닝편 (문서 전체 덱)",
     "guide_62_68.pptx": "내부구조편 (문서 전체 덱)",
     "buffer_cache_dbwr_checkpoint.pptx": "버퍼 캐시·DBWR (문서 전체 덱)",
