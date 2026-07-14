@@ -1,0 +1,172 @@
+{
+  "deck_id": "day80",
+  "title": "다 읽지 말고, 다시 집지 말고 — 운반단위와 파티션 관리",
+  "subtitle": "80일차(결석 보강) — 부분범위처리 · arraysize 산수 · 정적/동적 pruning · split/merge/exchange/shrink",
+  "source": "assets/sql_tuning.html §11.8~11.11 · §12",
+  "slides": [
+    { "type": "title" },
+    { "type": "section", "num": "00", "title": "오늘의 큰 그림", "subtitle": "결석일 — 동기 수강생 자료 기반 재구성" },
+    {
+      "type": "content",
+      "title": "낭비를 줄이는 두 다이얼 — 몇 번 나르나(arraysize), 어디를 읽나(pruning)",
+      "notes": "어제는 병원 때문에 결석이라, 동기 수강생 자료로 재구성한 날입니다. 캡처가 없는 실험은 홈랩 재현 목록에 정직하게 모아뒀어요. 수업은 두 덩어리였습니다. 전반부는 부분범위처리 — 조건을 만족하는 데이터를 전체 범위로 다 처리하지 않고, 운반단위 arraysize만큼만 처리해서 유저 프로세스에 전달하고 다음 요구까지 멈추는 방식이에요. 535,000행짜리 테이블을 놓고 arraysize를 15에서 5000까지 바꿔가며 autotrace 숫자로 산수를 확인했습니다. 후반부는 파티션 실전 — 정적과 동적 pruning의 차이, 그리고 split, add, rename, drop, truncate, merge, exchange, shrink까지 관리 명령어 전체를 에러 번호와 함께 돌았습니다. 강사님 말씀대로 이건 업무팀 요청이 말로 들어오면 바로 명령어로 수행해야 하는 영역이라, 외워야 하는 파트예요. 두 주제를 관통하는 축은 같습니다 — 서버가 하는 일의 낭비를 줄이는 두 개의 다이얼. 하나는 같은 블록을 몇 번 다시 집는지, 하나는 어느 세그먼트를 읽는지입니다.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": ["다이얼", "줄이는 낭비", "오늘의 증거"],
+          "rows": [
+            ["arraysize (§12)", "같은 블록 재방문 + 네트워크 왕복", "gets 38,685→3,467 · roundtrips 35,668→269"],
+            ["partition pruning (§11.8)", "안 읽어도 되는 세그먼트", "정적=플랜 생성 때 확정, 동적(바인드)=실행 때"],
+            ["관리 명령 (§11.9~11)", "운영 작업의 사고", "ORA-14074·14402·14400과 처방 세트"]
+          ]
+        },
+        { "kind": "callout", "tone": "why", "head": "결석일 원칙", "body": "동기 자료에 캡처가 없는 실험은 지어내지 않고 '홈랩 재현 목록'으로 — 숫자가 있는 것만 실측으로 실었다." }
+      ]
+    },
+    { "type": "section", "num": "01", "title": "부분범위처리", "subtitle": "운반단위만큼 싣고, 요구가 오면 또 싣는다" },
+    {
+      "type": "content",
+      "title": "부분범위처리 — 전부 읽지 않고 운반단위에서 멈춘다",
+      "notes": "정의부터요. 부분범위처리는 SQL에서 주어진 조건을 만족하는 데이터를 전체 범위로 처리하지 않고, 운반단위 — arraysize — 까지만 먼저 처리해서 그 결과를 유저 프로세스에 전달하고, 다음 작업을 계속하겠다는 요구가 있을 때까지 잠정적으로 수행을 멈추는 방식입니다. 만 건을 뽑아야 할 때 운반단위가 천 건이면, 만 건을 한꺼번에 읽지 않고 천 개씩 열 번으로 나눠 처리하는 거죠. 웹페이지가 전부 페이지 단위로 보여주는 것, SQL Developer가 한 번에 50개씩 가져오는 것이 다 이 원리입니다. 그런데 안 되는 SQL이 있어요. 집계값은 다 읽어야 나오니까 그룹함수와 group by, 전체를 모아 정렬해야 하는 order by, 집합 연산인 union, minus, intersect — 얘네는 전체범위처리가 강제됩니다. 대안이 재미있는데요, order by는 그 컬럼의 인덱스를 이용하면 정렬을 인덱스가 대신해서 부분범위가 가능해지고 — 74일차에 본 '인덱스가 정렬을 대체한다'가 여기서 또 나옵니다 — union은 union all 더하기 not exists로, minus는 not exists로, intersect는 exists로 바꿉니다. union all이 계속 등장하는 이유는 중복 제거를 위해 전체를 모을 필요 없이 오는 대로 흘려보낼 수 있어서예요.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": ["전체범위가 강제되는 경우", "대체 방안"],
+          "rows": [
+            ["그룹함수 · group by · sort", "— (집계는 전체가 필요)"],
+            ["order by", "정렬 컬럼의 index 이용 — 정렬을 인덱스가 대신"],
+            ["union / minus / intersect", "union all+not exists / not exists / exists"],
+            ["대체가 어려우면", "arraysize를 넉넉하게 해서 수행"]
+          ]
+        },
+        { "kind": "callout", "tone": "tip", "head": "다시 만난 union all", "body": "OR-expansion(§8.7)·분기 SQL(§10.7)·파티션 뷰(§11.2)에 이어 네 번째 — '모아서 비교하지 않고 흘려보낸다'가 union all의 정체성이다." }
+      ]
+    },
+    {
+      "type": "content",
+      "title": "운반단위는 산수다 — rows ÷ roundtrips = arraysize",
+      "notes": "535,000행짜리 sal_emp를 만들었습니다. rownum에 connect by level 5000짜리를 곱해서 부풀린 테이블이고, 블록은 3,254개예요. 참고로 강사님 환경은 3,774블록에 행 길이 45로 조금 달랐는데 — '나는 왜 항상 작은가?'라는 동기의 메모가 있었습니다 — 환경별 차이일 뿐 산수는 같습니다. autotrace trace stat을 켜고 전량 조회하면서 arraysize만 바꿨어요. 기본값 15에서 SQL*Net roundtrips가 35,668입니다. 535,000을 35,668로 나누면 14.99, 정확히 15가 나와요. roundtrips가 곧 fetch count고, 한 왕복에 arraysize만큼 실어 나른 겁니다. arraysize 100이면 5,351회 — 나누면 99.98. 1000이면 536회, 2000이면 269회. 서버와 클라이언트 사이를 3만 5천 번 왕복하던 것이 269번으로 줄어든 거예요. 이게 두 번째 이점인 네트워크 부하 감소입니다. 5000짜리 실측은 roundtrips 108인데, 자료에 53500 나누기 108은 495라고 적혀 있어요 — 535,000 나누기 108이면 4,954라서 0이 하나 빠진 오기로 보입니다. 이런 것도 그대로 믿지 말고 산수로 검산하는 습관이 중요해요.",
+      "blocks": [
+        { "kind": "svg", "svg": "<svg viewBox='0 0 760 150' xmlns='http://www.w3.org/2000/svg'><defs><marker id='rt1' viewBox='0 0 10 10' refX='8' refY='5' markerWidth='6' markerHeight='6' orient='auto-start-reverse'><path d='M2 1L8 5L2 9' fill='none' stroke='#94A3B8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></marker></defs><rect x='30' y='34' width='200' height='70' rx='10' fill='#DEF0F2' stroke='#1C7E8C'/><text x='130' y='60' text-anchor='middle' font-family='sans-serif' font-size='13' font-weight='700' fill='#1E293B'>서버 프로세스</text><text x='130' y='80' text-anchor='middle' font-family='sans-serif' font-size='11' fill='#64748B'>버퍼 캐시에서 읽어 담는다</text><rect x='530' y='34' width='200' height='70' rx='10' fill='#F1F5F9' stroke='#CBD5E1'/><text x='630' y='60' text-anchor='middle' font-family='sans-serif' font-size='13' font-weight='700' fill='#1E293B'>유저 프로세스</text><text x='630' y='80' text-anchor='middle' font-family='sans-serif' font-size='11' fill='#64748B'>받은 만큼 쓰고 또 요구</text><path d='M236 56 H524' fill='none' stroke='#94A3B8' stroke-width='1.4' marker-end='url(#rt1)'/><text x='380' y='48' text-anchor='middle' font-family='monospace' font-size='11' fill='#64748B'>fetch 1회 = arraysize 행</text><path d='M524 84 H236' fill='none' stroke='#94A3B8' stroke-width='1.4' marker-end='url(#rt1)'/><text x='380' y='100' text-anchor='middle' font-family='monospace' font-size='11' fill='#64748B'>SQL*Net roundtrip</text><text x='380' y='132' text-anchor='middle' font-family='sans-serif' font-size='11' fill='#64748B'>왕복 수 ≈ 총 행수 ÷ arraysize — 535,000 ÷ 15 = 35,667</text></svg>", "caption": "roundtrips = fetch count. 총 행수를 나누면 운반단위가 그대로 나온다 (14.99·99.98·998·1,988)" },
+        { "kind": "callout", "tone": "why", "head": "검산 습관", "body": "5000 실측의 '53500/108=495.3'은 0 하나가 빠진 오기로 보인다(535,000/108≈4,954) — 남의 자료도 산수로 검산하고, 홈랩에서 재확인." }
+      ]
+    },
+    {
+      "type": "content",
+      "title": "consistent gets의 12배 정체 — 재방문, 그리고 임계점",
+      "notes": "이 실험의 백미는 consistent gets입니다. 테이블은 3,254블록인데 arraysize 15에서 gets가 38,685 — 12배예요. 왜일까요. fetch가 끊길 때마다 서버는 보던 블록을 다시 집습니다. 그래서 gets는 대략 블록 수 더하기 fetch 횟수가 돼요. 3,254 더하기 35,668이면 38,922 — 실측 38,685와 거의 맞습니다. arraysize 1000에서도 3,254 더하기 536이 3,790, 실측 3,732와 근접하고요. 즉 38,685의 대부분은 데이터를 읽은 게 아니라 재방문 비용이었던 겁니다. 그래서 arraysize를 키우면 gets가 뚝뚝 떨어져요 — 100에서 8,513, 1000에서 3,732, 2000에서 3,467. 그런데 여기서 임계점이 보입니다. 재방문을 다 없애도 블록 수만큼은 읽어야 하니까 3,300 근처가 바닥이에요. 2000에서 이미 바닥에 닿았고, 자료의 표현대로 '비약적으로 줄어들지는 않는 임계점'입니다. 그리고 중요한 경고 — array size를 몇으로 설정하는지에 따라 성능은 좋아질 수도 나빠질 수도 있습니다. 받을 수 있는 active set 결과가 무한이 아니에요. 무작정 크게가 답이 아니라는 것까지가 오늘의 결론입니다.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": ["arraysize", "consistent gets", "roundtrips", "gets ≈ 블록+fetch 검산"],
+          "rows": [
+            ["15 (기본)", "38,685", "35,668", "3,254+35,668 = 38,922 ≈"],
+            ["100", "8,513", "5,351", "3,254+5,351 = 8,605 ≈"],
+            ["1000", "3,732", "536", "3,254+536 = 3,790 ≈"],
+            ["2000", "3,467", "269", "바닥(블록 수) 근접 — 임계점"]
+          ]
+        },
+        { "kind": "callout", "tone": "why", "head": "두 가지 이점(원문)", "body": "① 서버가 읽을 블록 수 감소(I/O) ② fetch count 감소 → 네트워크 부하 감소. 단 바닥은 블록 수 — 그 아래로는 못 내려가고, 무작정 키우면 나빠질 수도 있다." }
+      ]
+    },
+    { "type": "section", "num": "02", "title": "정적 · 동적 Pruning", "subtitle": "언제 아느냐의 차이 — 번호 vs KEY" },
+    {
+      "type": "content",
+      "title": "정적은 플랜 생성 때, 동적은 실행 때 — I/O는 같다",
+      "notes": "파티션으로 넘어갑니다. sal_emp를 range salary 4파티션으로 재생성하고 pruning을 두 방식으로 봤어요. 파티션 키를 상수로 조회하면 정적 pruning — 쿼리 최적화 시점, 그러니까 실행계획을 생성할 때 액세스할 파티션이 결정됩니다. Pstart와 Pstop에 시작·종료 파티션 번호가 찍혀요. 어제 79일차에 본 composite 실측 여섯 플랜이 전부 이 경우였습니다. 반면 파티션 키를 바인드 변수로 조회하면 동적 pruning — 최적화 시점에는 값을 모르니 미리 결정할 수 없고, 실행 시점에 결정됩니다. 플랜의 Pstart/Pstop에는 번호 대신 KEY라고 찍혀요. 중요한 건 강사님의 정리입니다 — I/O는 다르지 않다. 읽어들여야 할 파티션에 대해서는 같은 작업을 한다. 차이는 '처음부터 아느냐, 실행 때 아느냐'뿐이에요. 다만 바인드 값이 뭐냐에 따라 execute마다 액세스하는 파티션이 달라지니, 플랜만 보고 어느 파티션을 읽는다고 단정할 수 없다는 것 — 그게 KEY 표기를 읽는 법입니다. 동적 pruning의 실제 플랜 캡처는 자료에 없어서 홈랩 재현 목록에 올려뒀습니다.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": ["", "정적(static)", "동적(dynamic)"],
+          "rows": [
+            ["조건", "파티션 키 = 상수", "파티션 키 = 바인드 변수"],
+            ["결정 시점", "플랜 생성(최적화) 시점", "실행 시점 — 미리 결정 불가"],
+            ["Pstart/Pstop", "파티션 번호 (§11.7 실측 전부)", "KEY 표기 — execute마다 달라질 수 있음"],
+            ["I/O", "같다", "같다 — '아느냐 모르느냐'의 차이"]
+          ]
+        },
+        { "kind": "callout", "tone": "tip", "head": "§10과 연결", "body": "바인드 변수가 또 등장 — 커서 공유에선 '첫 값이 플랜을 정하는' 문제였고, 여기선 '읽을 파티션을 실행 때 정하는' 유연함이다. 같은 재료, 다른 국면." }
+      ]
+    },
+    { "type": "section", "num": "03", "title": "파티션 관리 명령", "subtitle": "말로 요청이 오면 바로 명령어로 — 외우는 파트" },
+    {
+      "type": "content",
+      "title": "split·add·rename·drop·truncate — add는 끝에만, 중간은 split",
+      "notes": "여기서부터는 강사님이 '따로 문서화해 두고 외우라'고 한 관리 명령어입니다. 업무팀 요청이 말로 들어오면 바로 명령어로 수행해야 하는 영역이에요. 먼저 split — p3를 20000 경계에서 둘로 나누려면 alter table split partition p3 at 20000 into partition p3, partition p4. 기존 p3의 데이터가 경계에 따라 두 파티션으로 나뉩니다. add는 조심할 게 있어요. 마지막 파티션보다 큰 경계는 add가 되는데, 작은 값을 add하면 ORA-14074 — partition bound must collate higher than that of the last partition — 이 납니다. range 경계는 '미만'의 누적 사다리라서 중간에 칸을 끼우면 기존 칸의 의미가 깨지거든요. 그래서 중간 경계는 무조건 split으로 만듭니다. rename은 interval 파티션이 자동 생성한 SYS_P 이름을 정리할 때 쓰고 — rename해도 통계는 사라지지 않습니다. drop은 파티션을 지우는데, 복구하려면 어떻게 하냐는 질문이 따라옵니다 — timebased recovery고, 언제 지웠는지는 로그마이너 분석으로 찾아야 해요. supplemental log data가 어떻게 되어 있는지부터 일련의 과정을 깔끔하게 설명할 수 있어야 한다 — 운영편과 연결되는 부분입니다. truncate partition은 특정 파티션만 비웁니다.",
+      "blocks": [
+        { "kind": "code", "lines": [
+          "alter table hr.sal_emp split partition p3 at(20000)",
+          "  into (partition p3, partition p4);          -- 중간 경계는 split",
+          "alter table hr.sal_emp add partition p2_1 values less than(10000);",
+          "-- ORA-14074: bound must collate higher than the last partition",
+          "alter table hr.sal_emp rename partition p5_1 to p5;  -- 통계 유지",
+          "alter table hr.sal_emp drop partition p5;   -- 복구? 로그마이너로 시점 찾기",
+          "alter table hr.sal_emp truncate partition p3;        -- p3만 비움"
+        ] },
+        { "kind": "callout", "tone": "why", "head": "add가 막히는 이유", "body": "range 경계는 less than의 누적 사다리 — 중간에 새 칸을 끼우면 기존 칸이 '어디까지 담나'가 깨진다. 그래서 끝(add)만 허용, 중간은 split." }
+      ]
+    },
+    {
+      "type": "content",
+      "title": "경계를 넘는 순간들 — ORA-14402는 row movement, ORA-14400은 maxvalue",
+      "notes": "이제 에러 두 개를 만납니다. 첫 번째, 파티션 키 컬럼을 update하는 경우. 같은 파티션 안에서 움직이는 값 — salary를 18000으로 — 은 아무 문제가 없어요. 그런데 21000으로 바꾸면 p3에서 p4로 행이 이동해야 하죠. ORA-14402 — updating partition key column would cause a partition change. 행이 다른 파티션의 세그먼트로 옮겨가야 하기 때문에, 테이블에 행 이동이 활성화되어 있어야 합니다. alter table enable row movement를 하고 update하면 1 row updated가 되고요. 강사님 팁 — 업무팀에서 저런 에러를 보여주면 바로 enable row movement를 말씀드리고, 수정 작업 후엔 꼭 disable해 달라고 부탁하라는 것까지가 한 세트입니다. 두 번째, maxvalue 파티션이 없는 상태에서 경계 밖 값을 insert하면 ORA-14400 — inserted partition key does not map to any partition. add partition pmax values less than maxvalue로 받을 곳을 만들어 줍니다. 그리고 pmax에 30000 경계를 새로 만들고 싶으면? add는 14074로 막히니까 — split pmax at 30000 into p5, pmax. 오늘 배운 규칙이 그대로 조합되죠.",
+      "blocks": [
+        { "kind": "code", "lines": [
+          "update hr.sal_emp set salary = 21000 where employee_id = 101;",
+          "-- ORA-14402: updating partition key would cause a partition change",
+          "alter table hr.sal_emp enable row movement;",
+          "update ...;  -- 1 row updated → 작업 후 disable row movement 부탁",
+          "",
+          "insert into hr.sal_emp values(300,'oracle',29000,20);",
+          "-- ORA-14400: key does not map to any partition",
+          "alter table hr.sal_emp add partition pmax values less than(maxvalue);",
+          "alter table hr.sal_emp split partition pmax at(30000) into (p5, pmax);"
+        ] },
+        { "kind": "callout", "tone": "tip", "head": "에러 → 처방 세트로 암기", "body": "14074=작은 경계 add→split · 14402=경계 넘는 update→row movement · 14400=받을 파티션 없음→maxvalue add. 번호까지 세트로." }
+      ]
+    },
+    {
+      "type": "content",
+      "title": "merge는 통계를 덤으로, exchange는 세그먼트 이름표만 바꾼다",
+      "notes": "합치기는 merge입니다. alter table merge partitions p4, p5 into partition p5 — 문법을 조심하세요, 앞은 partitions 복수형이고 뒤는 partition 단수형입니다. 강사님도 syntax 체크하라고 강조했어요. 그리고 실측에서 재미있는 관찰 — merge하는 순간, 기존에 없었던 통계가 자동으로 수집된 것을 확인할 수 있었습니다. 마지막이 오늘의 하이라이트, exchange입니다. 일반 테이블 exch_emp를 만들어 데이터를 넣고, alter table sal_emp exchange partition p5 with table exch_emp를 실행하면 — 파티션 p5의 내용과 일반 테이블의 내용이 서로 뒤바뀝니다. 데이터를 복사하는 게 아니라 두 세그먼트의 소속, 이름표만 맞바꾸는 거예요. 그래서 다시 실행하면 원위치로 돌아옵니다. 동기의 감탄이 그대로 적혀 있어요 — 원래 같았으면 insert 서브쿼리 만들어서 옮기고 지우고 그래야 하는데 이 얼마나 편리한 옵션인가. 업무팀이 일반 테이블처럼 load 시켜달라고 하면 일반 테이블에 받아서 exchange 해주면 되고, 빈 테이블과 바꾸면 truncate 대용으로도 쓸 수 있습니다 — 오라클의 노하우라고 하네요. alter 작업은 DBA가 하는 일이다, truncate도 마찬가지 — 라는 말도 함께요.",
+      "blocks": [
+        { "kind": "svg", "svg": "<svg viewBox='0 0 760 150' xmlns='http://www.w3.org/2000/svg'><defs><marker id='xc1' viewBox='0 0 10 10' refX='8' refY='5' markerWidth='6' markerHeight='6' orient='auto-start-reverse'><path d='M2 1L8 5L2 9' fill='none' stroke='#94A3B8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></marker></defs><rect x='60' y='30' width='230' height='60' rx='10' fill='#DEF0F2' stroke='#1C7E8C'/><text x='175' y='55' text-anchor='middle' font-family='sans-serif' font-size='13' font-weight='700' fill='#1E293B'>sal_emp partition(p5)</text><text x='175' y='74' text-anchor='middle' font-family='sans-serif' font-size='11' fill='#64748B'>파티션의 세그먼트</text><rect x='470' y='30' width='230' height='60' rx='10' fill='#FDF0E7' stroke='#E0892B'/><text x='585' y='55' text-anchor='middle' font-family='sans-serif' font-size='13' font-weight='700' fill='#1E293B'>exch_emp (일반 테이블)</text><text x='585' y='74' text-anchor='middle' font-family='sans-serif' font-size='11' fill='#64748B'>새로 load한 데이터</text><path d='M296 50 H464' fill='none' stroke='#94A3B8' stroke-width='1.4' marker-end='url(#xc1)'/><path d='M464 72 H296' fill='none' stroke='#94A3B8' stroke-width='1.4' marker-end='url(#xc1)'/><text x='380' y='18' text-anchor='middle' font-family='monospace' font-size='10.5' fill='#64748B'>exchange partition p5 with table exch_emp</text><text x='380' y='118' text-anchor='middle' font-family='sans-serif' font-size='11' fill='#64748B'>데이터 이동 없음 — 소속만 맞바꾼다. 재실행하면 원위치</text></svg>", "caption": "실측: exchange 후 서로 내용이 뒤바뀌고, 재실행하면 되돌아온다 — load·truncate 대용의 노하우" },
+        { "kind": "callout", "tone": "why", "head": "merge 문법 + 통계", "body": "merge partitions p4,p5 into partition p5 — 복수/단수 혼용 주의. 실측: merge 순간 없었던 통계가 자동 수집. rename은 통계 유지." }
+      ]
+    },
+    { "type": "section", "num": "04", "title": "공간과 통계", "subtitle": "1행인데 1,006블록 — HWM의 기억" },
+    {
+      "type": "content",
+      "title": "1행인데 1,006블록 — 세그먼트는 HWM을 기억한다, 처방은 shrink",
+      "notes": "관리 작업을 신나게 반복한 뒤 파티션별 통계를 다시 걷어 보니 이상한 게 보입니다. p3에 행이 1개밖에 없는데 blocks가 1,006이에요. 동기의 메모 — 왜 이렇게 많이 쓰고 있지? 이건 문제가 되는 부분이다. 그리고 강사님의 명언 — 오라클에서는 버그라고 말하지 않는다, 버그 냄새가 난다. 원리는 내부구조편에서 배운 HWM입니다. 파티션도 결국 세그먼트라서, truncate와 DML을 반복해도 HWM 아래 공간은 반납되지 않아요. 행이 1개 남아도 블록 사용량은 과거의 최대치를 기억합니다. full scan류는 HWM까지 읽으니까 이대로 두면 1행 읽자고 1,006블록을 계속 읽는 거예요. 처방은 재구성 — shrink입니다. 행을 옮겨야 하니까 아까 배운 enable row movement가 먼저고, alter table modify partition p3 shrink space cascade, 그리고 disable. 마지막으로 특정 파티션만 통계를 다시 걷는 법 — gather_table_stats에 partname p3, granularity partition. 파티션 이름은 문자열로 취급해야 한다는 것까지. 이렇게 오늘 배운 것들이 row movement로, HWM으로, 통계로 서로 맞물립니다.",
+      "blocks": [
+        { "kind": "code", "lines": [
+          "-- 관리 작업 반복 후: P3 NUM_ROWS 1, BLOCKS 1006 (!)",
+          "alter table hr.sal_emp enable row movement;   -- 행 이동 → 필수",
+          "alter table hr.sal_emp modify partition p3 shrink space cascade;",
+          "alter table hr.sal_emp disable row movement;",
+          "-- 특정 파티션만 통계 수집 (이름은 문자열 취급)",
+          "exec dbms_stats.gather_table_stats('hr','sal_emp',",
+          "     partname=>'p3', granularity=>'partition')"
+        ] },
+        { "kind": "callout", "tone": "why", "head": "HWM의 기억", "body": "파티션도 세그먼트 — truncate·DML을 반복해도 HWM 아래 공간은 반납되지 않는다(내부구조편). '1행 = 1,006블록'은 버그가 아니라 구조 — 그래서 처방이 재구성(shrink)이다." }
+      ]
+    },
+    { "type": "section", "num": "05", "title": "빈틈 & 질문", "subtitle": "결석일 — 홈랩 재현 목록" },
+    {
+      "type": "content",
+      "title": "캡처 없는 실험 다섯 가지 — 홈랩에서 직접 돌린다",
+      "notes": "결석일이라 자료에 명령만 있고 결과 캡처가 없는 실험이 꽤 있습니다. 다섯 가지를 홈랩 목록으로 정리했어요. 첫째, arraysize 15, 1000, 2000으로 salary between 5000 and 8000을 조회하며 allstats last의 Buffers 변화 — 강사 관찰로는 파티셔닝이 되어 있어도 arraysize 15면 I/O가 증가하고, 100 이상에서는 비파티션보다 줄었다고 하는데 숫자가 없습니다. 둘째, 동적 pruning의 KEY 표기 — 바인드 변수로 between :b_start and :b_stop을 조회한 플랜의 Pstart/Pstop이 실제로 어떻게 찍히는지. 셋째, split과 merge 후에 dba_tab_partitions의 high_value와 데이터 분배가 어떻게 변하는지. 넷째, exchange를 두 번 실행해서 정말 원위치로 돌아오는지. 다섯째, shrink 후 blocks 1,006이 얼마로 줄어드는지 — 처방의 효과 측정이죠. 그리고 arraysize 5000 실측의 0 누락 오기 검산도요. 다음 수업은 파티션 인덱스 — local과 global — 로 이어질 가능성이 큽니다. 로드맵 11과 12는 오늘로 완료 처리했고, 13번 안티패턴과 힌트가 남아 있습니다.",
+      "blocks": [
+        { "kind": "bullets", "items": [
+          "arraysize 15/100/1000/2000 × 파티션 전후 — allstats Buffers 실측 (강사 관찰: 15면 파티션도 I/O 증가, 100+면 감소)",
+          "동적 pruning 플랜 — between :b_start and :b_stop에서 Pstart/Pstop의 KEY 표기 확인",
+          "split·merge 후 dba_tab_partitions의 high_value·데이터 분배 확인 / exchange 2회 → 원위치 검증",
+          "shrink space cascade 후 blocks 1,006 → ? (처방 효과 측정) · arraysize 5000의 '495.3' 오기 검산",
+          "(이월) 79일차 peek 순서 통제 실험 · ACS aware=Y 전환 관찰"
+        ] },
+        { "kind": "callout", "tone": "tip", "head": "오늘의 한 줄", "body": "낭비는 두 곳에서 온다 — 같은 블록을 다시 집는 것(arraysize로), 안 읽어도 될 세그먼트를 읽는 것(pruning으로). 그리고 파티션 운영은 에러 번호→처방 세트로 외운다." }
+      ]
+    }
+  ]
+}

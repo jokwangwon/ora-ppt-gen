@@ -88,6 +88,7 @@ footer{padding:30px 0 50px;color:var(--muted);font-size:13px}
   <a href="#opt">9. 옵티마이저</a>
   <a href="#cs">10. 커서 공유</a>
   <a href="#pt">11. 파티션</a>
+  <a href="#ar">12. 부분범위처리</a>
   <a href="#road">로드맵</a>
 </div></nav>
 
@@ -1413,6 +1414,136 @@ P2005  TO_DATE(' 2006-01-01 ...)   P2006  TO_DATE(' 2007-01-01 ...)   PMAX  <spa
 |* 3 |    TABLE ACCESS FULL   | EMP_COMP | Buffers 2 |</span></pre>
   <p>키 하나만 확정되면 그 축은 SINGLE, 못 정한 축은 ALL(Starts가 그 개수만큼 반복). HASH의 Pstart/Pstop이 13–16, 15처럼 나오는 것은 <b>서브 파티션의 전체 일련번호</b>다(4번 파티션의 h1~h4 = 13~16).</p>
   <div class="why"><span class="h">pruning도 산수다</span>E-Rows가 산수였듯(§9.4), pruning은 "조건이 파티션 키를 확정하는가"의 문제다. 조건에 어느 키를 넣느냐가 읽을 세그먼트 수(1/16 vs 4/16 vs 16/16)를 정한다 — where절 설계가 곧 I/O 설계.</div>
+
+  <h3 class="blk"><span class="ix">11.8</span>정적 vs 동적 pruning — 언제 아느냐의 차이 <span class="db add">80일차</span></h3>
+  <p><b class="k">partition pruning</b> = SQL 조건절을 분석하여 <b>읽지 않아도 되는 파티션 세그먼트를 액세스 대상에서 제외</b>시키는 기능. 실습은 535,000행 <code class="inl">sal_emp</code>를 range(salary) 4파티션(p1&lt;5000 · p2&lt;10000 · p3&lt;30000 · pmax)으로 재생성해 진행.</p>
+  <table>
+    <tr><th></th><th>정적(static) pruning</th><th>동적(dynamic) pruning</th></tr>
+    <tr><td>조건 형태</td><td>파티션 키를 <b>상수</b>로 조회</td><td>파티션 키를 <b>바인드 변수</b>로 조회</td></tr>
+    <tr><td>결정 시점</td><td>쿼리 최적화 시점(실행계획 생성할 때) 액세스 파티션 결정</td><td>미리 결정 불가 — <b>실행 시점</b>에 결정</td></tr>
+    <tr><td>플랜 표기</td><td>Pstart/Pstop에 <b>파티션 번호</b>(시작·종료)</td><td>Pstart/Pstop에 <b>KEY</b> 표기(§11.7 실측은 전부 상수=정적이었다)</td></tr>
+    <tr><td>I/O</td><td colspan="2">다르지 않다 — 읽어들일 파티션에 대한 작업은 동일. "처음부터 아느냐, 실행 때 아느냐"의 차이일 뿐</td></tr>
+  </table>
+  <div class="why"><span class="h">왜 구분해 두나</span>바인드 변수면 값에 따라 액세스할 파티션이 <b>execute마다 달라진다</b> — 플랜만 보고 "어느 파티션을 읽는다"고 단정할 수 없고 KEY로 읽어야 한다. 지난 §11.7 실측이 전부 상수 조건(정적)이었다는 것도 함께 기억할 것. <span class="muted">(KEY 표기의 실제 캡처는 없음 — 홈랩 재현 목록)</span></div>
+
+  <h3 class="blk"><span class="ix">11.9</span>파티션 관리 ① — split · add(ORA-14074) · rename · drop · truncate <span class="db add">80일차</span></h3>
+  <p>파티션 관리는 업무팀 요청이 말로 들어오면 바로 명령어로 수행해야 하는 영역 — <b>따로 문서화해 두고 외울 것</b>(강사 강조).</p>
+  <pre class="term"><span class="cm">-- split: 나누기 (p3 &lt;25000 을 20000 경계로 둘로)</span>
+<span class="pr">SQL&gt;</span> alter table hr.sal_emp <span class="hl">split partition p3 at(20000)</span> into (partition p3, partition p4);
+<span class="cm">-- add: 마지막 파티션보다 큰 경계만 가능</span>
+<span class="pr">SQL&gt;</span> alter table hr.sal_emp add partition p5_1 values less than(30000);   <span class="cm">-- OK</span>
+<span class="pr">SQL&gt;</span> alter table hr.sal_emp add partition p2_1 values less than(10000);
+<span class="out">ORA-14074: <span class="hl">partition bound must collate higher than that of the last partition</span></span>
+<span class="cm">-- 기존 high_value보다 작은 값은 add 불가 → split을 이용해야 한다</span>
+<span class="pr">SQL&gt;</span> alter table hr.sal_emp <span class="hl">rename partition p5_1 to p5</span>;   <span class="cm">-- 통계는 사라지지 않는다</span>
+<span class="pr">SQL&gt;</span> alter table hr.sal_emp drop partition p5;
+<span class="pr">SQL&gt;</span> alter table hr.sal_emp <span class="hl">truncate partition p3</span>;   <span class="cm">-- p3만 비움 → no rows selected</span></pre>
+  <ul class="tight">
+    <li><b>rename의 용도</b> — interval 파티션 생성 시 오라클이 임의로 만든 이름(<code class="inl">SYS_P…</code>, §11.4)을 의미 있는 이름으로 정리.</li>
+    <li><b>drop 후 복구하려면?</b> — timebased recovery. 언제 지웠는지는 <b>로그마이너 분석</b>으로 찾는다(supplemental log data가 어떻게 되어 있는지부터, 일련의 과정을 깔끔하게 설명할 수 있어야 — 운영편과 연결).</li>
+  </ul>
+  <div class="why"><span class="h">add가 막히는 이유</span>range 파티션의 경계는 "미만(less than)"의 <b>누적 사다리</b>다 — 중간에 새 칸을 끼우면 기존 칸의 의미(어디까지 담겼나)가 깨진다. 그래서 끝에 더하는 것(add)만 허용하고, 중간은 기존 칸을 쪼개는 것(split)으로만 만든다.</div>
+
+  <h3 class="blk"><span class="ix">11.10</span>파티션 관리 ② — row movement(ORA-14402) · maxvalue(ORA-14400) · merge · exchange <span class="db add">80일차</span></h3>
+  <pre class="term"><span class="cm">-- 파티션 키 update: 같은 파티션 안이면 OK, 경계를 넘으면 에러</span>
+<span class="pr">SQL&gt;</span> update hr.sal_emp set salary = 18000 where employee_id = 101;   <span class="cm">-- p3 안 → 1 row updated</span>
+<span class="pr">SQL&gt;</span> update hr.sal_emp set salary = 21000 where employee_id = 101;   <span class="cm">-- p3 → p4로 이동해야</span>
+<span class="out">ORA-14402: <span class="hl">updating partition key column would cause a partition change</span></span>
+<span class="pr">SQL&gt;</span> alter table hr.sal_emp <span class="hl">enable row movement</span>;
+<span class="pr">SQL&gt;</span> update hr.sal_emp set salary = 21000 where employee_id = 101;   <span class="out">1 row updated.</span>
+<span class="pr">SQL&gt;</span> alter table hr.sal_emp disable row movement;   <span class="cm">-- 작업 후 꼭 disable 부탁하기</span>
+
+<span class="cm">-- maxvalue 파티션이 없을 때 경계 밖 insert</span>
+<span class="pr">SQL&gt;</span> insert into hr.sal_emp values(300,'oracle',29000,20);
+<span class="out">ORA-14400: <span class="hl">inserted partition key does not map to any partition</span></span>
+<span class="pr">SQL&gt;</span> alter table hr.sal_emp add partition pmax values less than(maxvalue);   <span class="cm">-- 이제 수용</span>
+<span class="cm">-- pmax에 30000 경계를 만들고 싶다? add 안 됨(14074) → split</span>
+<span class="pr">SQL&gt;</span> alter table hr.sal_emp split partition pmax at(30000) into (partition p5, partition pmax);
+
+<span class="cm">-- merge: 합치기 — 문법 주의(partitions 복수형)</span>
+<span class="pr">SQL&gt;</span> alter table hr.sal_emp <span class="hl">merge partitions p4,p5 into partition p5</span>;
+<span class="cm">-- merge하는 순간, 없었던 통계가 자동으로 수집된 것을 확인할 수 있다</span></pre>
+  <p><b class="k">exchange</b> — 일반 테이블과 파티션의 <b>세그먼트를 통째로 교체</b>한다. insert 서브쿼리로 옮기고 지우는 대신 이름표만 바꿔 다는 것:</p>
+  <figure>
+  <svg viewBox="0 0 760 150" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="ex1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aab3c0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <rect class="ntune" x="60" y="30" width="230" height="60" rx="10"/><text class="svg-lbl" x="175" y="55" text-anchor="middle">sal_emp partition(p5)</text><text class="svg-sub" x="175" y="74" text-anchor="middle">파티션의 세그먼트</text>
+    <rect class="ncor" x="470" y="30" width="230" height="60" rx="10"/><text class="svg-lbl" x="585" y="55" text-anchor="middle">exch_emp (일반 테이블)</text><text class="svg-sub" x="585" y="74" text-anchor="middle">새로 load한 데이터</text>
+    <path class="edge" d="M296 50 H464" marker-end="url(#ex1)"/>
+    <path class="edge" d="M464 72 H296" marker-end="url(#ex1)"/>
+    <text class="svg-mono" x="380" y="18" text-anchor="middle">exchange partition p5 with table exch_emp</text>
+    <text class="svg-sub" x="380" y="116" text-anchor="middle">데이터 이동 없음 — 두 세그먼트의 소속만 맞바꾼다 (다시 실행하면 원위치)</text>
+  </svg>
+  <figcaption>실측: exchange 후 exch_emp의 내용과 partition(p5)의 내용이 서로 뒤바뀌고, 재실행하면 되돌아온다.</figcaption>
+  </figure>
+  <ul class="tight">
+    <li>업무팀이 "일반 테이블처럼 load 시켜달라" 하면 일반 테이블에 넣고 exchange — insert 서브쿼리보다 훨씬 편리.</li>
+    <li>빈 테이블과 exchange하면 <b>truncate 대용</b>으로도 쓸 수 있다(오라클의 노하우).</li>
+    <li>alter 작업은 DBA가 하는 일이다 — truncate도 마찬가지.</li>
+  </ul>
+
+  <h3 class="blk"><span class="ix">11.11</span>파티션의 공간·통계 — 1행인데 1,006블록, shrink로 되돌리기 <span class="db add">80일차</span></h3>
+  <pre class="term"><span class="cm">-- truncate·exchange·DML을 반복한 뒤 파티션별 통계:</span>
+<span class="pr">SQL&gt;</span> exec dbms_stats.gather_table_stats('hr','sal_emp',granularity=&gt;'auto')
+<span class="out">POSITION PARTITION HIGH_VALUE TABLESPACE NUM_ROWS BLOCKS AVG_ROW_LEN
+3        P3        20000      USERS      <span class="hl">1</span>        <span class="hl">1006</span>   19   ← 1행인데 1,006블록!</span>
+<span class="cm">-- "오라클에서는 버그라고 말하지 않는다. (버그 냄새가 난다)" — 어떻게 하나? shrink.</span>
+<span class="pr">SQL&gt;</span> alter table hr.sal_emp enable row movement;   <span class="cm">-- 행 이동 발생 → 필수</span>
+<span class="pr">SQL&gt;</span> alter table hr.sal_emp <span class="hl">modify partition p3 shrink space cascade</span>;
+<span class="pr">SQL&gt;</span> alter table hr.sal_emp disable row movement;
+<span class="cm">-- 특정 파티션만 통계 수집: 파티션 이름은 문자열 취급</span>
+<span class="pr">SQL&gt;</span> exec dbms_stats.gather_table_stats('hr','sal_emp',<span class="hl">partname=&gt;'p3'</span>, granularity=&gt;'partition')</pre>
+  <div class="why"><span class="h">왜 이런 일이 생기나</span>파티션도 세그먼트라 HWM 아래 공간은 반납되지 않는다(내부구조편) — 행이 1개 남아도 블록 사용량은 과거의 최대치를 기억한다. full scan류는 HWM까지 읽으므로 이대로 두면 "1행 읽는데 1,006블록"이 계속된다. 재구성(shrink)은 행을 옮기므로 <b>enable row movement가 선행</b> — §11.10의 ORA-14402와 같은 이유다.</div>
+</section>
+
+<section class="part" id="ar">
+  <div class="phead"><div class="pnum">12</div><div><div class="ptitle">부분범위처리 &amp; arraysize — 다 읽지 말고, 운반단위만큼 <span class="db add">80일차</span></div><div class="psub">전체범위 vs 부분범위 · 운반단위 산수(roundtrips) · fetch와 I/O · <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/sql-processing.html" style="color:var(--muted)">공식 매뉴얼 § SQL Processing ↗</a></div></div></div>
+  <p><b class="k">부분범위처리</b> = 조건을 만족하는 데이터를 전체 범위로 처리하지 않고 <b>운반단위(arraysize)까지만 먼저 처리해</b> 유저 프로세스에 전달하고, 다음 작업을 계속하겠다는 요구가 있을 때까지 <b>잠정적으로 수행을 멈추는</b> 처리 방식. 예: 10,000건을 추출할 때 운반단위가 1,000건이면 한꺼번에 다 읽지 않고 1,000개씩 10번으로 나누어 처리할 수 있다.</p>
+
+  <h3 class="blk"><span class="ix">12.1</span>부분범위가 안 되는 SQL — 그리고 대체 방안</h3>
+  <table>
+    <tr><th>전체범위처리가 강제되는 경우</th><th>대체 방안</th></tr>
+    <tr><td>그룹함수·<code class="inl">group by</code>·sort — 집계값은 다 읽어야 나온다</td><td>—</td></tr>
+    <tr><td><code class="inl">order by</code> 절</td><td>order by 절에 사용된 컬럼의 <b>index</b>를 이용하면 부분범위 가능(정렬을 인덱스가 대신 — §7.9)</td></tr>
+    <tr><td><code class="inl">union</code> · <code class="inl">minus</code> · <code class="inl">intersect</code></td><td>union → <b>union all + not exists</b> · minus → <b>not exists</b> · intersect → <b>exists</b></td></tr>
+  </table>
+  <p>대체가 어려우면 <b>arraysize를 넉넉하게 해서</b> 수행한다. 웹페이지는 전부 부분범위(page) 처리이고, SQL Developer가 한 번에 50개씩 가져오는 것도 같은 원리(50이 arraysize).</p>
+  <div class="why"><span class="h">왜 union all인가</span>union·minus·intersect는 중복 제거·집합 연산을 위해 <b>전체를 모아 정렬/비교</b>해야 하지만, union all은 오는 대로 흘려보내면 된다 — §8.7 OR-expansion, §10.7 분기 SQL이 전부 union all이었던 것도 같은 맥락.</div>
+
+  <h3 class="blk"><span class="ix">12.2</span>운반단위의 산수 — rows ÷ roundtrips = arraysize</h3>
+  <p>535,000행짜리 <code class="inl">sal_emp</code>(rownum × connect by level≤5000, blocks 3,254 — 강사 환경은 3,774/45로 조금 달랐다)를 <code class="inl">autotrace trace stat</code>으로 전량 fetch하며 arraysize만 바꿨다:</p>
+  <figure>
+  <svg viewBox="0 0 760 150" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="ar1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aab3c0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <rect class="ntune" x="30" y="34" width="200" height="70" rx="10"/><text class="svg-lbl" x="130" y="60" text-anchor="middle">서버 프로세스</text><text class="svg-sub" x="130" y="80" text-anchor="middle">버퍼 캐시에서 읽어 담는다</text>
+    <rect class="nmut" x="530" y="34" width="200" height="70" rx="10"/><text class="svg-lbl" x="630" y="60" text-anchor="middle">유저 프로세스</text><text class="svg-sub" x="630" y="80" text-anchor="middle">받은 만큼 쓰고 또 요구</text>
+    <path class="edge" d="M236 56 H524" marker-end="url(#ar1)"/>
+    <text class="svg-mono" x="380" y="48" text-anchor="middle">fetch 1회 = arraysize 행</text>
+    <path class="edge" d="M524 84 H236" marker-end="url(#ar1)"/>
+    <text class="svg-mono" x="380" y="100" text-anchor="middle">SQL*Net roundtrip</text>
+    <text class="svg-sub" x="380" y="132" text-anchor="middle">전체 왕복 수 ≈ 총 행수 ÷ arraysize — 535,000 ÷ 15 = 35,667</text>
+  </svg>
+  <figcaption>운반단위만큼 싣고 왕복한다 — roundtrips가 fetch count, 나누면 arraysize가 나온다.</figcaption>
+  </figure>
+  <table>
+    <tr><th>arraysize</th><th>consistent gets</th><th>SQL*Net roundtrips</th><th>rows ÷ roundtrips</th></tr>
+    <tr><td>15 (기본값)</td><td>38,685</td><td>35,668</td><td>14.99 ≈ <b>15</b></td></tr>
+    <tr><td>100</td><td>8,513</td><td>5,351</td><td>99.98 ≈ <b>100</b></td></tr>
+    <tr><td>1000</td><td>3,732</td><td>536</td><td>998.13</td></tr>
+    <tr><td>2000</td><td>3,467</td><td>269</td><td>1,988.8</td></tr>
+    <tr><td>5000</td><td class="muted">(캡처 없음)</td><td>108</td><td>535,000÷108 ≈ 4,954 <span class="muted">(자료엔 53500/108=495.3으로 적혀 있으나 0 누락 오기로 보임 — 재확인)</span></td></tr>
+  </table>
+  <div class="why"><span class="h">consistent gets도 같이 줄어드는 이유</span>fetch가 끊길 때마다 서버는 <b>보던 블록을 다시 집는다</b> — 그래서 gets ≈ 테이블 블록 수 + fetch 횟수에 가깝다(실측: 3,254+35,668≈38,922 vs 38,685 · 3,254+536≈3,790 vs 3,732). arraysize를 키우면 재방문이 줄어 gets가 블록 수(≈3,300)로 수렴하고, 그 아래로는 더 못 내려간다 — 2000에서 이미 3,467로 <b>"비약적으로 줄지 않는 임계점"</b>에 닿았다.</div>
+  <div class="tip"><b>얻는 것 두 가지(원문).</b> ① 서버 프로세스 입장에서 읽어야 하는 블록 수를 줄일 수 있다(I/O 감소). ② fetch count(call) 횟수가 줄어 <b>네트워크 부하가 감소</b>한다. 단 multi block I/O는 운반단위에 좌우되고, fetch count가 많다고 비약적으로 줄지는 않는다 — array size를 몇으로 설정하는지에 따라 성능은 좋아질 수도 <b>나빠질 수도</b> 있다(받을 active set이 무한이 아니므로 무작정 크게가 답이 아님).</div>
+
+  <h3 class="blk"><span class="ix">12.3</span>arraysize × 파티션 — 함께 봐야 하는 이유</h3>
+  <p>수업 후반 실험(캡처 없음 — 홈랩 재현 목록): salary between 5000 and 8000을 arraysize 15/100/1000/2000으로 바꿔가며, 그리고 인덱스 생성·파티셔닝 후에 각각 <code class="inl">allstats last +partition</code>으로 Buffers를 비교했다. 강사 관찰 요지:</p>
+  <ul class="tight">
+    <li>대용량을 full scan하는 것도 부담, index range scan은 더 부담(random I/O) — <b>이럴 때 파티셔닝</b>. 나름 I/O를 줄일 수 있다 — <b>이유를 알고 파티셔닝을 해야 한다.</b></li>
+    <li>파티셔닝이 되어 있더라도 <b>arraysize가 15면 I/O(gets)가 증가</b>한다 — fetch 재방문은 파티션이 해결해 주지 않는다.</li>
+    <li>arraysize 100 이상에서는 파티셔닝 전보다 I/O 수가 줄었다.</li>
+  </ul>
+  <div class="why"><span class="h">두 다이얼은 서로 다른 낭비를 줄인다</span>파티션(pruning)은 <b>어느 세그먼트를 읽나</b>를 줄이고, arraysize는 <b>같은 블록을 몇 번 다시 집나</b>를 줄인다. 하나만 돌리면 다른 쪽 낭비가 남는다 — §12.2의 임계점과 §11.7의 SINGLE/ALL을 한 화면에 놓고 볼 것.</div>
 </section>
 
 <section class="part" id="road">
@@ -1423,8 +1554,9 @@ P2005  TO_DATE(' 2006-01-01 ...)   P2006  TO_DATE(' 2007-01-01 ...)   PMAX  <spa
     <li class="done"><span class="n">08</span><a href="#qt" style="color:var(--tune);font-weight:600">쿼리 변환</a> — filter↔unnest(semi/anti) · 조인 제거 · OR-expansion · push_subq · view merging · 조건절 이동 · 집계→분석함수 · bloom <span class="tag">완료</span></li>
     <li class="done"><span class="n">09</span><a href="#opt" style="color:var(--tune);font-weight:600">옵티마이저 & 통계</a> — RBO→CBO · 3단 파이프라인(selectivity·cardinality) · 히스토그램(method_opt) · 자동 수집·stale · 통계 시간 여행 <span class="tag">완료</span></li>
     <li class="done"><span class="n">10</span><a href="#cs" style="color:var(--tune);font-weight:600">커서 공유 & Bind Peeking</a> — literal vs bind · cursor_sharing=FORCE · peeking+히스토그램 함정 · ACS(sensitive/aware) · 분기 SQL <span class="tag">완료</span></li>
-    <li class="done"><span class="n">11</span><a href="#pt" style="color:var(--tune);font-weight:600">파티션</a> — 파티션 뷰(CHECK+UNION ALL) · range·interval·hash·list·composite · Pstart/Pstop <span class="tag">진행 중(79일차~)</span></li>
-    <li><span class="n">12</span>증상→원인→처방 안티패턴 + 자주 쓰는 힌트 <span class="tag">예정</span></li>
+    <li class="done"><span class="n">11</span><a href="#pt" style="color:var(--tune);font-weight:600">파티션</a> — 파티션 뷰(CHECK+UNION ALL) · range·interval·hash·list·composite · Pstart/Pstop · 정적/동적 pruning · 관리(split·add·merge·exchange·shrink) <span class="tag">완료</span></li>
+    <li class="done"><span class="n">12</span><a href="#ar" style="color:var(--tune);font-weight:600">부분범위처리 & arraysize</a> — 운반단위 산수(roundtrips) · 전체범위 강제 조건과 대안 · fetch 재방문과 gets <span class="tag">완료</span></li>
+    <li><span class="n">13</span>증상→원인→처방 안티패턴 + 자주 쓰는 힌트 <span class="tag">예정</span></li>
   </ul>
   <div class="why"><span class="h">메모</span>구조 지식(HWM·scattered read·버퍼 캐시·블록)은 <b>내부구조편 가이드</b>에, 그걸 활용하는 기법은 이 문서에 쌓는다. 새 수업이 오면 위 로드맵을 하나씩 완료로 바꿔 간다.</div>
 </section>
