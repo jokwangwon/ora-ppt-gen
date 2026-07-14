@@ -1,0 +1,212 @@
+{
+  "MCQ": [
+    {
+      "id": "m81a",
+      "d": 81,
+      "q": "로컬 파티션 인덱스에 대한 설명으로 옳은 것은?",
+      "o": [
+        "테이블 파티션과 1:1 매핑 — 개수·파티션 키가 일치하고 유지관리는 오라클이 자동",
+        "인덱스 파티션 개수를 테이블과 다르게 자유롭게 지정할 수 있다",
+        "테이블 파티션 키와 다른 컬럼을 인덱스 파티션 키로 잡는 방식이다",
+        "테이블 파티션 작업 후에는 항상 DBA가 수동으로 인덱스 전체를 rebuild해야 한다"
+      ],
+      "a": 0,
+      "e": "원문 정의 그대로 — 각 파티션이 1대1로 매핑되고 개수와 파티션 키가 일치하며, 유지 관리는 오라클이 자동으로(다른 파티션에 영향 없음). 실측 EMP_LOCAL_IDX: LOCAL·PREFIXED·PARTITION_COUNT 6. 보기 2·3은 글로벌 인덱스의 성질."
+    },
+    {
+      "id": "m81b",
+      "d": 81,
+      "q": "employee_id=1000 조회가 로컬 인덱스 생성 전 Buffers 140, 생성 후 3이 된 이유는?",
+      "o": [
+        "pruning은 '어느 조각'까지만 답한다 — 조각 안의 탐색을 인덱스가 대신했기 때문",
+        "인덱스가 스캔할 파티션 수를 6개에서 1개로 줄여 pruning 범위가 좁아졌기 때문",
+        "인덱스 생성 시 통계가 갱신되어 E-Rows 계산이 정확해졌기 때문",
+        "로컬 인덱스가 테이블 블록을 캐시에 미리 올려 physical read가 사라졌기 때문"
+      ],
+      "a": 0,
+      "e": "인덱스 없이도 PARTITION RANGE SINGLE(pruning)은 됐지만 그 안은 TABLE ACCESS FULL 140블록. 로컬 인덱스 후 INDEX UNIQUE SCAN + BY LOCAL INDEX ROWID로 3블록 — 파티션은 조각을, 인덱스는 조각 안 위치를 담당한다."
+    },
+    {
+      "id": "m81c",
+      "d": 81,
+      "q": "between 1000 and 25000(P1~P2에 걸침) 조회 플랜의 PARTITION RANGE ITERATOR와 INDEX RANGE SCAN의 Starts 2가 뜻하는 것은?",
+      "o": [
+        "연속된 일부 파티션(1→2)을 차례로 돌며 파티션별 인덱스를 한 번씩 스캔했다",
+        "전체 파티션을 반복(ALL)했지만 그중 앞의 2개에서만 데이터가 발견되었다",
+        "같은 파티션의 인덱스를 두 번 재스캔해 일관성을 검증했다",
+        "병렬 워커 2명이 같은 인덱스 파티션을 나눠 스캔했다"
+      ],
+      "a": 0,
+      "e": "ITERATOR는 SINGLE·ALL에 이은 세 번째 표기 — Pstart 1·Pstop 2의 연속 구간을 차례로 도는 연산. 로컬 인덱스는 파티션별 독립 B*Tree라 걸친 파티션 수만큼 스캔이 반복된다(Starts 2, Buffers 53)."
+    },
+    {
+      "id": "m81d",
+      "d": 81,
+      "q": "글로벌 파티션 인덱스(emp_global_idx)에 대한 설명으로 옳은 것은?",
+      "o": [
+        "테이블은 employee_id로, 인덱스는 hire_date로 — 파티션 키가 일치하지 않는다",
+        "테이블 파티션 개수와 인덱스 파티션 개수가 정확히 일치해야만 생성할 수 있다",
+        "hire_date 조건의 RANGE SINGLE은 테이블 파티션 축의 pruning이다",
+        "global 인덱스는 파티셔닝할 수 없어 단일 세그먼트로만 만든다"
+      ],
+      "a": 0,
+      "e": "정의(원문): 테이블 파티션 키와 인덱스 파티션 키가 일치하지 않는다. 실측 — 테이블 6개(employee_id축) vs 인덱스 4개(hire_date축), 2001년 조회의 RANGE SINGLE(1·1)은 인덱스 파티션 p2004의 pruning이다(RANGE SCAN Buffers 5)."
+    },
+    {
+      "id": "m81e",
+      "d": 81,
+      "q": "글로벌 인덱스 전 파티션이 UNUSABLE인 상태에서의 실측 동작은?",
+      "o": [
+        "힌트 강제 시 ORA-01502, 힌트 없이는 full scan 우회",
+        "힌트가 있든 없든 항상 ORA-01502 에러가 발생해 쿼리 수행이 실패한다",
+        "옵티마이저가 UNUSABLE 파티션만 건너뛰고 나머지 파티션 인덱스로 조회한다",
+        "통계가 stale로 표시되고 다음 유지보수 윈도우에서 자동으로 rebuild된다"
+      ],
+      "a": 0,
+      "e": "index_rs 힌트 강제 → ORA-01502(unusable state). 힌트 없이 실행 → PARTITION RANGE ALL + TABLE ACCESS FULL Starts 5, Buffers 608·Reads 604 — 인덱스를 버리고 우회한다. 인덱스가 죽으면 에러가 아니라 '조용한 성능 저하'로 나타날 수 있다는 뜻."
+    },
+    {
+      "id": "m81f",
+      "d": 81,
+      "q": "UNUSABLE이 된 파티션 인덱스를 복구하려고 alter index … rebuild를 실행하면?",
+      "o": [
+        "ORA-14086 — 통째는 불가, rebuild partition으로 조각별",
+        "정상 수행 — 모든 파티션이 한 번의 명령으로 USABLE 상태로 돌아온다",
+        "ORA-01502 — unusable 상태의 인덱스에는 rebuild 명령 자체가 거부된다",
+        "drop index 후 create index를 처음부터 다시 만드는 것이 유일한 방법이다"
+      ],
+      "a": 0,
+      "e": "실측 ORA-14086(a partitioned index may not be rebuilt as a whole). rebuild partition을 4번(p2004·p2005·p2006·pmax) 실행해 전부 USABLE — leaf도 77→63 등으로 컴팩트해졌다. 인덱스에도 split partition이 있다는 것까지 확인."
+    },
+    {
+      "id": "m81g",
+      "d": 81,
+      "q": "impdp의 sqlfile=sql_emp.sql 옵션이 하는 일은?",
+      "ref": "https://docs.oracle.com/en/database/oracle/oracle-database/19/sutil/oracle-data-pump-export-utility.html",
+      "o": [
+        "덤프를 실행하지 않고 안에 든 DDL만 파일로 추출한다",
+        "import 실행 로그를 SQL 형식으로 함께 기록한다",
+        "덤프의 데이터 전체를 insert 문 스크립트로 변환해 그대로 적재한다",
+        "import 대상 스키마를 SQL 파일의 목록대로 필터링한다"
+      ],
+      "a": 0,
+      "e": "실측: impdp … sqlfile=sql_emp.sql → 실행 없이 sql_emp.sql(2,801B)만 생성, vi로 열어 create table 문 확인. drop한 파티션을 복구할 때 원래 경계의 근거가 된다 — 이후 split으로 빈 p1 재생성, :p1 content=data_only로 49행 복원."
+    },
+    {
+      "id": "m81h",
+      "d": 81,
+      "q": "parallel(e 2)의 count(*)는 PX SEND QC(RANDOM) 하나였는데, order by가 붙자 PX SEND RANGE(P->P) 뒤 QC(ORDER)가 됐다. 이유는?",
+      "ref": "https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html",
+      "o": [
+        "정렬은 값 구간별 재분배(RANGE) 후 각자 정렬하고 순서대로(ORDER) 모아야 해서",
+        "order by는 병렬 처리가 불가능해 QC 혼자 정렬하도록 전체가 직렬화됐기 때문",
+        "RANGE 분배가 RANDOM보다 항상 빠르기 때문에 옵티마이저가 승격한 것",
+        "TQ 큐가 가득 차서 두 번째 큐(:TQ10001)로 넘친 것"
+      ],
+      "a": 0,
+      "e": "count(*)는 부분 합계를 아무 순서로 모아도 된다(QC RANDOM, TQ 1개). order by는 ① 스캔 워커가 값 구간별로 나눠 보내고(PX SEND RANGE, P->P) ② 받은 워커들이 SORT ORDER BY ③ QC가 구간 순서대로 수합(QC ORDER) — TQ가 :TQ10000·:TQ10001 두 개가 된다. 분배 방식이 연산의 요구를 말해준다."
+    }
+  ],
+  "ESSAY": [
+    {
+      "id": "e81a",
+      "d": 81,
+      "q": "로컬 파티션 인덱스와 글로벌 파티션 인덱스를 비교 설명하라 — 정의(파티션 키), pruning이 일어나는 축, 테이블 파티션 작업 시의 영향(UNUSABLE), 복구 방법(ORA-14086), 그리고 어떤 기준으로 선택할지. 실측 수치(140→3, Buffers 5, 608블록)를 근거로 들 것.",
+      "a": "로컬은 테이블 파티션과 인덱스 파티션이 1:1로 매핑되고 개수·파티션 키가 일치한다(EMP_LOCAL_IDX: LOCAL PREFIXED 6개) — employee_id=1000이 pruning(RANGE SINGLE)+INDEX UNIQUE SCAN으로 140→3블록. 유지관리는 오라클 자동이며 테이블 파티션 작업이 다른 파티션에 영향을 주지 않는다. 글로벌은 테이블 파티션 키와 인덱스 파티션 키가 불일치 — 테이블은 employee_id 6개, 인덱스는 hire_date 4개로, hire_date 조건이 인덱스 축에서 pruning되어(RANGE SINGLE=p2004) RANGE SCAN Buffers 5로 끝난다. 대신 테이블 파티션 변경 작업에 인덱스 전체가 UNUSABLE이 될 수 있고, 그 상태에선 힌트 강제 시 ORA-01502, 힌트 없이는 full 우회(RANGE ALL, 608블록)로 조용히 느려진다. 복구는 ORA-14086 때문에 통째가 아니라 rebuild partition을 파티션별로. 선택 기준: 관리 안정성·파티션 단위 작업이 많으면 local, 테이블 축과 다른 조회 축(예: 기간)으로 인덱스 pruning이 필요하면 global — 재빌드 시간을 운영 계산에 넣는다.",
+      "k": [
+        "1:1",
+        "키 불일치",
+        "인덱스 축 pruning",
+        "UNUSABLE",
+        "ORA-14086",
+        "rebuild partition"
+      ]
+    },
+    {
+      "id": "e81b",
+      "d": 81,
+      "q": "실수로 drop partition p1(49행)을 한 상황. 사전에 받아 둔 테이블 전체 덤프(hr_sal_emp.pump)만 있다고 할 때, Data Pump로 p1을 복구하는 절차를 실습 순서대로 설명하라(에러·옵션 이름 포함). 파티션 하나만 미리 백업해 두는 방법도 덧붙일 것.",
+      "ref": "https://docs.oracle.com/en/database/oracle/oracle-database/19/sutil/oracle-data-pump-export-utility.html",
+      "a": "drop partition p1 후 partition(p1) 조회는 ORA-02149(존재하지 않는 파티션). ① impdp … sqlfile=sql_emp.sql로 덤프 속 DDL만 추출해(실행 없음) 원래 경계(5000)를 확인한다. ② alter table … split partition p2 at(5000) into (p1, p2)로 빈 p1을 재생성한다(add는 중간 경계라 ORA-14074). ③ impdp … tables=hr.sal_emp:p1 content=data_only로 p1의 데이터만 49행 복원한다. ④ 새 파티션의 통계는 NULL이므로 gather_table_stats(…, partname=>'p1', granularity=>'partition')로 재수집(49행/19블록). 파티션만 백업하려면 expdp … tables=hr.sal_emp:p1 dumpfile=hr_sal_emp_p1.pump(실측 204,800B) — truncate 후 같은 :p1 content=data_only로 되돌리는 것까지 실습으로 확인했다.",
+      "k": [
+        "ORA-02149",
+        "sqlfile",
+        "split",
+        "content=data_only",
+        "partname",
+        ":p1"
+      ]
+    }
+  ],
+  "TERMS": [
+    {
+      "t": "로컬 파티션 인덱스",
+      "e": "테이블 파티션과 1:1 매핑되는 인덱스",
+      "d": "개수·파티션 키가 테이블과 일치(create index … local). 유지관리는 오라클 자동 — 파티션 작업이 다른 파티션에 영향 없음. 실측: employee_id=1000이 full 140블록 → INDEX UNIQUE SCAN 3블록."
+    },
+    {
+      "t": "글로벌 파티션 인덱스",
+      "e": "테이블과 파티션 키가 다른 인덱스",
+      "d": "테이블은 employee_id축 6개, 인덱스는 hire_date축 4개처럼 축이 다르다(create index … global partition by range). 조회 축 pruning이 가능하지만 테이블 파티션 작업에 전체 UNUSABLE 위험 — '관리의 local, 조회 축의 global'."
+    },
+    {
+      "t": "PREFIXED",
+      "e": "파티션 키가 인덱스 키의 왼쪽 서두",
+      "d": "파티션 인덱스 생성 시 파티션 키 컬럼을 인덱스 키 컬럼의 왼쪽 서두에 두는 것(dba_part_indexes.alignment). 실측 두 인덱스 모두 PREFIXED — 결합 인덱스의 선두 컬럼 원리(§5.4)와 같은 맥락."
+    },
+    {
+      "t": "PARTITION RANGE ITERATOR",
+      "e": "연속된 일부 파티션을 차례로 반복",
+      "d": "SINGLE(1개)·ALL(전부)에 이은 세 번째 표기 — Pstart 1→Pstop 2처럼 연속 구간을 돈다. 로컬 인덱스는 파티션별 독립 B*Tree라 걸친 수만큼 스캔 반복(실측 Starts 2)."
+    },
+    {
+      "t": "UNUSABLE (ORA-01502)",
+      "e": "쓸 수 없는 인덱스 파티션 상태",
+      "d": "dba_ind_partitions.status. 힌트로 강제하면 ORA-01502, 힌트 없으면 옵티마이저가 full로 우회(실측 RANGE ALL 608블록) — 에러 대신 '조용한 성능 저하'로 나타난다. 글로벌 인덱스는 테이블 파티션 작업에 통째로 UNUSABLE 위험."
+    },
+    {
+      "t": "rebuild partition (ORA-14086)",
+      "e": "파티션 인덱스는 조각별로만 재빌드",
+      "d": "alter index … rebuild는 ORA-14086(통째 불가) → rebuild partition p2004처럼 파티션별로. 실측: 4개 재빌드 후 전부 USABLE, leaf 77→63으로 컴팩트. 인덱스에도 split partition이 있다."
+    },
+    {
+      "t": "directory 객체",
+      "e": "DB가 쓰는 OS 경로의 별명",
+      "d": "create or replace directory pump_dir as '/home/oracle/data_pump' + grant read,write. Data Pump가 덤프를 읽고 쓰는 위치 — dba_directories로 확인. expdp/impdp의 directory= 파라미터로 지정."
+    },
+    {
+      "t": "sqlfile= (impdp)",
+      "e": "덤프의 DDL만 파일로 추출",
+      "d": "impdp … sqlfile=sql_emp.sql — 실행하지 않고 덤프 안의 create 문들만 뽑는다(실측 2,801B). drop한 파티션의 원래 경계를 확인해 split으로 재생성할 때의 근거."
+    },
+    {
+      "t": "tables=…:p1 / content=data_only",
+      "e": "파티션 지정 + 데이터만 import",
+      "d": "tables=hr.sal_emp:p1처럼 콜론으로 파티션을 지정하고, content=data_only는 구조를 건드리지 않고 데이터만 넣는다. 실측: 빈 p1에 49행 복원, 파티션만 export한 덤프는 204,800B."
+    },
+    {
+      "t": "병렬 처리 (PX·QC)",
+      "e": "작업을 나눠 여러 프로세스가 동시에",
+      "d": "SQL 작업 범위를 작은 단위로 나눠 동시 처리 — 대용량에 효과적. PX COORDINATOR(QC)가 지휘, :TQ 큐로 전달, IN-OUT의 P->S(워커→QC)·P->P(워커 간 재분배)·PCWP/PCWC(같은 워커가 연속 수행)로 흐름을 읽는다."
+    },
+    {
+      "t": "v$pq_tqstat",
+      "e": "병렬 TQ별 분담 실측 뷰",
+      "d": "TQ마다 Producer/Consumer의 행수·바이트를 보여준다. 실측: DoP 2의 count(*)에서 P000·P001이 부분 집계 1행씩 → QC가 2행 수신(DoP 4면 4행). allstats last는 QC 기준이라 워커 몫이 0으로 보이므로 이 뷰로 확인."
+    }
+  ],
+  "PLANQ": [
+    {
+      "id": "pl81a",
+      "q": "같은 조회(employee_id=1000)의 로컬 인덱스 생성 전/후 플랜이다. 두 플랜 모두 PARTITION RANGE SINGLE(1·1)인데 Buffers가 140→3이 된 이유와, 'BY LOCAL INDEX ROWID'가 말해주는 것을 설명하라.",
+      "plan": "[생성 전]\n|  1 |  PARTITION RANGE SINGLE|           | Pstart 1 Pstop 1 | Buffers 140 |\n|* 2 |   TABLE ACCESS FULL    | EMP_LOCAL | filter(\"EMPLOYEE_ID\"=1000)\n\n[생성 후]\n|  1 |  PARTITION RANGE SINGLE            |               | Pstart 1 Pstop 1 | Buffers 3 |\n|  2 |   TABLE ACCESS BY LOCAL INDEX ROWID| EMP_LOCAL     |\n|* 3 |    INDEX UNIQUE SCAN               | EMP_LOCAL_IDX | access(\"EMPLOYEE_ID\"=1000)",
+      "a": "pruning(RANGE SINGLE)은 두 플랜 모두 같다 — 6파티션 중 P1 하나로 줄이는 일까지만 한다. 생성 전에는 그 조각 안을 전부 스캔(FULL, P1의 140여 블록), 생성 후에는 파티션별 독립 B*Tree인 로컬 인덱스에서 UNIQUE SCAN으로 위치를 찾아 rowid로 한 행만 집는다(루트→리프 2블록 + 테이블 1블록 = 3). 'BY LOCAL INDEX ROWID'는 그 rowid가 로컬 인덱스 파티션에서 나왔다는 표시 — 파티션은 '어느 조각', 인덱스는 '조각 안 어디'를 담당한다는 분업이 플랜에 그대로 찍힌 것."
+    },
+    {
+      "id": "pl81b",
+      "q": "parallel(e 2)로 order by를 실행한 병렬 플랜이다. TQ가 두 개(:TQ10000·:TQ10001)인 이유, PX SEND RANGE(P->P)와 PX SEND QC(ORDER)의 역할 분담, 그리고 count(*) 때(QC RANDOM 하나)와 달라진 이유를 설명하라.",
+      "plan": "|  1 |  PX COORDINATOR        |          |        |      |            | A-Rows 107K |\n|  2 |   PX SEND QC (ORDER)   | :TQ10001 | Q1,01 | P->S | QC (ORDER) |\n|  3 |    SORT ORDER BY       |          | Q1,01 | PCWP |            |\n|  4 |     PX RECEIVE         |          | Q1,01 | PCWP |            |\n|  5 |      PX SEND RANGE     | :TQ10000 | Q1,00 | P->P | RANGE      |\n|  6 |       PX BLOCK ITERATOR|          | Q1,00 | PCWC |            |\n|* 7 |        TABLE ACCESS FULL| EMP     | Q1,00 | PCWP |            |",
+      "a": "정렬은 '모으는 순서'가 결과인 연산이라 전송이 두 번 필요하다. ① 스캔 워커 집합(Q1,00)이 last_name 값 구간별로 행을 재분배한다 — PX SEND RANGE, P->P(:TQ10000). ② 받은 워커 집합(Q1,01)이 각자 자기 구간만 SORT ORDER BY로 정렬한다 — 구간이 나뉘어 있으니 부분 정렬이 곧 전체 정렬의 조각이 된다. ③ QC가 구간 순서대로 이어 붙인다 — PX SEND QC(ORDER), P->S(:TQ10001). count(*)는 부분 합계를 아무 순서로 모아도 되므로 재분배가 필요 없어 QC(RANDOM) TQ 하나로 끝났다 — PQ Distrib 컬럼(RANDOM/RANGE/ORDER)이 연산의 요구를 그대로 말해준다."
+    }
+  ]
+}

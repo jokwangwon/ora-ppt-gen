@@ -1,0 +1,178 @@
+{
+  "deck_id": "day81",
+  "title": "조각 안은 인덱스가, 축이 다르면 global이 — 그리고 병렬 개막",
+  "subtitle": "81일차 — shrink 검증 · Data Pump 파티션 복구 · local/global 인덱스 · PX 플랜 읽기",
+  "source": "assets/sql_tuning.html §11.12~11.13 · §13 · §14",
+  "slides": [
+    { "type": "title" },
+    { "type": "section", "num": "00", "title": "오늘의 큰 그림", "subtitle": "숙제 해결 → 백업·복구 → 파티션 인덱스 → 병렬 개막" },
+    {
+      "type": "content",
+      "title": "네 막짜리 하루 — 어제의 숙제가 풀리고, 파티션이 완성되고, 병렬이 열렸다",
+      "notes": "오늘은 네 막입니다. 1막, 어제 홈랩 숙제였던 shrink의 효과가 실측으로 확인됐어요 — 1,006블록이 1블록이 됐습니다. 덤으로 파티션 세그먼트가 왜 전부 8MB로 시작하는지, 히든 파라미터까지 확인했고요. 2막, Data Pump입니다. 파티션 테이블을 통째로, 또는 파티션 하나만 백업하고 복구하는 세 가지 시나리오를 돌았어요. 실수로 drop한 파티션을 sqlfile과 split, data_only 옵션으로 살려내는 흐름이 백미입니다. 3막이 오늘의 중심 — 파티션 인덱스예요. pruning만으로는 조각 하나를 통째로 읽어야 해서 140블록이 들었는데, 로컬 인덱스를 만들자 3블록이 됐습니다. 그리고 테이블과 다른 축으로 자르는 글로벌 인덱스, 그 대가인 UNUSABLE과 파티션별 rebuild까지. 4막, 병렬 처리가 개막했습니다. PX 플랜의 QC와 TQ, IN-OUT 표기를 읽는 법, 그리고 order by가 붙으면 왜 전송이 두 번이 되는지 — 오늘은 열기만 했고 다음 시간에 이어집니다.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": ["막", "내용", "오늘의 숫자"],
+          "rows": [
+            ["① shrink 검증 (§11.12)", "어제 숙제 해결 + _partition_large_extents", "1,006블록 → 1 · 초기 익스텐트 8MB"],
+            ["② Data Pump (§11.13)", "파티션 백업·복구 3종 시나리오", "덤프 237KB / 파티션만 204KB"],
+            ["③ 파티션 인덱스 (§13)", "local(1:1) vs global(다른 축)", "140 → 3 · UNUSABLE이면 608"],
+            ["④ 병렬 개막 (§14)", "QC·TQ·IN-OUT·v$pq_tqstat", "serial 742 vs 워커 2명 분담"]
+          ]
+        },
+        { "kind": "callout", "tone": "why", "head": "관통하는 질문", "body": "파티션이 '어느 조각'을 답한 뒤 — 조각 안은 누가(인덱스), 조각의 백업은 어떻게(Data Pump), 조각들을 동시에 읽으려면(병렬)?" }
+      ]
+    },
+    { "type": "section", "num": "01", "title": "숙제 해결 & Data Pump", "subtitle": "1,006 → 1 · 조각 단위 백업·복구" },
+    {
+      "type": "content",
+      "title": "shrink가 정말 들었다 — 1,006블록이 1블록으로, 조회는 2블록",
+      "notes": "어제 '1행인데 1,006블록' 문제에 shrink space cascade 처방을 내렸었죠. 오늘 실측으로 확인됐습니다. enable row movement, modify partition p3 shrink space cascade, disable — 그리고 partname p3로 통계를 다시 걷으니 BLOCKS가 1,006에서 1로 떨어졌어요. partition p3를 조회하면 버퍼 2개로 끝납니다. HWM이 실제로 내려온 거예요. 이후 조회에서 6으로 보인 장면도 있는데 수집 시점 차이로 보이고, 어느 쪽이든 1,006에서 한 자릿수로 내려온 건 분명합니다. 그리고 딕셔너리에 initial_extent를 붙여 보니 재미있는 게 나왔어요 — 모든 파티션이 8,388,608, 정확히 8MB로 시작합니다. 히든 파라미터 _partition_large_extents가 TRUE 기본값이라, 파티션 세그먼트는 초기 익스텐트를 8MB로 크게 잡거든요. 행 몇 개짜리 파티션도 8MB를 먼저 받는다는 뜻이라, 파티션을 잘게 많이 쪼갤수록 안 쓰는 8MB가 쌓입니다. 어제의 1,006블록이 '과거의 기억(HWM)' 문제라면 이건 '시작 크기' 문제 — 결이 다른 공간 이슈 두 개를 구분해 두세요.",
+      "blocks": [
+        { "kind": "code", "lines": [
+          "alter table hr.sal_emp enable row movement;",
+          "alter table hr.sal_emp modify partition p3 shrink space cascade;",
+          "alter table hr.sal_emp disable row movement;",
+          "-- partname=>'p3' 통계 재수집:",
+          "P3   NUM_ROWS 1   BLOCKS 1     ← 1,006 → 1 (조회 Buffers 2)",
+          "-- 그리고: 모든 파티션 INITIAL_EXTENT 8388608 (8MB)",
+          "--         _partition_large_extents = TRUE (기본)"
+        ] },
+        { "kind": "callout", "tone": "why", "head": "공간 이슈 두 결", "body": "1,006블록 = HWM의 기억(shrink로 회수) · 8MB = 파티션 세그먼트의 시작 크기(_partition_large_extents) — 잘게 많이 쪼갤수록 후자가 쌓인다." }
+      ]
+    },
+    {
+      "type": "content",
+      "title": "Data Pump — 파티션은 조각 단위로 백업하고 조각 단위로 되살린다",
+      "notes": "디렉토리 객체를 만들고 — create or replace directory pump_dir, grant read write — 세 가지 시나리오를 돌았습니다. 시나리오 A, 테이블 전체. expdp tables=hr.sal_emp로 덤프를 받고, drop table purge로 날린 뒤 impdp로 되살렸어요. 파티션 구조와 데이터는 물론 통계까지 그대로 돌아옵니다 — 딕셔너리의 num_rows가 재수집 없이 바로 채워져 있었어요. 어제 row movement로 옮겼던 King 24000, oracle 29000도 p4에 그대로고요. 시나리오 B가 하이라이트입니다. drop partition p1으로 49행을 날렸어요. 조회하면 ORA-02149, 파티션이 없다고 나옵니다. 복구 절차: 먼저 impdp에 sqlfile 옵션을 주면 덤프를 실행하지 않고 안에 든 DDL만 파일로 뽑아줍니다 — vi로 열어 원래 경계가 5000이었다는 걸 확인하고, split partition p2 at 5000으로 빈 p1을 재생성합니다. add는 중간 경계라 14074로 막히니까 어제 배운 대로 split이죠. 그리고 impdp tables=hr.sal_emp:p1 content=data_only — 콜론으로 파티션을 지정하고 데이터만 부어 넣으면 49행이 돌아옵니다. 새 파티션 통계는 NULL이라 partname으로 재수집까지. 시나리오 C는 파티션 하나만 expdp로 백업해 두고 truncate 후 같은 방식으로 복원 — 204,800바이트짜리 조각 백업입니다.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": ["시나리오", "흐름", "확인"],
+          "rows": [
+            ["A. 전체 백업·복원", "expdp tables=hr.sal_emp → drop purge → impdp", "구조+데이터+통계까지 복원 (237KB)"],
+            ["B. drop한 파티션 복구", "ORA-02149 → sqlfile로 DDL 추출 → split로 빈 p1 → impdp :p1 content=data_only", "49행 복원 → partname 통계 재수집"],
+            ["C. 파티션만 백업", "expdp tables=hr.sal_emp:p1 (204KB) → truncate → impdp :p1 data_only", "0행 → 49행"]
+          ]
+        },
+        { "kind": "callout", "tone": "tip", "head": "옵션 세 개가 핵심", "body": "sqlfile=(DDL만 추출·실행 없음) · tables=…:p1(파티션 지정) · content=data_only(구조 그대로 데이터만) — §11.1의 '관리 이점'이 이 세 옵션으로 실전이 된다." }
+      ]
+    },
+    { "type": "section", "num": "02", "title": "로컬 파티션 인덱스", "subtitle": "조각과 1:1 — 140블록이 3블록으로" },
+    {
+      "type": "content",
+      "title": "pruning은 '어느 조각'까지만 — 조각 안은 여전히 140블록이었다",
+      "notes": "10만 7천 행짜리 emp_local을 employee_id로 6파티션 해놓고, 인덱스 없이 employee_id=1000을 조회했습니다. 플랜은 PARTITION RANGE SINGLE — pruning이 제대로 동작해서 6조각 중 P1 하나만 읽어요. 그런데 버퍼가 140입니다. P1이 156블록짜리니까, 조각 하나로 줄이긴 했는데 그 안에서는 처음부터 끝까지 full scan을 한 거예요. 1행 찾자고 140블록. 여기서 오늘의 명제가 나옵니다 — 파티션은 '어느 조각에 있나'까지만 답합니다. '조각 안 어디에 있나'는 인덱스의 몫이에요. 그래서 로컬 파티션 인덱스를 만듭니다. create unique index on employee_id local — 뒤에 local 한 단어면 됩니다. 정의는 네 줄이에요. 테이블 파티션과 인덱스 파티션이 1대1로 매핑된다. 개수와 파티션 키가 일치한다. 유지관리는 오라클이 자동으로 하고 다른 파티션에 영향을 주지 않는다. 그리고 PREFIXED — 파티션 키 컬럼을 인덱스 키의 왼쪽 서두에 두는 것. 딕셔너리로 확인하면 LOCAL, PREFIXED, 파티션 6개 — 테이블과 같은 경계(20000, 40000...)가 인덱스에도 그대로 있습니다.",
+      "blocks": [
+        { "kind": "code", "lines": [
+          "-- 인덱스 없이: pruning은 됐지만",
+          "|  1 |  PARTITION RANGE SINGLE|           | Pstart 1 Pstop 1 | Buffers 140 |",
+          "|* 2 |   TABLE ACCESS FULL    | EMP_LOCAL | ← 조각 안은 전부 스캔",
+          "",
+          "create unique index hr.emp_local_idx on hr.emp_local(employee_id) local;",
+          "-- EMP_LOCAL_IDX  UNIQUE  LOCAL  PREFIXED  PARTITION_COUNT 6",
+          "-- dba_ind_partitions: 테이블과 같은 6개 경계, leaf 41/42/84/42/15/0"
+        ] },
+        { "kind": "callout", "tone": "why", "head": "분업", "body": "파티션 = '어느 조각'(pruning) · 인덱스 = '조각 안 어디'. 하나만 있으면 나머지 낭비가 남는다 — 140블록이 그 증거." }
+      ]
+    },
+    {
+      "type": "content",
+      "title": "로컬 인덱스 후 — 같은 조회가 3블록, 두 조각에 걸치면 ITERATOR",
+      "notes": "인덱스를 만들고 같은 조회를 다시 하면 플랜이 TABLE ACCESS BY LOCAL INDEX ROWID, INDEX UNIQUE SCAN으로 바뀌고 버퍼가 3입니다. 140에서 3 — 인덱스 루트에서 리프로 두 블록, 테이블 한 블록이에요. between 1000 and 1100처럼 범위로 줘도 RANGE SINGLE에 INDEX RANGE SCAN으로 19블록에 끝납니다. 재미있는 건 파티션 두 개에 걸칠 때예요. between 1000 and 25000은 P1과 P2에 걸칩니다. 플랜에 PARTITION RANGE ITERATOR가 나와요 — SINGLE(한 개), ALL(전부)에 이은 세 번째 표기로, Pstart 1에서 Pstop 2까지 연속된 일부 파티션을 차례로 도는 연산입니다. 그리고 그 아래 INDEX RANGE SCAN의 Starts가 2예요. 로컬 인덱스는 파티션별로 독립된 B*Tree라서, 걸친 파티션 수만큼 인덱스 스캔이 반복되는 겁니다. 같은 조건으로 스캔 방식도 비교했어요 — index range scan은 53블록, index fast full scan은 95블록에 Reads 32까지. 여기선 range scan 승. 그리고 fast full scan에 parallel_index 힌트를 얹으면 PX BLOCK ITERATOR가 나오는데, 이건 4막 병렬의 예고편입니다.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": ["조회", "플랜", "Buffers"],
+          "rows": [
+            ["=1000 (인덱스 후)", "RANGE SINGLE + LOCAL INDEX ROWID + UNIQUE SCAN", "3 ← 140에서"],
+            ["between 1000~1100", "RANGE SINGLE + BATCHED + RANGE SCAN", "19"],
+            ["between 1000~25000 (P1~P2)", "RANGE ITERATOR + RANGE SCAN, Starts 2", "53"],
+            ["〃 index_ffs", "RANGE ITERATOR + FAST FULL SCAN, Starts 2", "95 (Reads 32)"]
+          ]
+        },
+        { "kind": "callout", "tone": "why", "head": "ITERATOR + Starts 2", "body": "SINGLE·ALL에 이은 세 번째 표기 — 연속 구간(1→2)을 차례로. 로컬 인덱스는 파티션별 독립 B*Tree라 걸친 수만큼 스캔이 반복된다." }
+      ]
+    },
+    { "type": "section", "num": "03", "title": "글로벌 파티션 인덱스", "subtitle": "다른 축으로 자른다 — 그 대가는 UNUSABLE" },
+    {
+      "type": "content",
+      "title": "글로벌 — 테이블은 employee_id 6조각, 인덱스는 hire_date 4조각",
+      "notes": "글로벌 파티션 인덱스의 정의는 한 줄입니다 — 파티션 테이블의 파티션 키와 파티션 인덱스의 파티션 키가 일치하지 않는다. emp_global 테이블은 employee_id로 6파티션인데, 인덱스는 hire_date로, global partition by range를 써서 p2004부터 pmax까지 4파티션으로 만들었어요. 딕셔너리를 보면 GLOBAL, PREFIXED, 파티션 4개 — 테이블과 개수도 축도 다릅니다. 이게 왜 좋으냐. hire_date between 2001년으로 조회하면 플랜에 PARTITION RANGE SINGLE이 나오는데, 이 SINGLE은 테이블 파티션이 아니라 인덱스 파티션 p2004예요. 조회 축(기간)에서 pruning이 일어난 겁니다. index range scan이면 버퍼 5로 끝나요. 테이블 축으로는 도저히 자를 수 없는 조건을, 인덱스가 자기 축으로 잘라주는 거죠. 반대로 employee_id=1000 조회는 이 인덱스를 못 씁니다 — hire_date 인덱스니까요. 그때는 테이블 축 pruning으로 돌아가서 RANGE SINGLE에 full scan 140블록. 정리하면, 테이블 축과 조회 축이 다를 때 글로벌 인덱스가 두 번째 pruning 축을 제공합니다.",
+      "blocks": [
+        { "kind": "code", "lines": [
+          "create index hr.emp_global_idx on hr.emp_global(hire_date) global",
+          "  partition by range(hire_date)",
+          "  ( partition p2004 …, p2005, p2006, pmax );   -- 4개, hire_date축",
+          "-- EMP_GLOBAL_IDX  NONUNIQUE  GLOBAL  PREFIXED  PARTITION_COUNT 4",
+          "",
+          "-- hire_date 2001년 count(*):",
+          "|  2 |   PARTITION RANGE SINGLE|            | Pstart 1 Pstop 1 | ← 인덱스 파티션 p2004",
+          "|* 3 |    INDEX RANGE SCAN     | EMP_GLOBAL_IDX | Buffers 5 | (FFS면 85)"
+        ] },
+        { "kind": "callout", "tone": "why", "head": "두 번째 pruning 축", "body": "테이블 축(employee_id)으로 못 자르는 기간 조건을 인덱스가 자기 축(hire_date)으로 자른다 — RANGE SINGLE의 1이 '인덱스 파티션' 번호라는 게 핵심." }
+      ]
+    },
+    {
+      "type": "content",
+      "title": "글로벌의 아킬레스건 — 통째 UNUSABLE, 복구는 파티션별 rebuild",
+      "notes": "그 대가가 오늘의 교훈입니다. 테이블 파티션 변경 작업 뒤에 — 어떤 작업이었는지는 노트에 캡처가 없어서 홈랩 재확인 목록에 올렸습니다만 — 딕셔너리를 보니 인덱스 네 파티션의 STATUS가 전부 UNUSABLE로 바뀌어 있었어요. 이 상태에서 index_rs 힌트로 인덱스를 강제하면 ORA-01502, unusable state 에러가 납니다. 그런데 힌트 없이 실행하면? 에러가 안 나요. 옵티마이저가 인덱스를 버리고 PARTITION RANGE ALL에 full scan으로 우회합니다 — Starts 5, 버퍼 608, Reads 604. 5블록이면 끝나던 조회가 608블록이 된 거예요. 인덱스가 죽으면 장애가 아니라 '조용한 성능 저하'로 나타난다는 것, 운영에서 무서운 지점입니다. 복구하려고 alter index rebuild를 치면 ORA-14086 — 파티션 인덱스는 통째로 rebuild할 수 없다. rebuild partition p2004부터 pmax까지 네 번을 각각 실행해야 전부 USABLE로 돌아옵니다. 리프 블록도 77에서 63으로 컴팩트해졌고요. 마지막으로 인덱스에도 split partition이 된다는 것 — pmax를 2008 경계로 쪼개 p2007을 만들었습니다. 어제 배운 테이블 관리 명령의 문법이 인덱스에도 그대로 이어져요.",
+      "blocks": [
+        { "kind": "code", "lines": [
+          "-- (테이블 파티션 변경 후 — 원인 작업 캡처 없음, 홈랩 재확인)",
+          "P2004~PMAX: STATUS UNUSABLE   ← 인덱스 전체가 통째로",
+          "index_rs 힌트 → ORA-01502 (unusable state)",
+          "힌트 없이     → PARTITION RANGE ALL + FULL, Starts 5, Buffers 608",
+          "",
+          "alter index … rebuild;            → ORA-14086 (통째 불가)",
+          "alter index … rebuild partition p2004;   -- ×4 → 전부 USABLE",
+          "alter index … split partition pmax at('2008-01-01') into (p2007, pmax);"
+        ] },
+        { "kind": "callout", "tone": "why", "head": "local vs global — 운영의 갈림길", "body": "local: 파티션 작업이 해당 조각에만(자동 관리). global: 조회 축을 얻는 대신 통째 UNUSABLE 위험 + 파티션별 rebuild 시간 — 설계 단계에서 저울질한다." }
+      ]
+    },
+    { "type": "section", "num": "04", "title": "병렬 처리 개막", "subtitle": "QC와 워커 — 나눠서 동시에" },
+    {
+      "type": "content",
+      "title": "첫 병렬 플랜 — QC가 지휘하고 워커가 나눠 읽는다",
+      "notes": "마지막 막, 병렬 처리입니다. 정의부터 — SQL문이 수행해야 할 작업 범위를 여러 개의 작은 단위로 나누어 여러 프로세스가 동시에 처리하는 것. 대용량 데이터에 효과적입니다. 107,000행 760블록짜리 emp로 실측했어요. serial full scan은 버퍼 742, Reads 740입니다. parallel(e 2) 힌트를 주면 플랜이 완전히 달라져요 — PX COORDINATOR 아래로 PX SEND QC, SORT AGGREGATE, PX BLOCK ITERATOR, TABLE ACCESS FULL이 늘어섭니다. Note에는 Degree of Parallelism is 2. 원문 메모대로 병렬 스캔은 direct path read 방식이고요. 그런데 플랜의 PX 아래 행들이 Starts 0, Buffers 0으로 찍혀 있어요 — 이상하죠. allstats last가 QC 세션 기준이라 워커들 몫이 플랜엔 안 보이는 겁니다. 실제 분담은 v$pq_tqstat으로 봅니다 — Producer P000과 P001이 각각 1행씩(자기 몫의 부분 count) 올리고, Consumer QC가 2행을 받아 최종 합산해요. DoP를 4로 올리면 P000부터 P003까지 넷이 1행씩, QC가 4행을 받습니다. 그림 그대로예요 — 워커가 블록을 나눠 읽고, 부분 결과를 TQ라는 큐로 QC에게 보내고, QC가 모아서 답을 만듭니다.",
+      "blocks": [
+        { "kind": "svg", "svg": "<svg viewBox='0 0 760 170' xmlns='http://www.w3.org/2000/svg'><defs><marker id='qx1' viewBox='0 0 10 10' refX='8' refY='5' markerWidth='6' markerHeight='6' orient='auto-start-reverse'><path d='M2 1L8 5L2 9' fill='none' stroke='#94A3B8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></marker></defs><rect x='30' y='26' width='200' height='50' rx='9' fill='#F1F5F9' stroke='#CBD5E1'/><text x='130' y='47' text-anchor='middle' font-family='sans-serif' font-size='13' font-weight='700' fill='#1E293B'>P000 (워커)</text><text x='130' y='65' text-anchor='middle' font-family='sans-serif' font-size='11' fill='#64748B'>블록 절반 스캔 → 부분 count 1행</text><rect x='30' y='94' width='200' height='50' rx='9' fill='#F1F5F9' stroke='#CBD5E1'/><text x='130' y='115' text-anchor='middle' font-family='sans-serif' font-size='13' font-weight='700' fill='#1E293B'>P001 (워커)</text><text x='130' y='133' text-anchor='middle' font-family='sans-serif' font-size='11' fill='#64748B'>나머지 절반 → 부분 count 1행</text><rect x='360' y='58' width='180' height='56' rx='9' fill='#FDF0E7' stroke='#E0892B'/><text x='450' y='82' text-anchor='middle' font-family='sans-serif' font-size='13' font-weight='700' fill='#1E293B'>:TQ10000</text><text x='450' y='100' text-anchor='middle' font-family='sans-serif' font-size='11' fill='#64748B'>table queue — P→S 전송</text><rect x='590' y='52' width='150' height='66' rx='9' fill='#DEF0F2' stroke='#1C7E8C'/><text x='665' y='80' text-anchor='middle' font-family='sans-serif' font-size='13' font-weight='700' fill='#1E293B'>QC (지휘자)</text><text x='665' y='99' text-anchor='middle' font-family='sans-serif' font-size='11' fill='#64748B'>2행 받아 최종 합산</text><path d='M234 51 L354 74' fill='none' stroke='#94A3B8' stroke-width='1.4' marker-end='url(#qx1)'/><path d='M234 119 L354 98' fill='none' stroke='#94A3B8' stroke-width='1.4' marker-end='url(#qx1)'/><path d='M544 86 H584' fill='none' stroke='#94A3B8' stroke-width='1.4' marker-end='url(#qx1)'/></svg>", "caption": "v$pq_tqstat 실측: P000·P001이 부분 집계 1행씩 → QC 2행 수신 (DoP 4면 P000~P003 → 4행)" },
+        { "kind": "callout", "tone": "tip", "head": "플랜의 0들", "body": "PX 아래 행이 Starts 0·Buffers 0인 건 allstats last가 QC 기준이라서 — 워커 분담은 v$pq_tqstat으로 본다. QC Buffers 5 vs serial 742." }
+      ]
+    },
+    {
+      "type": "content",
+      "title": "order by가 붙으면 TQ가 둘 — 분배 방식이 연산의 요구를 말한다",
+      "notes": "count(*)의 병렬은 전송이 한 번이었습니다 — 워커들이 부분 합계를 아무 순서로나 QC에 보내면 되니까 PX SEND QC(RANDOM), TQ 하나. 그런데 order by last_name을 붙이면 플랜이 두 층이 됩니다. 아래층 Q1,00 — 스캔 워커들이 테이블을 나눠 읽고, PX SEND RANGE로 보냅니다. IN-OUT이 P to P예요. 워커에서 워커로, 값 구간별로 재분배하는 겁니다. last_name이 A로 시작하는 행은 1번 워커에게, 후반 알파벳은 2번 워커에게 — 이런 식으로요. 위층 Q1,01 — 받은 워커들이 각자 자기 구간만 SORT ORDER BY로 정렬합니다. 구간이 나뉘어 있으니 부분 정렬이 곧 전체 정렬의 조각이 되죠. 마지막으로 PX SEND QC(ORDER), P to S — QC가 구간 순서대로 이어 붙입니다. TQ가 :TQ10000과 :TQ10001 두 개인 이유가 이거예요. 정렬은 '모으는 순서'가 결과인 연산이라 전송이 두 번 필요합니다. PQ Distrib 컬럼의 RANDOM, RANGE, ORDER — 분배 방식이 연산의 요구를 그대로 말해줍니다. 병렬은 오늘이 개막이에요. IN-OUT 표기(P->S, P->P, PCWP/PCWC)를 읽는 법까지 문서 §14.2 표로 정리해 뒀고, 다음 수업에서 이어집니다.",
+      "blocks": [
+        { "kind": "code", "lines": [
+          "select /*+ full(e) parallel(e 2) */ * from hr.emp e order by last_name;",
+          "|  2 |   PX SEND QC (ORDER)   | :TQ10001 | Q1,01 | P->S | ← ③ 순서대로 QC에",
+          "|  3 |    SORT ORDER BY       |          | Q1,01 | PCWP | ← ② 구간별 각자 정렬",
+          "|  5 |      PX SEND RANGE     | :TQ10000 | Q1,00 | P->P | ← ① 값 구간 재분배",
+          "|* 7 |        TABLE ACCESS FULL| EMP     | Q1,00 | PCWP |",
+          "-- count(*)는 QC(RANDOM) TQ 1개로 끝났었다"
+        ] },
+        { "kind": "callout", "tone": "why", "head": "RANDOM vs RANGE vs ORDER", "body": "합계는 순서 무관(RANDOM·TQ 1개), 정렬은 구간 재분배(RANGE·P->P) 후 순서대로 수합(ORDER) — 분배 방식만 봐도 무슨 연산인지 보인다." }
+      ]
+    },
+    { "type": "section", "num": "05", "title": "빈틈 & 질문", "subtitle": "홈랩 재확인 목록" },
+    {
+      "type": "content",
+      "title": "남긴 것 — UNUSABLE의 방아쇠, 그리고 병렬은 계속",
+      "notes": "오늘 남긴 빈틈입니다. 첫째, 글로벌 인덱스를 통째로 UNUSABLE로 만든 방아쇠가 뭐였는지 — 노트에 그 작업의 캡처가 없어요. 테이블 파티션 변경류로 추정되는데, 홈랩에서 emp_global의 파티션을 truncate나 drop, split 해보면서 어떤 작업이 글로벌 인덱스를 죽이는지, 로컬 인덱스는 정말 무사한지 대조해 보는 게 최고의 복습입니다. 둘째, shrink 후 딕셔너리 blocks가 처음엔 1, 나중 조회에선 6으로 보인 차이 — 수집 시점 문제로 보이지만 확인해 둘 것. 셋째, 어제 이월된 것들 — arraysize 파티션 매트릭스, 동적 pruning KEY 표기. 그리고 v$pq_tqstat의 WAITS 컬럼 의미도 다음에 물어보면 좋겠어요. 수업 말미 질문 하나가 인상적이었죠 — checkpoint는 언제 쓰나요? 리커버리 때. 내부구조·운영·튜닝이 계속 서로를 부릅니다. 병렬 처리는 다음 시간에 이어집니다 — 로드맵 14가 진행 중이고, 15번 안티패턴이 그 뒤에 대기 중입니다.",
+      "blocks": [
+        { "kind": "bullets", "items": [
+          "UNUSABLE의 방아쇠 재현 — emp_global 파티션 truncate/drop/split 후 글로벌·로컬 인덱스 status 대조 (원인 작업 캡처 없음)",
+          "shrink 후 blocks 1 vs 6 — 통계 수집 시점에 따른 차이 확인",
+          "(이월) arraysize×파티션 Buffers 매트릭스 · 동적 pruning KEY 표기",
+          "v$pq_tqstat의 WAITS 컬럼 의미 — 다음 수업 질문 후보",
+          "다음 예고 — 병렬 처리 계속(로드맵 14 진행 중), 이후 안티패턴+힌트(15)"
+        ] },
+        { "kind": "callout", "tone": "tip", "head": "오늘의 한 줄", "body": "파티션은 조각을, 인덱스는 조각 안을, Data Pump는 조각의 백업을, 병렬은 조각들의 동시 읽기를 — 전부 '나눈 것'을 다루는 기술이다." }
+      ]
+    }
+  ]
+}

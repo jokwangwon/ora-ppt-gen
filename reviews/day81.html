@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>81일차 복습 시트</title>
+<style>
+body{margin:0;background:#f6f8fa;color:#34343c;font-family:'Lato','Noto Sans KR',-apple-system,sans-serif;line-height:1.7}
+.wrap{max-width:820px;margin:0 auto;padding:36px 22px 80px}
+.top{font-size:12px;color:#7c828a;margin-bottom:6px}
+h2{color:#1b1b1f;font-size:22px;margin:4px 0 14px}
+h3{color:#1b1b1f;font-size:16px;margin:26px 0 8px;padding-top:14px;border-top:1px solid #e7ebef}
+h4{font-size:14px;color:#7c828a;margin:16px 0 4px}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(23,32,50,.05)}
+th{text-align:left;font-size:12px;color:#7c828a;padding:9px 12px;border-bottom:2px solid #e7ebef;background:#fbfcfd}
+td{padding:8px 12px;border-bottom:1px solid #eef1f4;vertical-align:top}
+code{font-family:ui-monospace,monospace;font-size:.85em;background:#eef1f4;padding:1px 6px;border-radius:5px}
+.note{background:#e9f2fb;border:1px solid #cfe0fb;border-radius:11px;padding:11px 14px;font-size:13px;color:#1f4f9e;margin:10px 0}
+hr{border:none;border-top:1px dashed #e7ebef;margin:18px 0}
+ul,ol{padding-left:22px}
+.back{position:fixed;right:16px;bottom:16px;background:#1d7dcc;color:#fff;font:700 13px/1 system-ui;text-decoration:none;padding:11px 15px;border-radius:24px;box-shadow:0 4px 14px rgba(0,0,0,.22)}
+</style></head><body><div class="wrap">
+<div class="top">Oracle DBA 학습 자료실 · 일일 복습</div>
+<h2>81일차 복습 시트</h2>
+<div class='note'>오늘 하루를 한 장으로 — 축·개념·명령어·요약. 막히는 개념은 옆의 [문서 §] 링크로 바로 이동해 다시 읽고, 마지막에 허브에서 문제로 마무리.</div>
+<hr>
+<h3>[오늘의 축]</h3>
+<div class='note'><b>파티션은 조각을, 인덱스는 조각 안을(140→3), Data Pump는 조각의 백업을, 병렬은 조각들의 동시 읽기를 — 전부 '나눈 것'을 다루는 기술이다. 그리고 global의 대가는 통째 UNUSABLE(복구는 파티션별 rebuild).</b></div>
+<p>①어제 숙제 해결(shrink 1,006→1) ②Data Pump 파티션 복구 3종 ③로컬/글로벌 파티션 인덱스 ④병렬 처리 개막(QC·TQ·RANGE 분배).</p>
+<h3>[개념 제목] (수업 등장 순)</h3>
+<ol>
+<li><b>shrink 검증</b> — 1,006블록→1(조회 Buffers 2), HWM 회수 실증 · <a href='../assets/sql_tuning.html#pt' class='cmp-link'>문서 §11.12</a></li>
+<li><b>_partition_large_extents</b> — 파티션 초기 익스텐트 8MB(8388608)의 이유 · <a href='../assets/sql_tuning.html#pt' class='cmp-link'>문서 §11.12</a></li>
+<li><b>directory 객체 + expdp/impdp</b> — 파티션 테이블 전체 백업·복원(통계까지) · <a href='../assets/sql_tuning.html#pt' class='cmp-link'>문서 §11.13</a></li>
+<li><b>drop 파티션 복구 절차</b> — ORA-02149 → sqlfile(DDL만) → split → <code>:p1 content=data_only</code> · <a href='../assets/sql_tuning.html#pt' class='cmp-link'>문서 §11.13</a></li>
+<li><b>파티션만 백업</b> — <code>tables=hr.sal_emp:p1</code>(204KB) → truncate → data_only 복원 · <a href='../assets/sql_tuning.html#pt' class='cmp-link'>문서 §11.13</a></li>
+<li><b>pruning의 한계</b> — RANGE SINGLE인데 Buffers 140(조각 안은 full) · <a href='../assets/sql_tuning.html#pi' class='cmp-link'>문서 §13.1</a></li>
+<li><b>로컬 파티션 인덱스</b> — 1:1 매핑·개수/키 일치·자동 관리·PREFIXED, 140→<b>3</b> · <a href='../assets/sql_tuning.html#pi' class='cmp-link'>문서 §13.2</a></li>
+<li><b>PARTITION RANGE ITERATOR</b> — 연속 일부 파티션 반복, INDEX SCAN Starts 2 · <a href='../assets/sql_tuning.html#pi' class='cmp-link'>문서 §13.3</a></li>
+<li><b>글로벌 파티션 인덱스</b> — 테이블(employee_id 6개)과 다른 축(hire_date 4개), 인덱스 축 pruning(Buffers 5) · <a href='../assets/sql_tuning.html#pi' class='cmp-link'>문서 §13.4</a></li>
+<li><b>UNUSABLE</b> — 힌트 강제=ORA-01502 / 힌트 없으면 full 우회(608블록, 조용한 성능 저하) · <a href='../assets/sql_tuning.html#pi' class='cmp-link'>문서 §13.5</a></li>
+<li><b>rebuild partition</b> — ORA-14086(통째 불가) → 조각별 4번, 인덱스에도 split · <a href='../assets/sql_tuning.html#pi' class='cmp-link'>문서 §13.5</a></li>
+<li><b>병렬 처리 개막</b> — QC·:TQ·IN-OUT(P-&gt;S/P-&gt;P·PCWP/PCWC)·v$pq_tqstat·RANGE/ORDER 분배 · <a href='../assets/sql_tuning.html#px' class='cmp-link'>문서 §14</a></li>
+</ol>
+<h3>[실습 명령어 정리] (실행 순서 + 결과 요지)</h3>
+<table><tr><th>#</th><th>명령</th><th>결과 요지</th></tr>
+<tr><td>1</td><td><code>enable row movement</code> → <code>modify partition p3 shrink space cascade</code> → disable → partname 통계</td><td>P3 BLOCKS <b>1,006→1</b>, <code>partition(p3)</code> 조회 Buffers <b>2</b> (이후 조회 6 — 시점차, 홈랩)</td></tr>
+<tr><td>2</td><td>딕셔너리 + initial_extent</td><td>전 파티션 <b>8,388,608(8MB)</b> — <code>_partition_large_extents=TRUE</code>(x$ksppcv)</td></tr>
+<tr><td>3</td><td><code>create directory pump_dir</code> + grant</td><td>dba_directories에 등록 — Data Pump 준비</td></tr>
+<tr><td>4</td><td><code>expdp … tables=hr.sal_emp dumpfile=…</code></td><td>237,568B 덤프</td></tr>
+<tr><td>5</td><td><code>drop table purge</code> → <code>impdp</code></td><td>파티션 구조·데이터·<b>통계까지</b> 복원(row movement 이력도 p4에 그대로)</td></tr>
+<tr><td>6</td><td><code>drop partition p1</code> → <code>partition(p1)</code> 조회</td><td>49행 유실 — <b>ORA-02149</b>(파티션 없음)</td></tr>
+<tr><td>7</td><td><code>impdp … sqlfile=sql_emp.sql</code></td><td>실행 없이 <b>DDL만 추출</b>(2,801B) — 원래 경계 확인</td></tr>
+<tr><td>8</td><td><code>split partition p2 at(5000) into (p1,p2)</code></td><td>빈 p1 재생성(통계 NULL) — add는 14074라 split</td></tr>
+<tr><td>9</td><td><code>impdp … tables=hr.sal_emp:p1 content=data_only</code></td><td>p1에 <b>49행 복원</b> → partname 통계 재수집(49/19/17)</td></tr>
+<tr><td>10</td><td><code>expdp … tables=hr.sal_emp:p1</code> → truncate → impdp data_only</td><td>파티션만 백업(204,800B) → 0행 → 49행</td></tr>
+<tr><td>11</td><td>emp_local 생성(107,000행, employee_id 6파티션) + granularity auto</td><td>P1 19,999/156 · P3 40,000/296 · PMAX 0</td></tr>
+<tr><td>12</td><td><code>where employee_id=1000</code> (인덱스 없음)</td><td>RANGE SINGLE + <b>FULL, Buffers 140</b> — 조각 안은 전부 스캔</td></tr>
+<tr><td>13</td><td><code>create unique index … (employee_id) local</code></td><td><b>LOCAL·PREFIXED·6파티션</b>, leaf 41/42/84/42/15/0</td></tr>
+<tr><td>14</td><td><code>=1000</code> 재실행</td><td>BY <b>LOCAL INDEX ROWID</b> + UNIQUE SCAN — <b>Buffers 3</b></td></tr>
+<tr><td>15</td><td><code>between 1000 and 1100</code></td><td>RANGE SINGLE + BATCHED + RANGE SCAN — 101행, Buffers 19</td></tr>
+<tr><td>16</td><td><code>between 1000 and 25000</code> (P1~P2) index_rs</td><td><b>RANGE ITERATOR</b>(1·2) + RANGE SCAN <b>Starts 2</b>, Buffers 53</td></tr>
+<tr><td>17</td><td>〃 index_ffs</td><td>FAST FULL SCAN Starts 2 — Buffers 95·Reads 32 (여기선 rs 승)</td></tr>
+<tr><td>18</td><td>〃 + parallel_index 2</td><td>PX BLOCK ITERATOR — QC Buffers 10 (§14 예고)</td></tr>
+<tr><td>19</td><td>emp_global + <code>create index …(hire_date) global partition by range</code> 4개</td><td><b>GLOBAL·PREFIXED·4파티션</b> — 테이블(6)과 개수·축 다름</td></tr>
+<tr><td>20</td><td>hire_date 2001년 count</td><td>RANGE SINGLE = <b>인덱스 파티션 축</b> — RANGE SCAN <b>Buffers 5</b> (FFS 85)</td></tr>
+<tr><td>21</td><td>(테이블 파티션 작업 후 — 캡처 없음) 딕셔너리</td><td>4파티션 전부 <b>UNUSABLE</b></td></tr>
+<tr><td>22</td><td>index_rs 힌트 / 힌트 없이</td><td><b>ORA-01502</b> / RANGE ALL + FULL Starts 5, <b>Buffers 608</b>·Reads 604</td></tr>
+<tr><td>23</td><td><code>alter index … rebuild</code></td><td><b>ORA-14086</b> — 통째 불가</td></tr>
+<tr><td>24</td><td><code>rebuild partition p2004</code> ×4</td><td>전부 USABLE — leaf 77→63 컴팩트</td></tr>
+<tr><td>25</td><td><code>alter index … split partition pmax at(2008-01-01)</code></td><td>인덱스에도 split — p2007 신설 후 pmax rebuild</td></tr>
+<tr><td>26</td><td>emp 재생성(107,000행/760블록) serial full</td><td>Buffers <b>742</b>·Reads 740</td></tr>
+<tr><td>27</td><td><code>parallel(e 2)</code> count(*)</td><td>PX 플랜(QC Buffers 5)·Note DoP 2·direct path read — 워커 통계는 플랜에 0</td></tr>
+<tr><td>28</td><td><code>v$pq_tqstat</code></td><td>Producer <b>P000·P001 각 1행</b> → Consumer QC 2행 (DoP 4면 P000~P003→4행)</td></tr>
+<tr><td>29</td><td><code>parallel(e 2)</code> + order by</td><td><b>TQ 2개</b> — ①PX SEND <b>RANGE</b>(P-&gt;P) ②SORT ORDER BY ③QC(<b>ORDER</b>)</td></tr>
+</table>
+<h3>[5줄 요약]</h3>
+<ol>
+<li><b>shrink는 진짜 든다</b> — 1,006블록→1(조회 2블록). 그리고 파티션 세그먼트는 기본 8MB로 시작(_partition_large_extents) — HWM의 기억과 시작 크기는 다른 결의 공간 이슈.</li>
+<li><b>Data Pump는 파티션 단위로 돈다</b> — 전체 덤프면 통계까지 복원, drop한 파티션은 sqlfile(DDL 추출)→split(빈 조각)→<code>:p1 content=data_only</code>(데이터만) 3단으로 복구.</li>
+<li><b>파티션은 '어느 조각', 인덱스는 '조각 안 어디'</b> — pruning만으로 140블록, 로컬 인덱스(1:1·PREFIXED·자동 관리) 후 3블록. 걸치면 ITERATOR + Starts=파티션 수.</li>
+<li><b>global은 조회 축을 얻고 안정성을 낸다</b> — hire_date 축 pruning으로 5블록. 대신 테이블 파티션 작업에 통째 UNUSABLE(힌트=ORA-01502, 아니면 608블록 조용한 우회) → ORA-14086이라 rebuild partition 조각별.</li>
+<li><b>병렬은 QC가 지휘하고 TQ로 흐른다</b> — 워커 분담은 v$pq_tqstat(P000·P001 각 1행), 플랜의 0들은 QC 기준 착시. 분배 방식이 연산을 말한다: 합계=RANDOM 1큐, 정렬=RANGE(P-&gt;P)→ORDER 2큐.</li>
+</ol>
+<h3>[건너뛴 것 — 매뉴얼 대비]</h3>
+<table><tr><th>안 다룬 것</th><th>추정 이유</th><th>공부하러 가기</th></tr>
+<tr><td>UNUSABLE의 방아쇠(어떤 테이블 작업이었나)</td><td>노트에 캡처 없음</td><td>? → 홈랩 1번 재현</td></tr>
+<tr><td>global 인덱스의 update global indexes 옵션</td><td>④ 심화(작업 시 인덱스 유지)</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/partition-admin.html' class='cmp-link'>매뉴얼 § Partition Administration</a></td></tr>
+<tr><td>NON-PREFIXED 인덱스</td><td>수업은 PREFIXED만 실측</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/partition-concepts.html' class='cmp-link'>매뉴얼 § Partitioning Concepts</a></td></tr>
+<tr><td>병렬 DoP 결정 규칙·parallel DML</td><td>다음 차시 추정(개막만)</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html' class='cmp-link'>매뉴얼 § Parallel Execution</a></td></tr>
+</table>
+<h3>홈랩 재현 목록</h3>
+<ol>
+<li><b>UNUSABLE 방아쇠 찾기</b> — emp_global 테이블 파티션 truncate/drop/split 각각 후 글로벌 인덱스 status 확인, 같은 작업에서 emp_local의 로컬 인덱스는 무사한지 대조</li>
+<li>shrink 후 blocks <b>1 vs 6</b> — 통계 수집 시점 차이 확인</li>
+<li>(이월) arraysize×파티션 Buffers 매트릭스 · 동적 pruning KEY 표기</li>
+<li>v$pq_tqstat <b>WAITS</b> 컬럼 의미 — 수업 질문 후보</li>
+</ol>
+<hr>
+<h3>복습 동선 (10분)</h3>
+<ol>
+<li><b>[오늘의 축]</b> 한 줄을 소리 내어 설명해보기 — '나눈 것'을 다루는 네 기술과 global의 대가</li>
+<li><b>[개념 제목]</b> 을 훑으며 설명 안 되는 것만 [문서 §] 링크로 이동해 그 부분 재독</li>
+<li><b>[명령어 표]</b> 의 결과 숫자(1,006→1 / 140→3 / 5 vs 608 / P000·P001 각 1행)를 가리고 떠올려보기</li>
+<li>마무리 — <a href='../assets/study_hub_full.html' class='cmp-link'>허브에서 81일차 문제 풀기</a> (날짜칩 81 필터)</li>
+</ol>
+</div><a class="back" href="../index.html">&larr; 자료실</a></body></html>

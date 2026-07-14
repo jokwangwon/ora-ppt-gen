@@ -89,6 +89,8 @@ footer{padding:30px 0 50px;color:var(--muted);font-size:13px}
   <a href="#cs">10. 커서 공유</a>
   <a href="#pt">11. 파티션</a>
   <a href="#ar">12. 부분범위처리</a>
+  <a href="#pi">13. 파티션 인덱스</a>
+  <a href="#px">14. 병렬 처리</a>
   <a href="#road">로드맵</a>
 </div></nav>
 
@@ -1494,6 +1496,33 @@ P2005  TO_DATE(' 2006-01-01 ...)   P2006  TO_DATE(' 2007-01-01 ...)   PMAX  <spa
 <span class="cm">-- 특정 파티션만 통계 수집: 파티션 이름은 문자열 취급</span>
 <span class="pr">SQL&gt;</span> exec dbms_stats.gather_table_stats('hr','sal_emp',<span class="hl">partname=&gt;'p3'</span>, granularity=&gt;'partition')</pre>
   <div class="why"><span class="h">왜 이런 일이 생기나</span>파티션도 세그먼트라 HWM 아래 공간은 반납되지 않는다(내부구조편) — 행이 1개 남아도 블록 사용량은 과거의 최대치를 기억한다. full scan류는 HWM까지 읽으므로 이대로 두면 "1행 읽는데 1,006블록"이 계속된다. 재구성(shrink)은 행을 옮기므로 <b>enable row movement가 선행</b> — §11.10의 ORA-14402와 같은 이유다.</div>
+
+  <h3 class="blk"><span class="ix">11.12</span>shrink 검증 — 1,006블록이 1블록으로, 그리고 8MB의 비밀 <span class="db add">81일차</span></h3>
+  <p>지난 시간 홈랩 숙제였던 <b>shrink의 효과가 실측으로 확인</b>됐다:</p>
+  <pre class="term"><span class="pr">SQL&gt;</span> alter table hr.sal_emp enable row movement;
+<span class="pr">SQL&gt;</span> alter table hr.sal_emp modify partition p3 shrink space cascade;
+<span class="pr">SQL&gt;</span> alter table hr.sal_emp disable row movement;
+<span class="pr">SQL&gt;</span> exec dbms_stats.gather_table_stats('hr','sal_emp',partname=&gt;'p3',granularity=&gt;'partition')
+<span class="out">P3   NUM_ROWS 1   BLOCKS <span class="hl">1</span>   ← 1,006 → 1 (이후 조회에선 6으로 보임 — 시점 차)</span>
+<span class="pr">SQL&gt;</span> select * from hr.sal_emp partition(p3);   <span class="cm">-- allstats: RANGE SINGLE, Buffers <span class="hl">2</span></span></pre>
+  <p>같은 딕셔너리 조회에 <code class="inl">initial_extent</code>를 붙여 보면 <b>모든 파티션이 8,388,608(8MB)로 시작</b>한다 — 히든 파라미터 <code class="inl">_partition_large_extents=TRUE</code>(기본, x$ksppcv로 확인)가 파티션 세그먼트의 초기 익스텐트를 8MB로 잡기 때문. <code class="inl">alter session set "_partition_large_extents"=false</code>로 끌 수 있다(수업은 값 확인까지).</p>
+  <div class="why"><span class="h">작은 파티션이 많다면</span>행 몇 개짜리 파티션도 8MB를 먼저 받는다 — 파티션을 잘게 많이 쪼갤수록 "쓰지도 않는 8MB"가 쌓인다. 어제의 1,006블록(HWM)과는 다른 결의 공간 이슈 — 하나는 과거의 기억, 하나는 시작 크기다.</div>
+
+  <h3 class="blk"><span class="ix">11.13</span>Data Pump와 파티션 — 조각 단위로 백업하고 복구한다 <span class="db add">81일차</span></h3>
+  <p>파티션의 관리 이점이 실전이 되는 순간 — <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/sutil/oracle-data-pump-export-utility.html" style="color:var(--tune)">Data Pump(expdp/impdp)</a>는 <b>파티션 단위</b>로 export/import할 수 있다. 먼저 디렉토리 객체:</p>
+  <pre class="term"><span class="pr">SQL&gt;</span> create or replace directory pump_dir as '/home/oracle/data_pump';
+<span class="pr">SQL&gt;</span> grant read, write on directory pump_dir to hr;   <span class="cm">-- dba_directories로 확인</span></pre>
+  <table>
+    <tr><th>시나리오</th><th>명령 흐름</th><th>실측</th></tr>
+    <tr><td><b>A. 테이블 전체</b><br>백업·복원</td><td><code>expdp … tables=hr.sal_emp dumpfile=…</code> → drop purge → <code>impdp</code></td><td>덤프 237,568B. 파티션 구조·데이터에 <b>통계까지</b> 그대로 복원(딕셔너리 num_rows 즉시 채워짐). 어제 row movement로 옮긴 행들(King 24000·oracle 29000)도 p4에 그대로</td></tr>
+    <tr><td><b>B. drop한 파티션</b><br>복구</td><td>drop partition p1(49행 유실, 조회 시 <b>ORA-02149</b>) → <code>impdp … <b>sqlfile=sql_emp.sql</b></code>로 덤프 속 DDL만 추출 → <code>split partition p2 at(5000)</code>으로 빈 p1 재생성 → <code>impdp … tables=hr.sal_emp<b>:p1</b> <b>content=data_only</b></code></td><td>49행 복원. 새 p1의 통계는 NULL — <code>partname=&gt;'p1'</code>로 재수집(49/19/17)</td></tr>
+    <tr><td><b>C. 파티션만</b><br>백업·복원</td><td><code>expdp … tables=hr.sal_emp<b>:p1</b></code> → truncate partition p1 → <code>impdp … :p1 content=data_only</code></td><td>파티션 덤프 204,800B. truncate로 0행 → 49행 복원</td></tr>
+  </table>
+  <ul class="tight">
+    <li><code class="inl">sqlfile=</code> — 덤프를 실행하지 않고 <b>안에 든 DDL을 파일로만</b> 뽑는다(실측 sql_emp.sql 2,801B — vi로 열어 create table 문 확인). 파티션 경계를 정확히 되살릴 때의 근거.</li>
+    <li><code class="inl">tables=owner.table<b>:파티션명</b></code> — 파티션 지정. <code class="inl">content=data_only</code> — 구조는 그대로 두고 데이터만.</li>
+  </ul>
+  <div class="why"><span class="h">파티션 관리 이점의 완성</span>§11.1에서 "보관주기 지난 데이터의 백업·삭제가 쉬워진다"고 했다 — 그 실체가 이것이다. 테이블 전체가 아니라 <b>조각(파티션) 단위로 덤프·drop·복원</b>이 돌아간다. 단, drop partition의 진짜 복구(시점)는 §11.9대로 로그마이너·timebased recovery의 영역 — Data Pump 복구는 "백업해 둔 게 있을 때" 이야기다.</div>
 </section>
 
 <section class="part" id="ar">
@@ -1546,6 +1575,141 @@ P2005  TO_DATE(' 2006-01-01 ...)   P2006  TO_DATE(' 2007-01-01 ...)   PMAX  <spa
   <div class="why"><span class="h">두 다이얼은 서로 다른 낭비를 줄인다</span>파티션(pruning)은 <b>어느 세그먼트를 읽나</b>를 줄이고, arraysize는 <b>같은 블록을 몇 번 다시 집나</b>를 줄인다. 하나만 돌리면 다른 쪽 낭비가 남는다 — §12.2의 임계점과 §11.7의 SINGLE/ALL을 한 화면에 놓고 볼 것.</div>
 </section>
 
+<section class="part" id="pi">
+  <div class="phead"><div class="pnum">13</div><div><div class="ptitle">파티션 인덱스 — local은 조각을, global은 다른 축을 <span class="db add">81일차</span></div><div class="psub">local(1:1·PREFIXED) · ITERATOR · global(키 불일치) · UNUSABLE · rebuild partition · <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/partition-concepts.html" style="color:var(--muted)">공식 매뉴얼 § Partitioning Concepts ↗</a></div></div></div>
+  <p>실습 테이블 <code class="inl">emp_local</code> = employees × 1000 = <b>107,000행</b>을 range(employee_id) 6파티션(p1&lt;20000 … p5&lt;120000, pmax)으로. 파티션별 19,999~40,000행, 67~296블록.</p>
+
+  <h3 class="blk"><span class="ix">13.1</span>pruning만으로는 부족하다 — RANGE SINGLE인데 140블록</h3>
+  <pre class="term"><span class="pr">SQL&gt;</span> select * from hr.emp_local where employee_id = 1000;   <span class="cm">-- 인덱스 없음</span>
+<span class="out">|  1 |  PARTITION RANGE SINGLE|           | Pstart 1 Pstop 1 | A-Rows 1 | Buffers <span class="hl">140</span> |
+|* 2 |   TABLE ACCESS FULL    | EMP_LOCAL | filter("EMPLOYEE_ID"=1000)</span></pre>
+  <p>pruning이 6파티션 중 1개(P1)로 줄여 줬지만, <b>그 안에서는 여전히 full scan</b> — 1행 찾자고 140블록. 파티션은 "어느 조각"만 답하고, "조각 안 어디"는 인덱스의 몫이다.</p>
+
+  <h3 class="blk"><span class="ix">13.2</span>로컬 파티션 인덱스 — 테이블 조각과 1:1, 140 → 3</h3>
+  <ul class="tight">
+    <li>파티션 테이블의 각 파티션과 파티션 인덱스의 각 파티션이 <b>1대1로 매핑</b>되는 인덱스.</li>
+    <li>테이블 파티션 개수 = 인덱스 파티션 개수, 테이블 파티션 키 = 인덱스 파티션 키.</li>
+    <li>유지 관리 작업은 <b>오라클이 자동으로 관리</b>한다 — 다른 파티션에 영향을 주지 않는다.</li>
+    <li><b>PREFIXED</b> = 파티션 키 컬럼을 인덱스 키 컬럼의 <b>왼쪽 서두</b>에 두는 것.</li>
+  </ul>
+  <figure>
+  <svg viewBox="0 0 760 168" xmlns="http://www.w3.org/2000/svg">
+    <text class="svg-lbl" x="180" y="22" text-anchor="middle">테이블 파티션 (employee_id)</text>
+    <rect class="nmut" x="40" y="34" width="86" height="40" rx="7"/><text class="svg-mono" x="83" y="58" text-anchor="middle">p1</text>
+    <rect class="nmut" x="134" y="34" width="86" height="40" rx="7"/><text class="svg-mono" x="177" y="58" text-anchor="middle">p2</text>
+    <rect class="nmut" x="228" y="34" width="86" height="40" rx="7"/><text class="svg-mono" x="271" y="58" text-anchor="middle">… p5·pmax</text>
+    <text class="svg-lbl" x="180" y="118" text-anchor="middle">로컬 인덱스 파티션 (employee_id)</text>
+    <rect class="ntune" x="40" y="128" width="86" height="34" rx="7"/><text class="svg-mono" x="83" y="149" text-anchor="middle">idx p1</text>
+    <rect class="ntune" x="134" y="128" width="86" height="34" rx="7"/><text class="svg-mono" x="177" y="149" text-anchor="middle">idx p2</text>
+    <rect class="ntune" x="228" y="128" width="86" height="34" rx="7"/><text class="svg-mono" x="271" y="149" text-anchor="middle">… 6개 동일</text>
+    <path class="edge" d="M83 78 V124"/><path class="edge" d="M177 78 V124"/><path class="edge" d="M271 78 V124"/>
+    <rect class="ncor" x="420" y="44" width="300" height="88" rx="10"/>
+    <text class="svg-lbl" x="570" y="74" text-anchor="middle">1 : 1 매핑</text>
+    <text class="svg-sub" x="570" y="96" text-anchor="middle">같은 개수 · 같은 파티션 키 · 같은 경계</text>
+    <text class="svg-sub" x="570" y="114" text-anchor="middle">테이블 파티션 작업 → 해당 인덱스 조각만 영향</text>
+  </svg>
+  <figcaption>local: dba_ind_partitions에 테이블과 같은 6개 경계(20000·40000·…·MAXVALUE)가 그대로 — leaf 41/42/84/42/15/0.</figcaption>
+  </figure>
+  <pre class="term"><span class="pr">SQL&gt;</span> create unique index hr.emp_local_idx on hr.emp_local(employee_id) <span class="hl">local</span>;
+<span class="out">EMP_LOCAL_IDX  UNIQUE  <span class="hl">LOCAL  PREFIXED</span>  YES  PARTITION_COUNT 6</span>
+<span class="pr">SQL&gt;</span> select * from hr.emp_local where employee_id = 1000;
+<span class="out">|  2 |   TABLE ACCESS BY <span class="hl">LOCAL INDEX ROWID</span>| EMP_LOCAL     | Buffers <span class="hl">3</span> |  ← 140 → 3
+|* 3 |    INDEX UNIQUE SCAN               | EMP_LOCAL_IDX |</span>
+<span class="cm">-- between 1000 and 1100: RANGE SINGLE + BATCHED + INDEX RANGE SCAN, 101행 Buffers 19</span></pre>
+
+  <h3 class="blk"><span class="ix">13.3</span>파티션 두 개에 걸치면 — ITERATOR, 그리고 스캔 방식 비교</h3>
+  <pre class="term"><span class="pr">SQL&gt;</span> select /*+ index_rs(e emp_local_idx) */ count(*) from hr.emp_local e
+     where employee_id between 1000 and <span class="hl">25000</span>;   <span class="cm">-- P1~P2에 걸침</span>
+<span class="out">|  2 |   PARTITION RANGE <span class="hl">ITERATOR</span>|            | Pstart 1 Pstop 2 | A-Rows 24001 |
+|* 3 |    INDEX RANGE SCAN       | EMP_LOCAL_IDX | <span class="hl">Starts 2</span> | Buffers 53 |</span></pre>
+  <table>
+    <tr><th>스캔 방식 (같은 조건)</th><th>플랜</th><th>Buffers</th></tr>
+    <tr><td><code>index_rs</code> (range scan)</td><td>ITERATOR + INDEX RANGE SCAN, Starts 2</td><td><b>53</b></td></tr>
+    <tr><td><code>index_ffs</code> (fast full scan)</td><td>ITERATOR + INDEX FAST FULL SCAN, Starts 2</td><td>95 (Reads 32)</td></tr>
+    <tr><td><code>index_ffs + parallel_index 2</code></td><td>PX BLOCK ITERATOR + FFS — §14의 병렬 구조</td><td>QC 10</td></tr>
+  </table>
+  <div class="why"><span class="h">ITERATOR 읽는 법</span>SINGLE(1개)·ALL(전부)에 이어 세 번째 — <b>연속된 일부 파티션</b>(Pstart 1 → Pstop 2)을 차례로 도는 연산. 아래 인덱스 스캔의 Starts 2가 "파티션마다 한 번씩"의 증거다. 로컬 인덱스는 파티션별로 독립된 B*Tree라, 걸친 파티션 수만큼 스캔이 반복된다.</div>
+
+  <h3 class="blk"><span class="ix">13.4</span>글로벌 파티션 인덱스 — 테이블과 <b>다른 축</b>으로 자른다</h3>
+  <p>정의(원문): <b>파티션 테이블의 파티션 키와 파티션 인덱스의 파티션 키가 일치하지 않는다.</b> 테이블은 employee_id로, 인덱스는 hire_date로:</p>
+  <pre class="term"><span class="pr">SQL&gt;</span> create index hr.emp_global_idx on hr.emp_global(hire_date) <span class="hl">global</span>
+     partition by range(<span class="hl">hire_date</span>)
+     ( partition p2004 values less than(to_date('2005-01-01','yyyy-mm-dd')), … pmax );
+<span class="out">EMP_GLOBAL_IDX  NONUNIQUE  <span class="hl">GLOBAL  PREFIXED</span>  YES  PARTITION_COUNT 4</span>
+<span class="cm">-- 테이블 파티션은 6개(employee_id축), 인덱스 파티션은 4개(hire_date축) — 개수도 축도 다르다</span>
+<span class="pr">SQL&gt;</span> select count(*) from hr.emp_global where hire_date between '2001-01-01' and '2001-12-31';
+<span class="out">|  2 |   PARTITION RANGE SINGLE|                | Pstart 1 Pstop 1 |  ← <span class="hl">인덱스 파티션 축</span>의 pruning
+|* 3 |    INDEX RANGE SCAN     | EMP_GLOBAL_IDX | Buffers <span class="hl">5</span> | (FFS면 85)</span></pre>
+  <p>여기서 RANGE SINGLE의 1은 테이블이 아니라 <b>인덱스 파티션(p2004)</b>이다 — hire_date 조건이 인덱스 축에서 pruning된 것. 반대로 <code class="inl">employee_id=1000</code> 조회는 이 인덱스를 못 쓰고 테이블 축 pruning(RANGE SINGLE + FULL, 140블록)으로 돌아간다.</p>
+
+  <h3 class="blk"><span class="ix">13.5</span>글로벌의 아킬레스건 — UNUSABLE, 그리고 파티션별 rebuild</h3>
+  <pre class="term"><span class="cm">-- (테이블 파티션 변경 작업 후 — 어떤 작업이었는지는 노트에 캡처 없음, 홈랩 재확인)</span>
+<span class="out">P2004 … <span class="hl">UNUSABLE</span>   P2005 … UNUSABLE   P2006 … UNUSABLE   PMAX … UNUSABLE</span>
+<span class="pr">SQL&gt;</span> select /*+ index_rs(e emp_global_idx) */ count(*) …;
+<span class="out">ORA-01502: index 'HR.EMP_GLOBAL_IDX' or partition of such index is in <span class="hl">unusable state</span></span>
+<span class="pr">SQL&gt;</span> <span class="cm">-- 힌트 없이 실행하면: 옵티마이저가 인덱스를 버리고 우회</span>
+<span class="out">|  2 |   PARTITION RANGE <span class="hl">ALL</span>| | Pstart 1 Pstop 5 | Starts 5 | Buffers <span class="hl">608</span> Reads 604 |</span>
+<span class="pr">SQL&gt;</span> alter index hr.emp_global_idx rebuild;
+<span class="out">ORA-14086: a partitioned index <span class="hl">may not be rebuilt as a whole</span></span>
+<span class="pr">SQL&gt;</span> alter index hr.emp_global_idx <span class="hl">rebuild partition p2004</span>;   <span class="cm">-- p2005·p2006·pmax도 각각</span>
+<span class="out">→ 전부 USABLE (leaf 77→63 등 — rebuild가 컴팩트하게 재적재)</span>
+<span class="pr">SQL&gt;</span> alter index hr.emp_global_idx split partition pmax at(to_date('2008-01-01','yyyy-mm-dd'))
+     into (partition p2007, partition pmax);   <span class="cm">-- 인덱스에도 split이 있다</span></pre>
+  <div class="why"><span class="h">local vs global — 운영의 갈림길</span>local은 테이블 파티션 작업이 <b>해당 인덱스 조각에만</b> 영향(오라클 자동 관리). global은 테이블 파티션 변경에 <b>인덱스 전체가 UNUSABLE</b>이 될 수 있고, 복구는 ORA-14086 때문에 <b>파티션별 rebuild</b>다. 그 대신 global은 테이블과 다른 축(조회 패턴의 축)으로 자를 수 있다 — "관리의 local, 조회 축의 global"을 놓고 설계에서 고른다.</div>
+</section>
+
+<section class="part" id="px">
+  <div class="phead"><div class="pnum">14</div><div><div class="ptitle">병렬 처리 — 나눠서 동시에 읽는다 <span class="db add">81일차~</span></div><div class="psub">PX Coordinator · TQ · IN-OUT(P-&gt;S·P-&gt;P) · v$pq_tqstat · RANGE 분배 · <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html" style="color:var(--muted)">공식 매뉴얼 § Parallel Execution ↗</a></div></div></div>
+  <p><b class="k">병렬 처리(Parallel Processing)</b> = SQL문이 수행해야 할 작업 범위를 <b>여러 개의 작은 단위로 나누어 여러 프로세스가 동시에 처리</b>하는 것. 대용량 데이터를 처리할 때 효과적이다. 실습: emp = 107,000행·760블록.</p>
+
+  <h3 class="blk"><span class="ix">14.1</span>첫 병렬 플랜 — serial 742블록 vs 워커 2명</h3>
+  <pre class="term"><span class="cm">-- serial full scan: Buffers 742, Reads 740</span>
+<span class="pr">SQL&gt;</span> select /*+ full(e) <span class="hl">parallel(e 2)</span> */ count(*) from hr.emp e;   <span class="cm">-- direct path read 방식</span>
+<span class="out">|  2 |   <span class="hl">PX COORDINATOR</span>       |          |      1 | A-Rows 2 | Buffers 5 |
+|  3 |    PX SEND QC (RANDOM)  | :TQ10000 | Q1,00 | <span class="hl">P-&gt;S</span> | QC (RAND) |
+|  4 |     SORT AGGREGATE      |          | Q1,00 | PCWP |
+|  5 |      PX BLOCK ITERATOR  |          | Q1,00 | PCWC |
+|* 6 |       TABLE ACCESS FULL | EMP      | Q1,00 | PCWP |
+Note: Degree of Parallelism is 2 because of table property</span></pre>
+  <figure>
+  <svg viewBox="0 0 760 170" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="px1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#aab3c0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <rect class="nmut" x="30" y="26" width="200" height="50" rx="9"/><text class="svg-lbl" x="130" y="47" text-anchor="middle">P000 (워커)</text><text class="svg-sub" x="130" y="65" text-anchor="middle">블록 절반 스캔 → 부분 count 1행</text>
+    <rect class="nmut" x="30" y="94" width="200" height="50" rx="9"/><text class="svg-lbl" x="130" y="115" text-anchor="middle">P001 (워커)</text><text class="svg-sub" x="130" y="133" text-anchor="middle">나머지 절반 → 부분 count 1행</text>
+    <rect class="ncor" x="360" y="58" width="180" height="56" rx="9"/><text class="svg-lbl" x="450" y="82" text-anchor="middle">:TQ10000</text><text class="svg-sub" x="450" y="100" text-anchor="middle">table queue — P-&gt;S 전송</text>
+    <rect class="ntune" x="590" y="52" width="150" height="66" rx="9"/><text class="svg-lbl" x="665" y="80" text-anchor="middle">QC (지휘자)</text><text class="svg-sub" x="665" y="99" text-anchor="middle">2행 받아 최종 합산</text>
+    <path class="edge" d="M234 51 L354 74" marker-end="url(#px1)"/>
+    <path class="edge" d="M234 119 L354 98" marker-end="url(#px1)"/>
+    <path class="edge" d="M544 86 H584" marker-end="url(#px1)"/>
+  </svg>
+  <figcaption>v$pq_tqstat 실측: Producer P000·P001이 각 1행(부분 집계)을 올리고 Consumer QC가 2행을 받는다. DoP 4면 P000~P003 → QC 4행.</figcaption>
+  </figure>
+  <p>플랜의 PX 아래 행들은 Starts 0·Buffers 0으로 찍힌다 — <code class="inl">allstats last</code>가 QC 세션 기준이라 워커 몫이 안 보이는 것. <b>실제 분담은 <code class="inl">v$pq_tqstat</code>으로 확인</b>한다(위 실측). QC의 Buffers가 5뿐인 것도 같은 맥락 + 병렬 스캔은 direct path read(버퍼 캐시 우회) 방식이라는 원문 메모.</p>
+
+  <h3 class="blk"><span class="ix">14.2</span>병렬 플랜 읽는 법 — QC · TQ · IN-OUT</h3>
+  <table>
+    <tr><th>표기</th><th>뜻</th></tr>
+    <tr><td><b>PX COORDINATOR</b> (QC)</td><td>병렬 작업의 지휘자 — 워커에게 나눠 주고 결과를 모은다</td></tr>
+    <tr><td><b>:TQ10000</b> (table queue)</td><td>워커↔워커/QC 사이의 데이터 전달 큐 — TQ 번호가 전송 단계</td></tr>
+    <tr><td><b>PX SEND QC / PX RECEIVE</b></td><td>큐로 보내기/받기. 괄호는 분배 방식 — RANDOM·RANGE·ORDER…</td></tr>
+    <tr><td><b>IN-OUT: P-&gt;S</b></td><td>Parallel → Serial — 워커들 결과가 QC(직렬)로 모이는 지점</td></tr>
+    <tr><td><b>P-&gt;P</b></td><td>Parallel → Parallel — 워커 집합끼리 재분배(다음 절의 RANGE)</td></tr>
+    <tr><td><b>PCWP / PCWC</b></td><td>부모/자식 연산과 결합되어 같은 워커가 이어서 수행(전송 없음)</td></tr>
+    <tr><td><b>PX BLOCK ITERATOR</b></td><td>블록 구간을 나눠 워커에게 배급 — <code>access(:Z&gt;=:Z AND :Z&lt;=:Z)</code>가 그 흔적</td></tr>
+  </table>
+
+  <h3 class="blk"><span class="ix">14.3</span>order by가 붙으면 — TQ가 두 개가 되고, 분배는 RANGE</h3>
+  <pre class="term"><span class="pr">SQL&gt;</span> select /*+ full(e) parallel(e 2) */ * from hr.emp e <span class="hl">order by last_name</span>;
+<span class="out">|  1 |  PX COORDINATOR        |          |        |      | A-Rows <span class="hl">107K</span> |
+|  2 |   PX SEND QC (<span class="hl">ORDER</span>)   | :TQ10001 | Q1,01 | P-&gt;S | ← ③ 순서대로 QC에
+|  3 |    SORT ORDER BY       |          | Q1,01 | PCWP | ← ② 구간별로 각자 정렬
+|  4 |     PX RECEIVE         |          | Q1,01 | PCWP |
+|  5 |      PX SEND <span class="hl">RANGE</span>     | :TQ10000 | Q1,00 | <span class="hl">P-&gt;P</span>  | ← ① 값 구간으로 재분배
+|  6 |       PX BLOCK ITERATOR|          | Q1,00 | PCWC |
+|* 7 |        TABLE ACCESS FULL| EMP     | Q1,00 | PCWP |</span></pre>
+  <div class="why"><span class="h">분배 방식이 연산의 요구를 말한다</span>count(*)는 부분 합계를 아무 순서로 모아도 돼서 QC(<b>RANDOM</b>) 하나로 끝났다. order by는 ① 스캔 워커가 값 구간별로 나눠 보내고(<b>RANGE</b>, P-&gt;P) ② 받은 워커들이 각자 정렬(SORT ORDER BY) ③ QC가 구간 순서대로 이어 붙인다(QC <b>ORDER</b>). TQ가 :TQ10000·:TQ10001 두 개 — 전송이 두 번 일어난 병렬이다. 병렬 처리는 오늘이 개막 — 다음 수업에서 계속.</div>
+</section>
+
 <section class="part" id="road">
   <div class="phead"><div class="pnum">▶</div><div><div class="ptitle">앞으로 다룰 것 (로드맵)</div><div class="psub">수업이 진행되며 채워 나갈 목차</div></div></div>
   <ul class="road">
@@ -1556,7 +1720,9 @@ P2005  TO_DATE(' 2006-01-01 ...)   P2006  TO_DATE(' 2007-01-01 ...)   PMAX  <spa
     <li class="done"><span class="n">10</span><a href="#cs" style="color:var(--tune);font-weight:600">커서 공유 & Bind Peeking</a> — literal vs bind · cursor_sharing=FORCE · peeking+히스토그램 함정 · ACS(sensitive/aware) · 분기 SQL <span class="tag">완료</span></li>
     <li class="done"><span class="n">11</span><a href="#pt" style="color:var(--tune);font-weight:600">파티션</a> — 파티션 뷰(CHECK+UNION ALL) · range·interval·hash·list·composite · Pstart/Pstop · 정적/동적 pruning · 관리(split·add·merge·exchange·shrink) <span class="tag">완료</span></li>
     <li class="done"><span class="n">12</span><a href="#ar" style="color:var(--tune);font-weight:600">부분범위처리 & arraysize</a> — 운반단위 산수(roundtrips) · 전체범위 강제 조건과 대안 · fetch 재방문과 gets <span class="tag">완료</span></li>
-    <li><span class="n">13</span>증상→원인→처방 안티패턴 + 자주 쓰는 힌트 <span class="tag">예정</span></li>
+    <li class="done"><span class="n">13</span><a href="#pi" style="color:var(--tune);font-weight:600">파티션 인덱스</a> — local(1:1·PREFIXED·140→3) · ITERATOR · global(다른 축) · UNUSABLE→rebuild partition <span class="tag">완료</span></li>
+    <li class="done"><span class="n">14</span><a href="#px" style="color:var(--tune);font-weight:600">병렬 처리</a> — QC·TQ·IN-OUT·v$pq_tqstat·RANGE 분배 <span class="tag">진행 중(81일차~)</span></li>
+    <li><span class="n">15</span>증상→원인→처방 안티패턴 + 자주 쓰는 힌트 <span class="tag">예정</span></li>
   </ul>
   <div class="why"><span class="h">메모</span>구조 지식(HWM·scattered read·버퍼 캐시·블록)은 <b>내부구조편 가이드</b>에, 그걸 활용하는 기법은 이 문서에 쌓는다. 새 수업이 오면 위 로드맵을 하나씩 완료로 바꿔 간다.</div>
 </section>

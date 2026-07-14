@@ -86,6 +86,10 @@
     "80": {
       "status": "reviewing",
       "note": "결석일 — 동기 수강생 PDF 기반. 축=낭비 두 곳(블록 재방문=arraysize·안 읽을 세그먼트=pruning)+에러→처방 세트. 문서 §12.1~12.3(부분범위처리·운반단위 산수 35668→15/269→2000·gets≈블록+fetch 임계점 3300·union all 대안) + §11.8~11.11(정적/동적 pruning KEY·split/add 14074·rename·drop 로그마이너·row movement 14402·maxvalue 14400·merge 통계자동·exchange 세그먼트교환·1행 1006블록→shrink cascade). 5000 실측 '495.3'은 0 누락 오기로 표기. 캡처 없는 실험 5건 홈랩 목록. 문제 MCQ8·ESSAY2·TERMS11·PLANQ2(편향0·근거0). 덱 22장. DAY_REF 80→Partition Administration(실존 검증)."
+    },
+    "81": {
+      "status": "reviewing",
+      "note": "축='나눈 것'을 다루는 네 기술(인덱스=조각 안·Data Pump=조각 백업·병렬=동시 읽기)+global의 대가. 문서 §11.12~11.13(shrink 검증 1006→1·_partition_large_extents 8MB·Data Pump 3시나리오: sqlfile/split/:p1 data_only) + Part 13(§13.1~13.5: pruning 한계 140→local 1:1 PREFIXED 3·ITERATOR Starts 2·global 다른 축 Buffers 5·UNUSABLE ORA-01502/608 우회·ORA-14086 rebuild partition·index split) + Part 14 개막(§14.1~14.3: QC·TQ·IN-OUT·v$pq_tqstat P000/P001·order by RANGE→ORDER 2-TQ). UNUSABLE 방아쇠는 캡처 없음→홈랩. 문제 MCQ8·ESSAY2·TERMS11·PLANQ2(편향0·근거0, 리밸런싱 1회). 덱 22장. DAY_REF 81→Partitioning Concepts, Data Pump/병렬 문제 ref 오버라이드(sutil·parallel-exec 실존 검증)."
     }
   }
 }
