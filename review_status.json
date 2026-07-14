@@ -82,6 +82,10 @@
     "79": {
       "status": "reviewing",
       "note": "축=첫 값이 플랜을 정하고(peeking) where절 키가 세그먼트를 정한다(pruning). 문서 §10.1~10.7(리터럴 5커서→FORCE :SYS_B_0·peeking 3재료·히스토그램+50먼저=full·bind_capture·ACS Y/N·FILTER 게이트 분기) + §11.1~11.7(파티션 뷰 NULL IS NOT NULL·range/interval SYS_P769·hash 2^n·list default(Grant NULL)·composite 4×4 Pstart/Pstop 일련번호). 히스토그램+FORCE 실측 불일치(index cost6 vs full)는 재확인 표기. 문제 MCQ8·ESSAY2·TERMS11·PLANQ2(편향0·근거0). 덱 23장. DAY_REF 79→Cursor Sharing 챕터, 파티션 문제 ref→VLDB 가이드."
+    },
+    "80": {
+      "status": "reviewing",
+      "note": "결석일 — 동기 수강생 PDF 기반. 축=낭비 두 곳(블록 재방문=arraysize·안 읽을 세그먼트=pruning)+에러→처방 세트. 문서 §12.1~12.3(부분범위처리·운반단위 산수 35668→15/269→2000·gets≈블록+fetch 임계점 3300·union all 대안) + §11.8~11.11(정적/동적 pruning KEY·split/add 14074·rename·drop 로그마이너·row movement 14402·maxvalue 14400·merge 통계자동·exchange 세그먼트교환·1행 1006블록→shrink cascade). 5000 실측 '495.3'은 0 누락 오기로 표기. 캡처 없는 실험 5건 홈랩 목록. 문제 MCQ8·ESSAY2·TERMS11·PLANQ2(편향0·근거0). 덱 22장. DAY_REF 80→Partition Administration(실존 검증)."
     }
   }
 }
