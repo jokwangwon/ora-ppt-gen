@@ -99,6 +99,7 @@ DECK_LABELS = {
     "day81.pptx": "81일차 — 파티션 인덱스(local/global) · Data Pump · 병렬 개막",
     "day82.pptx": "82일차 — 병렬 심화: IN-OUT · PQ Distrib · gby_pushdown · 파티션 wise 조인",
     "day83.pptx": "83일차 — pq_distribute 4조합 · parallel DML · direct path · PGA·정렬",
+    "day84.pptx": "84일차 — 버퍼 캐시 풀(KEEP/RECYCLE/nK) · Redo Log Buffer · 자동화 3세대",
     "sql_tuning.pptx": "SQL 튜닝편 (문서 전체 덱)",
     "guide_62_68.pptx": "내부구조편 (문서 전체 덱)",
     "buffer_cache_dbwr_checkpoint.pptx": "버퍼 캐시·DBWR (문서 전체 덱)",

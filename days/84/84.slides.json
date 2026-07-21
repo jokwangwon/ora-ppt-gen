@@ -1,0 +1,116 @@
+{
+  "deck_id": "day84",
+  "title": "무엇을 메모리에 남길 것인가 — 버퍼 풀과 자동화",
+  "subtitle": "84일차 — DEFAULT/KEEP/RECYCLE/nK · Redo Log Buffer · 자동 PGA→ASMM→AMM · RAC 개막",
+  "source": "assets/sql_tuning.html §16",
+  "slides": [
+    { "type": "title" },
+    { "type": "section", "num": "00", "title": "오늘의 큰 그림", "subtitle": "메모리 무대의 마지막, 그리고 RAC로" },
+    {
+      "type": "content",
+      "title": "튜닝의 마지막 질문 — 무엇을 메모리에 남길 것인가",
+      "notes": "어제는 PGA, 프로세스 전용 작업 공간을 봤죠. 오늘은 SGA의 버퍼 캐시로 넘어갑니다. 튜닝의 마지막 무대는 결국 하나의 질문이에요 — 무엇을 메모리에 남길 것인가. 크게 세 덩어리입니다. 첫째, 데이터 버퍼 캐시를 어떻게 나눠 쓰는가. DEFAULT 하나가 아니라 KEEP, RECYCLE, nK 풀로 나눠서 성격이 다른 데이터를 따로 담는 거예요. 둘째, Redo Log Buffer. 변경사항을 기록하는 복구용 버퍼인데, 왜 순수 select은 여기에 안 남는지가 포인트입니다. 셋째, 이 모든 메모리를 어떻게 자동으로 관리하는가. 9i의 자동 PGA에서, 10g의 ASMM, 11g의 AMM으로 이어지는 자동화 3세대예요. 손이 점점 덜 가는 방향으로 진화합니다. 그리고 수업 후반에 완전히 새로운 큰 주제, RAC 설치가 시작됐어요. 여러 노드가 하나의 DB를 공유하는 구조인데, 오늘은 VM 준비와 네트워크, 유저 설정 같은 설치 환경 구축이라 튜닝 문서엔 안 넣고 복습 시트에 절차 요지만 남겼습니다. 결석하셨지만 필기가 상세해서 실측 명령과 파라미터를 다 살렸어요.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": ["파트", "주제", "핵심"],
+          "rows": [
+            ["§16.1~2", "버퍼 캐시 풀", "DEFAULT/KEEP/RECYCLE/nK · storage(buffer_pool)"],
+            ["§16.3", "Redo Log Buffer", "목적=복구 · 순수 select은 redo 없음"],
+            ["§16.4", "자동화 3세대", "자동 PGA(9i)→ASMM(10g)→AMM(11g)"],
+            ["(다음 주제)", "RAC", "여러 노드가 한 DB 공유 — 설치 시작(인프라)"]
+          ]
+        },
+        { "kind": "callout", "tone": "why", "head": "관통하는 원리", "body": "'무엇을 메모리에 남길까'를 설계로 정한다 — 자주 쓰는 건 붙잡고(KEEP), 한번 훑을 건 격리하고(RECYCLE), 나머지는 오라클에 맡긴다(ASMM·AMM)." }
+      ]
+    },
+    { "type": "section", "num": "01", "title": "버퍼 캐시 풀", "subtitle": "성격 다른 데이터를 따로 담는다" },
+    {
+      "type": "content",
+      "title": "KEEP과 RECYCLE — DEFAULT의 LRU를 지키는 정반대 장치",
+      "notes": "데이터 버퍼 캐시는 데이터파일에서 읽은 블록의 복사본을 담는 메모리예요. 물리 I/O를 최소화하려고 최근 블록을 남기고, 모든 유저가 공유하고, 동적으로 크기를 조정할 수 있습니다. 기본은 DEFAULT 풀에 담기는데, 성격이 다른 데이터를 위해 풀을 나눌 수 있어요. KEEP 풀은 사용 빈도가 높고 크기가 작은 테이블을 위한 겁니다. 코드 테이블 같은 거요. 재사용 가능성이 높은 블록을 캐시에 붙잡아 두는 거죠. 반대로 RECYCLE 풀은 사용 빈도가 낮은데 읽는 양은 많은 테이블을 위한 거예요. 이런 대용량을 DEFAULT에 그냥 두면, 한 번 크게 훑고 버릴 블록들이 자주 쓰는 블록들을 캐시에서 밀어내버립니다. 그래서 따로 격리해서 DEFAULT를 보호하는 거예요. 그러니까 KEEP과 RECYCLE은 정반대 목적처럼 보이지만, 둘 다 DEFAULT 풀의 LRU를 지키는 장치입니다. KEEP은 자주 쓰는 작은 걸 안 밀려나게, RECYCLE은 한번 훑을 큰 게 남의 캐시를 안 밀어내게. 내부구조편에서 배운 LRU와 touch count가 여기서 다시 나오는데, 풀마다 LRU가 따로 돈다고 생각하면 됩니다. 그리고 nK 풀은 표준 블록 크기와 다른 테이블스페이스를 위한 거예요.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": ["풀", "어떤 데이터", "목적 · 파라미터"],
+          "rows": [
+            ["DEFAULT", "일반", "기본 · db_cache_size"],
+            ["KEEP", "빈도 높고 작은 테이블", "붙잡아 둠 · db_keep_cache_size"],
+            ["RECYCLE", "빈도 낮고 읽는 양 많음", "격리해 DEFAULT 보호 · db_recycle_cache_size"],
+            ["nK", "표준과 다른 블록 크기", "db_2/4/8/16/32k_cache_size"]
+          ]
+        },
+        { "kind": "callout", "tone": "why", "head": "둘 다 DEFAULT를 지킨다", "body": "KEEP=자주 쓰는 작은 걸 안 밀려나게 / RECYCLE=한번 훑을 큰 게 남의 캐시를 안 밀어내게. 풀마다 LRU가 따로 돈다(내부구조편 LRU·touch count)." }
+      ]
+    },
+    {
+      "type": "content",
+      "title": "풀 지정과 nonstandard 블록 — 세그먼트에 꼬리표를 단다",
+      "notes": "실습을 봅니다. 풀에 데이터를 넣으려면 두 단계예요. 먼저 db_keep_cache_size로 KEEP 풀을 엽니다. 그러면 v$buffer_pool을 봤을 때 DEFAULT에서 buffers를 떼어서 KEEP에 할당해요. 버퍼 캐시 전체 크기는 고정이니까요. 실측에서 KEEP에 1958개를 주니까 DEFAULT가 37202에서 35244로 정확히 1958 줄었습니다. 그다음 alter table employees storage buffer_pool keep으로 세그먼트에 꼬리표를 답니다. 데이터를 옮기는 게 아니라, 이 테이블이 앞으로 어느 풀에 살지를 정하는 거예요. 인덱스도 alter index로 개별 지정할 수 있고, default로 되돌릴 수도 있습니다. 두 번째가 nonstandard 블록 테이블스페이스예요. 표준 블록 크기가 8K인데, 4K짜리 테이블스페이스를 만들고 싶으면 먼저 db_4k_cache_size로 4K 전용 캐시를 열어야 합니다. 버퍼 캐시가 블록 크기별로 분리돼 있어서, 4K 블록을 올릴 자리가 없으면 테이블스페이스 자체를 못 만들거든요. 재밌는 건, 같은 employees를 8K 블록엔 8블록이던 게 4K 블록 세그먼트에선 훨씬 잘게 나뉜다는 거예요. 블록 하나에 담기는 용량이 절반이니까요. 이게 왜 중요하냐면, 작은 블록은 OLTP처럼 소량을 자주 집는 데 유리하고, 큰 블록은 DSS의 대량 스캔에 유리하거든요. 워크로드에 맞춰 설계하는 겁니다.",
+      "blocks": [
+        { "kind": "code", "lines": [
+          "alter system set db_keep_cache_size = 16m scope=both;  -- 풀부터",
+          "  → v$buffer_pool: KEEP 1958 buffers (DEFAULT 37202→35244)",
+          "alter table hr.employees storage(buffer_pool keep);   -- 세그먼트 꼬리표",
+          "alter index hr.emp_emp_id_pk storage(buffer_pool keep);",
+          "-- nonstandard 블록: 캐시부터 열고 → 테이블스페이스",
+          "alter system set db_4k_cache_size = 16m;",
+          "create tablespace oltp_tbs … blocksize 4k …;"
+        ] },
+        { "kind": "callout", "tone": "tip", "head": "블록 크기의 함의", "body": "작은 블록(4K/8K)=한 블록에 적은 행→OLTP 유리. 큰 블록(16K/32K)=한번에 많은 행→DSS 대량 스캔 유리. 워크로드로 정한다." }
+      ]
+    },
+    { "type": "section", "num": "02", "title": "Redo Log Buffer", "subtitle": "목적은 오직 복구" },
+    {
+      "type": "content",
+      "title": "Redo Log Buffer — 변경만 남고, 순수 select은 빠진다",
+      "notes": "Redo Log Buffer로 넘어갑니다. 이건 DB 데이터 블록의 모든 변경사항을 기록하는 버퍼예요. 기본 목적은 딱 하나, 복구입니다. 기록 단위를 redo entry라고 하는데, 변경을 재구성하거나 재실행할 정보가 들어 있어요. 장애가 나면 이걸로 되살리는 거죠. 여기서 중요한 게, 어떤 SQL이 redo를 만드느냐입니다. DML은 다 만들어요 — insert, update, delete, merge. DDL도 만들죠 — create, alter, drop. 그리고 하나 더, select for update가 redo를 만듭니다. 그런데 순수 select은 안 만들어요. 왜냐하면 redo는 무엇을 되돌리고 다시 하나의 기록이라, 변경이 있어야 생기거든요. 읽기만 하는 select은 바꾼 게 없으니까 되돌릴 것도 없죠. 예외가 select for update인데, 이건 행에 잠금을 걸어서 상태를 바꾸기 때문에 redo가 남습니다. 마지막으로 log_buffer 파라미터로 크기를 조정하는데, 이건 static parameter예요. scope를 spfile로만 바꿀 수 있고 재기동해야 반영됩니다. 그리고 뒤에 나올 자동 관리에서도 log_buffer는 빠져서 수동으로 잡아야 하는 영역입니다.",
+      "blocks": [
+        { "kind": "code", "lines": [
+          "-- redo entry가 생기는 SQL:",
+          "  DML : insert · update · delete · merge",
+          "  DDL : create · alter · drop",
+          "  select … for update  (잠금 = 상태 변경)",
+          "-- 순수 select: 변경 없음 → redo 없음",
+          "-- log_buffer: static parameter (scope=spfile + 재기동)"
+        ] },
+        { "kind": "callout", "tone": "why", "head": "순수 select이 빠지는 이유", "body": "redo는 '무엇을 되돌리고 다시 하나'의 기록 — 변경이 있어야 생긴다. 읽기만 하는 select은 바꾼 게 없으니 redo 없음. for update는 잠금=변경이라 예외." }
+      ]
+    },
+    { "type": "section", "num": "03", "title": "자동화 3세대", "subtitle": "손이 점점 덜 간다" },
+    {
+      "type": "content",
+      "title": "자동 PGA → ASMM → AMM, 그리고 자동에서 빠지는 것들",
+      "notes": "마지막, 메모리 자동 관리의 3세대입니다. 파라미터 하나로 관리하는 범위가 점점 넓어지는 진화예요. 1세대가 9i의 자동 PGA입니다. pga_aggregate_target 하나로 PGA의 SQL 작업 공간을 자동 관리하죠. 어제 배운 거예요. 2세대가 10g의 ASMM, Automatic Shared Memory Management입니다. sga_target을 설정하면 SGA의 구성요소들을 자동 관리해요. mman이라는 프로세스가 memory advisor를 써서 작동합니다. sga_target은 sga_max_size보다 작거나 같아야 하고, 운영 중에 조정할 수 있어요. 3세대가 11g의 AMM, Automatic Memory Management입니다. memory_target 하나로 SGA와 PGA를 통째로, 워크로드에 따라 자동 배분해요. 이걸 설정하면 sga_target과 pga_aggregate_target이 0이 됩니다. 여기서 꼭 알아야 할 게, ASMM에서도 손으로 잡아야 하는 게 있다는 거예요. 자동 관리되는 건 shared_pool, db_cache, large_pool, java_pool, streams_pool입니다. 그런데 db_keep_cache_size, db_recycle_cache_size, db_nK_cache_size, 그리고 log_buffer는 여전히 수동이에요. 왜 KEEP과 RECYCLE이 자동에서 빠질까요? 이것들은 오라클이 알아서 나눌 성질이 아니라, DBA가 특정 데이터를 의도적으로 격리하려고 만든 풀이거든요. 자동 관리가 건드리면 그 격리 의도가 무너지죠. 그래서 설계로 정한 건 손으로 지키는 겁니다. 이걸로 SQL 튜닝편의 메모리 무대가 다 끝났어요. 다음은 여러 노드가 한 DB를 공유하는 RAC로 넘어갑니다.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": ["세대", "파라미터", "관리 범위"],
+          "rows": [
+            ["자동 PGA (9i)", "pga_aggregate_target", "PGA 작업 공간만"],
+            ["ASMM (10g)", "sga_target", "SGA 자동 구성요소 (mman)"],
+            ["AMM (11g)", "memory_target", "SGA + PGA 통째로"],
+            ["자동에서 빠짐(수동)", "—", "keep/recycle/nK cache · log_buffer"]
+          ]
+        },
+        { "kind": "callout", "tone": "why", "head": "왜 KEEP/RECYCLE은 수동인가", "body": "자동이 나눌 성질이 아니라 DBA가 '의도적으로 격리'하는 풀이라, 자동이 건드리면 의도가 무너진다 — §16.1의 '설계로 정하는 것'이 자동화의 예외." }
+      ]
+    },
+    { "type": "section", "num": "04", "title": "빈틈 & 다음", "subtitle": "RAC 개막 · 홈랩" },
+    {
+      "type": "content",
+      "title": "RAC가 시작됐다 — 그리고 튜닝편이 거의 끝났다",
+      "notes": "오늘 수업 후반에 RAC 설치가 시작됐습니다. RAC는 Real Application Clusters, 여러 노드, 그러니까 여러 서버가 하나의 데이터베이스를 공유하는 구조예요. 오늘은 그 설치 환경을 만드는 단계였습니다. VM을 준비하고, public과 private 네트워크를 잡고, oracle 유저와 asmadmin 같은 그룹을 만들고, 커널 파라미터랑 limits를 설정하고, 방화벽 끄고 ntp 시간 동기화 맞추고, 디렉토리 구조 만들고 환경변수 잡고. 그리고 rac1을 복제해서 rac2를 만들어 IP와 hostname을 수정하는 것까지요. 이건 순수하게 인프라를 구축하는 과정이라 SQL 튜닝 문서에는 안 넣었어요. 대신 복습 시트에 절차 요지랑 IP 구성, 그러니까 public, private, VIP, SCAN 주소 체계를 정리해뒀습니다. 홈랩에서는 이 설치 과정을 순서대로 따라가면서 각 단계가 왜 필요한지 — 예를 들어 private 네트워크는 노드 간 인터커넥트용이고, SCAN은 클라이언트 접속용이라는 걸 — 짚어보는 게 좋겠습니다. 그리고 오늘로 SQL 튜닝편의 메모리까지 다 끝났어요. 로드맵을 보면 액세스 경로부터 조인, 쿼리 변환, 옵티마이저, 통계, 커서 공유, 파티션, 파티션 인덱스, 병렬, PGA 정렬, 그리고 오늘의 메모리 관리까지 열여섯 파트가 완료됐습니다. 이제 RAC가 진행 중이고, 그다음에 마지막으로 안티패턴과 힌트 정리만 남았어요.",
+      "blocks": [
+        { "kind": "bullets", "items": [
+          "RAC 개막 — 여러 노드가 한 DB 공유. 오늘은 설치 환경 구축(인프라, 문서 범위 밖)",
+          "IP 체계 — Public(rac1/2)·Private(인터커넥트)·VIP·SCAN(클라이언트 접속) — 복습 시트에 정리",
+          "홈랩 — 설치 절차를 따라가며 각 단계의 이유 짚기(private=인터커넥트, SCAN=접속)",
+          "튜닝편 진척 — 로드맵 1~16 완료(액세스경로~메모리 관리), RAC 진행 중, 안티패턴(18)만 남음",
+          "(이월) 정렬 trace·broadcast 검증·홀수 DoP 등 병렬 열린 질문"
+        ] },
+        { "kind": "callout", "tone": "tip", "head": "오늘의 한 줄", "body": "튜닝의 마지막 질문은 '무엇을 메모리에 남길까' — 자주 쓰는 건 KEEP으로 붙잡고, 한번 훑을 건 RECYCLE로 격리하고, 나머지는 자동 관리(ASMM·AMM)에 맡긴다." }
+      ]
+    }
+  ]
+}
