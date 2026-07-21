@@ -104,6 +104,7 @@ DECK_LABELS = {
     "guide_62_68.pptx": "내부구조편 (문서 전체 덱)",
     "buffer_cache_dbwr_checkpoint.pptx": "버퍼 캐시·DBWR (문서 전체 덱)",
     "rman_recovery.pptx": "RMAN 복구 (문서 전체 덱)",
+    "rac.pptx": "RAC 클러스터편 (문서 전체 덱)",
 }
 STATUS_BADGE = {
     "reviewed": ("검토완료", "#1a7f37", "#dafbe1"),

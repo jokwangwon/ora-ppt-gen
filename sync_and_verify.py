@@ -32,6 +32,7 @@ KO_TO_ASCII = {
     "DBA_62-68일차_완전정복.html": "guide_62_68.html",
     "RMAN_복구_치트시트.html": "rman_recovery.html",
     "buffer_cache_dbwr_checkpoint.html": "buffer_cache_dbwr_checkpoint.html",
+    "RAC_클러스터.html": "rac.html",
 }
 # study_hub_full 의 docsrc-<key> ← ASCII 문서
 DOCSRC_TO_ASCII = {
@@ -39,6 +40,7 @@ DOCSRC_TO_ASCII = {
     "sql": "sql_tuning.html",
     "rman": "rman_recovery.html",
     "buffer": "buffer_cache_dbwr_checkpoint.html",
+    "rac": "rac.html",
 }
 HUB = "study_hub_full.html"
 BALANCED_TAGS = ["section", "table", "figure", "svg", "pre", "div", "ul", "ol"]
