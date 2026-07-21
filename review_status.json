@@ -44,6 +44,17 @@
         "issues": 5,
         "method": "LLM 정독(h2 사각지대)"
       }
+    },
+    "rac.html": {
+      "status": "reviewing",
+      "reviewed_at": "2026-07-21",
+      "note": "신규 문서 — 84~85일차 RAC 구축. Part 01~06(RAC 개요 shared-everything·네트워크 4종 public/private/VIP/SCAN·소프트웨어 스택 Grid(Clusterware+ASM)+DB·공유 스토리지 oracleasm createdisk/scandisks·설치 흐름 gridSetup/runInstaller/dbca·검증 crsctl stat res -t로 racdb1/racdb2 Open). 문제 없음(문서 전용 결정). 허브 문서 탭·자료실 통합, sync_and_verify 매핑 rac 추가. 덱 28장(도해는 요약 렌더). 다음: Cache Fusion 상세(로드맵 07~).",
+      "accuracy": {
+        "checked": false,
+        "at": "2026-07-21",
+        "issues": 0,
+        "method": "실습 노트(설치 절차) 기반 — 개념은 표준 RAC, 사실 정독 미실시"
+      }
     }
   },
   "days": {
