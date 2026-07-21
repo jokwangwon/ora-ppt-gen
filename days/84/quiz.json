@@ -1,0 +1,226 @@
+{
+  "MCQ": [
+    {
+      "id": "m84a",
+      "d": 84,
+      "q": "KEEP 버퍼 풀과 RECYCLE 버퍼 풀의 목적을 옳게 짝지은 것은?",
+      "ref": "https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/memory-architecture.html",
+      "o": [
+        "KEEP=자주 쓰는 작은 테이블을 붙잡아 둠 / RECYCLE=대용량 격리",
+        "KEEP=대용량을 격리해 보호하고 / RECYCLE=작은 테이블을 재사용하려 캐시에 계속 유지",
+        "KEEP=읽기 전용 블록만 보관하고 / RECYCLE=쓰기가 일어난 블록만 따로 모아 관리",
+        "KEEP=인덱스 블록 전용 풀이고 / RECYCLE=테이블 데이터 블록 전용으로 나눈 풀"
+      ],
+      "a": 0,
+      "e": "KEEP은 사용 빈도 높고 작은 테이블(코드 테이블 등)을 캐시에 붙잡아 둔다(db_keep_cache_size). RECYCLE은 빈도 낮고 읽는 양 많은 테이블을 격리해 재사용 안 될 블록이 DEFAULT 풀의 LRU를 밀어내지 않게 보호한다(db_recycle_cache_size)."
+    },
+    {
+      "id": "m84b",
+      "d": 84,
+      "q": "특정 테이블을 KEEP 버퍼 풀에 두려면?",
+      "ref": "https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/memory-architecture.html",
+      "o": [
+        "db_keep_cache_size로 풀을 연 뒤 storage(buffer_pool keep)",
+        "alter table … cache 명령으로 그 테이블 전체를 캐시에 상주시켜 두면 된다고 배웠다",
+        "이름이 KEEP인 테이블스페이스를 새로 만들고 그 테이블을 통째로 그리로 이동시킨다",
+        "db_block_size 값을 더 크게 키우면 KEEP 영역이 자동으로 배정되도록 설정한다"
+      ],
+      "a": 0,
+      "e": "먼저 db_keep_cache_size로 KEEP 풀을 열고(DEFAULT에서 buffers를 떼어 할당), alter table hr.employees storage(buffer_pool keep)로 세그먼트에 꼬리표를 단다. 인덱스도 alter index … storage(buffer_pool keep)로 개별 지정, default로 되돌릴 수 있다."
+    },
+    {
+      "id": "m84c",
+      "d": 84,
+      "q": "블록 크기 4K인 nonstandard 블록 테이블스페이스를 만들기 전에 반드시 해야 하는 것은?",
+      "o": [
+        "db_4k_cache_size로 4K 블록용 캐시를 먼저 연다",
+        "db_block_size를 4096으로 변경하고 재기동한다",
+        "TEMP 테이블스페이스를 4K로 재생성한다",
+        "sga_target을 늘려 자동으로 4K 캐시가 생기게 한다"
+      ],
+      "a": 0,
+      "e": "표준 블록(db_block_size 8K)과 다른 크기는 그에 맞는 캐시가 별도로 필요하다 — alter system set db_4k_cache_size로 4K 캐시를 먼저 연 뒤에야 blocksize 4k로 테이블스페이스를 만들 수 있다. db_block_size(표준)는 바꾸지 않는다."
+    },
+    {
+      "id": "m84d",
+      "d": 84,
+      "q": "Redo Log Buffer에 redo entry가 생성되지 않는 SQL은?",
+      "o": [
+        "순수 select (조건 조회만)",
+        "select … for update",
+        "update … set",
+        "create table … as select"
+      ],
+      "a": 0,
+      "e": "redo는 '무엇을 되돌리고 다시 하나'의 기록이라 변경이 있어야 생긴다 — 읽기만 하는 순수 select은 바꾼 게 없어 redo가 없다. DML(insert/update/delete/merge)·DDL(create/alter/drop)·select for update(잠금=상태 변경)는 redo를 남긴다."
+    },
+    {
+      "id": "m84e",
+      "d": 84,
+      "q": "log_buffer 파라미터의 특성으로 옳은 것은?",
+      "o": [
+        "static parameter — scope=spfile+재기동해야 반영",
+        "동적 파라미터라서 alter system 명령으로 즉시 변경이 가능하고 바로 반영된다",
+        "세션 레벨 파라미터라 각 세션이 접속할 때 서로 다른 값으로 지정할 수 있다",
+        "sga_target 값에 의해 다른 SGA 구성요소처럼 자동으로 크기가 조정된다"
+      ],
+      "a": 0,
+      "e": "log_buffer는 static parameter라 scope=spfile로만 변경하고 인스턴스를 재기동해야 반영된다. 또한 sga_target(ASMM)이 설정돼 있어도 log_buffer는 자동 관리에서 빠져 수동으로 잡아야 하는 영역이다."
+    },
+    {
+      "id": "m84f",
+      "d": 84,
+      "q": "ASMM(sga_target)이 설정돼 있어도 여전히 수동으로 관리해야 하는 영역은?",
+      "ref": "https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/memory-architecture.html",
+      "o": [
+        "db_keep/recycle_cache_size · db_nK_cache_size · log_buffer",
+        "shared_pool_size · db_cache_size · large_pool_size",
+        "java_pool_size · streams_pool_size",
+        "sga_max_size · memory_target"
+      ],
+      "a": 0,
+      "e": "sga_target이 자동 관리하는 것은 shared_pool_size·db_cache_size·large_pool_size·java_pool_size·streams_pool_size. 반면 db_keep/recycle_cache_size·db_nK_cache_size·log_buffer는 DBA가 의도적으로 격리·지정하는 것이라 자동 관리에서 빠져 수동으로 잡는다."
+    },
+    {
+      "id": "m84g",
+      "d": 84,
+      "q": "메모리 자동 관리 3세대를 도입 순서(오라클 버전)대로 나열한 것은?",
+      "ref": "https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/memory-architecture.html",
+      "o": [
+        "자동 PGA(9i) → ASMM(10g) → AMM(11g)",
+        "ASMM sga_target(9i) → 자동 PGA(10g) → AMM memory_target(11g) 순서로 도입",
+        "AMM memory_target(9i) → ASMM(10g) → 자동 PGA(11g) 순서로 확장되어 왔다",
+        "자동 PGA(10g) → AMM(11g) → ASMM(12c) 순서로 세대가 이어져 발전했다"
+      ],
+      "a": 0,
+      "e": "9i 자동 PGA(pga_aggregate_target, SQL 작업 공간만) → 10g ASMM(sga_target, SGA 자동 구성요소, mman 프로세스) → 11g AMM(memory_target, SGA+PGA를 통째로 자동 배분). 손이 점점 덜 가는 방향으로 진화."
+    },
+    {
+      "id": "m84h",
+      "d": 84,
+      "q": "AMM을 쓰려고 memory_target을 설정하면 sga_target과 pga_aggregate_target은 어떻게 되나?",
+      "ref": "https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/memory-architecture.html",
+      "o": [
+        "둘 다 0이 되고 memory_target이 SGA+PGA를 함께 자동 배분한다",
+        "둘의 합이 memory_target과 같도록 자동으로 고정된다",
+        "sga_target만 유지되고 pga_aggregate_target은 무시된다",
+        "memory_target이 두 값의 상한(hard limit) 역할만 한다"
+      ],
+      "a": 0,
+      "e": "memory_target(≤ memory_max_target)을 잡으면 sga_target·pga_aggregate_target이 0이 되고, AMM이 워크로드에 따라 SGA와 PGA를 통째로 자동 배분한다. 확인은 v$memory_dynamic_components(11g), ASMM은 v$sga_dynamic_components(10g)."
+    }
+  ],
+  "ESSAY": [
+    {
+      "id": "e84a",
+      "d": 84,
+      "q": "Database Buffer Cache의 네 가지 풀(DEFAULT·KEEP·RECYCLE·nK)을 설명하고, KEEP과 RECYCLE이 각각 무엇을 위한 것인지, 특정 테이블/인덱스를 특정 풀에 배정하는 방법과 nonstandard 블록 테이블스페이스를 만들 때의 전제 조건을 서술하라.",
+      "ref": "https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/memory-architecture.html",
+      "a": "Data Buffer Cache는 데이터파일에서 읽은 블록의 복사본을 담아 물리 I/O를 줄이는 공유 메모리로, 기본은 DEFAULT 풀(db_cache_size)에 담긴다. KEEP 풀(db_keep_cache_size)은 사용 빈도가 높고 크기가 작은 테이블(코드 테이블 등)의 재사용 블록을 캐시에 붙잡아 두는 목적이고, RECYCLE 풀(db_recycle_cache_size)은 빈도가 낮고 읽는 양이 많은 테이블을 격리해 재사용 안 될 블록이 DEFAULT 풀의 LRU를 밀어내지 않도록 보호하는 목적이다 — 둘은 DEFAULT의 LRU를 지키는 정반대 장치다. nK 풀(db_2/4/8/16/32k_cache_size)은 표준과 다른 블록 크기의 테이블스페이스용이다. 배정은 먼저 해당 풀을 db_..._cache_size로 열고, alter table … storage(buffer_pool keep) 또는 alter index … storage(buffer_pool keep)로 세그먼트에 꼬리표를 단다(default로 되돌릴 수 있다). nonstandard 블록 테이블스페이스(예 blocksize 4k)를 만들려면 표준 db_block_size(8K)와 별개로 db_4k_cache_size로 4K 캐시를 먼저 열어야 한다.",
+      "k": [
+        "DEFAULT/KEEP/RECYCLE/nK",
+        "붙잡아 둠",
+        "격리·보호",
+        "storage(buffer_pool",
+        "db_4k_cache_size",
+        "LRU"
+      ]
+    },
+    {
+      "id": "e84b",
+      "d": 84,
+      "q": "오라클 메모리 자동 관리 3세대(자동 PGA 9i, ASMM 10g, AMM 11g)를 각 파라미터와 관리 범위로 설명하라. 그리고 ASMM(sga_target)에서 자동 관리되는 영역과 여전히 수동으로 잡아야 하는 영역을 구분하고, 왜 KEEP/RECYCLE이 자동 관리에서 빠지는지 서술하라.",
+      "ref": "https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/memory-architecture.html",
+      "a": "자동 PGA(9i)는 pga_aggregate_target 하나로 PGA의 SQL 작업 공간을 자동 관리한다(soft limit, workarea_size_policy=auto). ASMM(10g)은 sga_target을 설정하면 SGA의 구성요소를 mman 프로세스가 memory advisor로 자동 관리한다(sga_target ≤ sga_max_size, 운영 중 조정 가능). AMM(11g)은 memory_target(≤ memory_max_target)으로 SGA와 PGA를 워크로드에 따라 통째로 자동 배분하며, 설정 시 sga_target·pga_aggregate_target이 0이 된다. ASMM에서 자동 관리되는 것은 shared_pool_size·db_cache_size·large_pool_size·java_pool_size·streams_pool_size이고, db_keep_cache_size·db_recycle_cache_size·db_nK_cache_size·log_buffer는 여전히 수동이다. KEEP/RECYCLE이 빠지는 이유는 이들이 오라클이 알아서 나눌 성질이 아니라 DBA가 특정 데이터를 의도적으로 격리하려고 만든 풀이라, 자동 관리가 건드리면 그 격리 의도가 무너지기 때문이다.",
+      "k": [
+        "pga_aggregate_target",
+        "sga_target",
+        "memory_target",
+        "mman",
+        "수동 영역",
+        "의도적 격리"
+      ]
+    }
+  ],
+  "TERMS": [
+    {
+      "t": "Data Buffer Cache",
+      "e": "데이터 블록 복사본을 담는 SGA 캐시",
+      "d": "데이터파일에서 읽은 블록의 복사본을 담아 물리 I/O를 최소화하는 공유 메모리 — 최근 사용 블록을 남긴다(모든 유저 공유·동적 크기 조정). 기본은 DEFAULT 풀(db_cache_size), 성격별로 KEEP/RECYCLE/nK로 나눌 수 있다."
+    },
+    {
+      "t": "KEEP 버퍼 풀",
+      "e": "자주 쓰는 작은 테이블을 붙잡아 둠",
+      "d": "사용 빈도 높고 크기 작은 테이블(코드 테이블 등)의 재사용 블록을 캐시에 유지(db_keep_cache_size). alter table … storage(buffer_pool keep)로 세그먼트에 지정 — DEFAULT LRU에서 밀려나지 않게."
+    },
+    {
+      "t": "RECYCLE 버퍼 풀",
+      "e": "대용량이 DEFAULT를 밀어내지 않게 격리",
+      "d": "빈도 낮고 읽는 양 많은 테이블을 별도 풀로 격리해(db_recycle_cache_size) 재사용 안 될 블록이 DEFAULT 풀의 LRU를 오염시키지 않게 보호. KEEP과 정반대 목적, 둘 다 DEFAULT 보호 장치."
+    },
+    {
+      "t": "nK 버퍼 풀",
+      "e": "표준과 다른 블록 크기용 캐시",
+      "d": "db_2/4/8/16/32k_cache_size — nonstandard 블록 테이블스페이스(예 blocksize 4k)를 만들려면 표준 db_block_size(8K)와 별개로 그 크기의 캐시를 먼저 열어야 한다. 같은 데이터도 작은 블록엔 더 잘게 나뉜다."
+    },
+    {
+      "t": "buffer_pool 지정",
+      "e": "세그먼트에 캐시 꼬리표 달기",
+      "d": "alter table/index … storage(buffer_pool keep|recycle|default)로 세그먼트가 살 풀을 정한다(dba_tables·dba_indexes의 buffer_pool). '이 데이터는 어느 메모리에 살까'를 설계로 정하는 것 — 되돌리려면 default."
+    },
+    {
+      "t": "Redo Log Buffer",
+      "e": "변경사항을 기록하는 복구용 버퍼",
+      "d": "DB 데이터 블록의 모든 변경을 redo entry로 기록 — 목적은 복구. DML·DDL·select for update가 redo를 만들고, 순수 select은 변경이 없어 안 만든다. log_buffer로 조정(static parameter, scope=spfile+재기동)."
+    },
+    {
+      "t": "ASMM (Automatic Shared Memory Management)",
+      "e": "sga_target으로 SGA 자동 관리(10g)",
+      "d": "sga_target(≤ sga_max_size)을 설정하면 shared_pool·db_cache·large_pool·java_pool·streams_pool을 mman 프로세스가 memory advisor로 자동 관리. db_keep/recycle/nK_cache_size·log_buffer는 여전히 수동. v$sga_dynamic_components로 확인."
+    },
+    {
+      "t": "AMM (Automatic Memory Management)",
+      "e": "memory_target으로 SGA+PGA 통째 관리(11g)",
+      "d": "memory_target(≤ memory_max_target) 하나로 SGA와 PGA를 워크로드에 따라 자동 배분 — 설정하면 sga_target·pga_aggregate_target이 0이 된다. v$memory_dynamic_components로 확인. 자동화 3세대의 최종형.",
+      "day": 84
+    },
+    {
+      "t": "메모리 자동화 3세대",
+      "e": "자동 PGA→ASMM→AMM",
+      "d": "9i 자동 PGA(pga_aggregate_target, 작업 공간만)→10g ASMM(sga_target, SGA)→11g AMM(memory_target, SGA+PGA 통째). 파라미터 하나로 관리하는 범위가 점점 넓어지며 손이 덜 가는 방향으로 진화."
+    },
+    {
+      "t": "static parameter",
+      "e": "재기동해야 반영되는 파라미터",
+      "d": "log_buffer처럼 scope=spfile로만 바꾸고 인스턴스를 재기동해야 적용되는 파라미터. 반대는 동적 파라미터(alter system으로 즉시). sga_target이 있어도 log_buffer는 자동 관리에서 빠져 수동 대상."
+    }
+  ],
+  "PLANQ": [
+    {
+      "id": "pl84a",
+      "q": "employees 테이블(8블록)을 KEEP 풀로 옮기기 전후의 v$buffer_pool과 딕셔너리다. KEEP 풀을 열었을 때 DEFAULT의 buffers가 줄어든 이유, storage(buffer_pool keep)가 바꾸는 것, 그리고 이것이 내부구조편의 LRU와 어떻게 연결되는지 설명하라.",
+      "plan": "-- alter system set db_keep_cache_size = 16m scope=both; 후:\nNAME      BLOCK_SIZE   BUFFERS  CURRENT_SIZE\nDEFAULT         8192     37202           304    ← (풀 열기 전)\n-- 풀 연 뒤:\nKEEP            8192      1958            16\nDEFAULT         8192     35244           288    ← 37202에서 1958 줄어듦\n\n-- alter table hr.employees storage(buffer_pool keep); 후:\nTABLESPACE_NAME   BLOCKS  BUFFER_POOL\nUSERS                  5  KEEP",
+      "a": "버퍼 캐시 전체 크기는 고정이므로, KEEP 풀에 16M(1958 buffers)를 할당하면 그만큼을 DEFAULT에서 떼어 온다 — 그래서 DEFAULT buffers가 37202에서 35244로 정확히 1958 줄었다. storage(buffer_pool keep)는 데이터를 옮기는 게 아니라 employees 세그먼트의 '살 곳' 꼬리표만 KEEP으로 바꾸는 것이다(dba_tables.buffer_pool). 이후 employees 블록이 읽히면 DEFAULT가 아니라 KEEP 풀에 올라가고, KEEP은 그 블록들만 경쟁하는 독립 LRU라 다른 대용량 조회가 아무리 들어와도 밀려나지 않는다 — 내부구조편의 LRU·touch count가 풀마다 따로 돌아가는 것이다. 자주 쓰는 작은 코드 테이블을 '항상 메모리에' 두려는 KEEP의 목적이 이 격리에서 나온다.",
+      "k": [
+        "고정 크기",
+        "DEFAULT에서 떼옴",
+        "꼬리표",
+        "독립 LRU",
+        "격리"
+      ]
+    },
+    {
+      "id": "pl84b",
+      "q": "같은 employees(8K 블록에선 8블록)를 4K 블록 테이블스페이스에 CTAS한 결과다. oltp_emp의 세그먼트 blocks가 왜 이렇게 달라 보이는지, nonstandard 블록 캐시를 먼저 열어야 하는 이유, 그리고 블록 크기가 조회 성능에 주는 함의를 설명하라.",
+      "plan": "-- 8K 블록(USERS): employees 세그먼트\nBLOCKS  EXTENTS      BYTES  BUFFER_POOL\n     8        1      65536  DEFAULT\n\n-- 4K 블록(OLTP_TBS): oltp_emp 세그먼트 (db_4k_cache_size=16M 먼저 연 뒤 CTAS)\nBLOCKS  EXTENTS       BYTES  BUFFER_POOL\n   256        1     1048576  DEFAULT   ← extent uniform size 1m라 최소 할당이 큼",
+      "a": "같은 데이터라도 블록 크기가 절반(4K)이면 블록 하나에 담기는 행이 절반이라 논리적으로는 블록 수가 늘어난다. 다만 여기 256블록은 주로 테이블스페이스를 uniform size 1m extent로 만들어 최소 1MB(4K×256)가 통째로 할당된 결과이기도 하다(실데이터는 훨씬 적지만 익스텐트 단위로 잡힘). 4K 블록 테이블스페이스를 만들려면 표준 db_block_size(8K)와 별개로 db_4k_cache_size로 4K 전용 캐시를 먼저 열어야 하는데, 버퍼 캐시는 블록 크기별로 분리돼 있어 4K 블록을 올릴 자리가 없으면 테이블스페이스 자체를 만들 수 없기 때문이다. 블록 크기의 함의: 작은 블록(4K/8K)은 한 블록에 적은 행 → OLTP처럼 소량을 자주 집는 데 유리(블록 경합·낭비 감소), 큰 블록(16K/32K)은 한 번에 많은 행 → DSS의 대량 스캔에 유리. 그래서 워크로드에 맞춰 테이블스페이스 블록 크기를 나누고 그에 맞는 nK 캐시를 여는 것이다.",
+      "k": [
+        "블록당 행 수",
+        "익스텐트 단위",
+        "블록별 분리 캐시",
+        "OLTP 작은 블록",
+        "DSS 큰 블록"
+      ]
+    }
+  ]
+}

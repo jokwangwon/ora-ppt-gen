@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>84일차 복습 시트</title>
+<style>
+body{margin:0;background:#f6f8fa;color:#34343c;font-family:'Lato','Noto Sans KR',-apple-system,sans-serif;line-height:1.7}
+.wrap{max-width:820px;margin:0 auto;padding:36px 22px 80px}
+.top{font-size:12px;color:#7c828a;margin-bottom:6px}
+h2{color:#1b1b1f;font-size:22px;margin:4px 0 14px}
+h3{color:#1b1b1f;font-size:16px;margin:26px 0 8px;padding-top:14px;border-top:1px solid #e7ebef}
+h4{font-size:14px;color:#7c828a;margin:16px 0 4px}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(23,32,50,.05)}
+th{text-align:left;font-size:12px;color:#7c828a;padding:9px 12px;border-bottom:2px solid #e7ebef;background:#fbfcfd}
+td{padding:8px 12px;border-bottom:1px solid #eef1f4;vertical-align:top}
+code{font-family:ui-monospace,monospace;font-size:.85em;background:#eef1f4;padding:1px 6px;border-radius:5px}
+.note{background:#e9f2fb;border:1px solid #cfe0fb;border-radius:11px;padding:11px 14px;font-size:13px;color:#1f4f9e;margin:10px 0}
+hr{border:none;border-top:1px dashed #e7ebef;margin:18px 0}
+ul,ol{padding-left:22px}
+.back{position:fixed;right:16px;bottom:16px;background:#1d7dcc;color:#fff;font:700 13px/1 system-ui;text-decoration:none;padding:11px 15px;border-radius:24px;box-shadow:0 4px 14px rgba(0,0,0,.22)}
+</style></head><body><div class="wrap">
+<div class="top">Oracle DBA 학습 자료실 · 일일 복습</div>
+<h2>84일차 복습 시트</h2>
+<div class='note'>오늘 하루를 한 장으로 — 축·개념·명령어·요약. 막히는 개념은 옆의 [문서 §] 링크로 바로 이동해 다시 읽고, 마지막에 허브에서 문제로 마무리.</div>
+<hr>
+<h3>[오늘의 축]</h3>
+<div class='note'><b>튜닝의 마지막 질문은 '무엇을 메모리에 남길까' — 자주 쓰는 건 KEEP으로 붙잡고, 한번 훑을 건 RECYCLE로 격리하고, 나머지는 자동 관리(ASMM·AMM)에 맡긴다. 그리고 오늘 RAC 설치가 시작됐다.</b></div>
+<p>버퍼 캐시 풀(DEFAULT/KEEP/RECYCLE/nK) + Redo Log Buffer + 메모리 자동화 3세대(자동 PGA 9i→ASMM 10g→AMM 11g)로 SQL 튜닝편 메모리 무대 완료. 후반 RAC 설치 개막(인프라).</p>
+<h3>[개념 제목] (수업 등장 순)</h3>
+<ol>
+<li><b>Data Buffer Cache</b> — 블록 복사본 저장, 물리 I/O 최소화, 공유·동적 크기 · <a href='../assets/sql_tuning.html#mem' class='cmp-link'>문서 §16.1</a></li>
+<li><b>KEEP 풀</b> — 빈도 높고 작은 테이블 붙잡아 둠(db_keep_cache_size) · <a href='../assets/sql_tuning.html#mem' class='cmp-link'>문서 §16.1</a></li>
+<li><b>RECYCLE 풀</b> — 빈도 낮고 대용량 격리해 DEFAULT 보호(db_recycle_cache_size) · <a href='../assets/sql_tuning.html#mem' class='cmp-link'>문서 §16.1</a></li>
+<li><b>nK 풀 &amp; nonstandard 블록</b> — 표준(8K) 외 블록은 db_nk_cache_size 먼저 · <a href='../assets/sql_tuning.html#mem' class='cmp-link'>문서 §16.2</a></li>
+<li><b>buffer_pool 지정</b> — storage(buffer_pool keep) 세그먼트 꼬리표(테이블·인덱스 개별) · <a href='../assets/sql_tuning.html#mem' class='cmp-link'>문서 §16.2</a></li>
+<li><b>Redo Log Buffer</b> — 변경 기록·목적=복구·순수 select 제외(for update는 포함) · <a href='../assets/sql_tuning.html#mem' class='cmp-link'>문서 §16.3</a></li>
+<li><b>자동 PGA(9i)</b> — pga_aggregate_target, 작업 공간만 · <a href='../assets/sql_tuning.html#mem' class='cmp-link'>문서 §16.4</a></li>
+<li><b>ASMM(10g)</b> — sga_target, SGA 자동 구성요소, mman · <a href='../assets/sql_tuning.html#mem' class='cmp-link'>문서 §16.4</a></li>
+<li><b>AMM(11g)</b> — memory_target, SGA+PGA 통째(설정 시 sga/pga target 0) · <a href='../assets/sql_tuning.html#mem' class='cmp-link'>문서 §16.4</a></li>
+<li><b>자동에서 빠지는 것</b> — keep/recycle/nK cache·log_buffer는 수동 · <a href='../assets/sql_tuning.html#mem' class='cmp-link'>문서 §16.4</a></li>
+</ol>
+<h3>[실습 명령어 정리] (실행 순서 + 결과 요지)</h3>
+<table><tr><th>#</th><th>명령</th><th>결과 요지</th></tr>
+<tr><td>1</td><td><code>show parameter pga</code></td><td>pga_aggregate_limit 2G · target 0 (§15 복습)</td></tr>
+<tr><td>2</td><td><code>v$sgainfo</code> / <code>v$buffer_pool</code></td><td>Buffer Cache Size·DEFAULT 8192 37202 buffers</td></tr>
+<tr><td>3</td><td><code>alter system set db_keep_cache_size = 16m scope=both</code></td><td><b>KEEP 1958</b> 생김 — DEFAULT 37202→<b>35244</b>(1958 떼옴)</td></tr>
+<tr><td>4</td><td><code>alter table hr.employees storage(buffer_pool keep)</code></td><td>dba_tables.buffer_pool KEEP — 데이터 이동 아니라 꼬리표</td></tr>
+<tr><td>5</td><td><code>alter index hr.emp_emp_id_pk storage(buffer_pool keep)</code></td><td>인덱스도 개별 지정 → default로 되돌림</td></tr>
+<tr><td>6</td><td><code>alter system set db_recycle_cache_size = 16m</code> + <code>storage(buffer_pool recycle)</code></td><td>RECYCLE 풀·테이블 지정</td></tr>
+<tr><td>7</td><td><code>alter system set db_4k_cache_size = 16m</code></td><td>4K 캐시 먼저 열기(표준 db_block_size 8K와 별개)</td></tr>
+<tr><td>8</td><td><code>create tablespace oltp_tbs … blocksize 4k …</code></td><td>4K 테이블스페이스 — dba_tablespaces block_size 4096</td></tr>
+<tr><td>9</td><td><code>create table hr.oltp_emp tablespace oltp_tbs as select…</code></td><td>employees 8블록(8K) → oltp_emp 세그먼트 256블록(uniform 1m)</td></tr>
+<tr><td>10</td><td>Redo: redo entry 생성 SQL</td><td>DML·DDL·select for update ○ / 순수 select ✗</td></tr>
+<tr><td>11</td><td><code>log_buffer</code></td><td>static parameter(scope=spfile+재기동)</td></tr>
+<tr><td>12</td><td><code>show parameter sga_target</code> / <code>sga_max_size</code></td><td>ASMM: sga_target ≤ sga_max_size, 운영 중 조정</td></tr>
+<tr><td>13</td><td>`! ps -ef</td><td>grep ora_mman`</td><td><b>ora_mman</b> 프로세스 — ASMM의 memory advisor</td></tr>
+<tr><td>14</td><td><code>v$sga_dynamic_components</code> / <code>v$memory_dynamic_components</code></td><td>ASMM(10g) / AMM(11g) 확인 뷰</td></tr>
+<tr><td>15</td><td><code>show parameter memory_target</code></td><td>AMM: memory_target 1472M → sga_target·pga_target 0</td></tr>
+</table>
+<h3>[5줄 요약]</h3>
+<ol>
+<li><b>버퍼 캐시는 풀로 나뉜다</b> — DEFAULT 기본, KEEP(자주 쓰는 작은 걸 붙잡음), RECYCLE(대용량을 격리해 DEFAULT 보호), nK(다른 블록 크기). KEEP/RECYCLE은 정반대 목적이지만 둘 다 DEFAULT LRU를 지킨다.</li>
+<li><b>풀 지정은 세그먼트 꼬리표</b> — db_..._cache_size로 풀을 열면 DEFAULT에서 buffers를 떼오고, storage(buffer_pool keep)로 테이블·인덱스가 살 곳을 정한다(데이터 이동 아님).</li>
+<li><b>nonstandard 블록은 캐시부터</b> — 4K 테이블스페이스는 db_4k_cache_size를 먼저 열어야(버퍼 캐시가 블록 크기별로 분리). 작은 블록=OLTP, 큰 블록=DSS 유리.</li>
+<li><b>Redo는 변경만 남긴다</b> — 목적은 복구. DML·DDL·select for update가 redo entry를 만들고, 순수 select은 바꾼 게 없어 안 만든다. log_buffer는 static(재기동).</li>
+<li><b>자동화는 3세대</b> — 자동 PGA(9i, pga_aggregate_target)→ASMM(10g, sga_target)→AMM(11g, memory_target, SGA+PGA 통째). 단 keep/recycle/nK cache·log_buffer는 DBA가 의도적으로 격리한 것이라 자동에서 빠져 수동.</li>
+</ol>
+<h3>[건너뛴 것 — 매뉴얼 대비 / RAC]</h3>
+<table><tr><th>안 다룬 것</th><th>추정 이유</th><th>공부하러 가기</th></tr>
+<tr><td>RAC 설치 상세(grid·ASM 구성)</td><td>인프라 실습 — 본 문서 범위 밖</td><td>아래 RAC 설치 요지 · 이미지 압축폴더</td></tr>
+<tr><td>v$sga_resize_ops(자동 조정 이력)</td><td>튜닝 심화</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/memory-architecture.html' class='cmp-link'>매뉴얼 § Memory Architecture</a></td></tr>
+<tr><td>블록 크기별 성능 벤치</td><td>실측 필요</td><td>홈랩 — 4K vs 8K vs 16K 대량 스캔 비교</td></tr>
+<tr><td>memory advisor 뷰(v$pga/sga_target_advice)</td><td>튜닝 심화</td><td>위 매뉴얼</td></tr>
+</table>
+<h3>RAC 설치 요지 (인프라 — 문서 범위 밖, 순서 참고용)</h3>
+<ul>
+<li><b>IP 체계</b>: Public(rac1 .190 / rac2 .191) · Private 인터커넥트(rac1-priv .55.190 / rac2-priv .55.191) · VIP(.192/.193) · SCAN(rac-scan .194, 클라이언트 접속)</li>
+<li><b>패키지</b>: oracle-database-preinstall-19c · oracleasm-support · kmod-oracleasm</li>
+<li><b>OS 준비</b>: /etc/hosts(public/private/vip/scan) · limits.conf(nofile·nproc·stack·memlock) · firewalld 중지 · ntpd(시간 동기)</li>
+<li><b>유저·그룹</b>: oracle(oinstall/dba/oper/…) + asmadmin(54331)·asmdba(54332)·asmoper(54333) 추가</li>
+<li><b>디렉토리·환경</b>: /u01/app/{oracle,oraInventory,19.0.0/grid,…} · .bash_profile(ORACLE_HOME·GRID_HOME·SID) · .grid_env(+ASM1)·.db_env(racdb1) 분리</li>
+<li><b>복제</b>: rac1 종료→rac2 복제(새 MAC)→IP·hostname·환경변수(rac2/+ASM2/racdb2) 수정</li>
+<li>홈랩: 각 단계의 이유 — private=노드 간 인터커넥트, SCAN=단일 접속점, ASM 그룹=스토리지 관리</li>
+</ul>
+<h3>복습 동선 (10분)</h3>
+<ol>
+<li><b>[오늘의 축]</b> 한 줄을 소리 내어 설명해보기 — KEEP/RECYCLE의 정반대 목적, 자동화 3세대</li>
+<li><b>[개념 제목]</b> 을 훑으며 설명 안 되는 것만 [문서 §] 링크로 이동해 그 부분 재독</li>
+<li><b>[명령어 표]</b> 의 결과(37202→35244 / redo 생성 SQL / 9i·10g·11g 파라미터)를 가리고 떠올려보기</li>
+<li>마무리 — <a href='../assets/study_hub_full.html' class='cmp-link'>허브에서 84일차 문제 풀기</a> (날짜칩 84 필터)</li>
+</ol>
+</div><a class="back" href="../index.html">&larr; 자료실</a></body></html>

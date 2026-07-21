@@ -92,6 +92,7 @@ footer{padding:30px 0 50px;color:var(--muted);font-size:13px}
   <a href="#pi">13. 파티션 인덱스</a>
   <a href="#px">14. 병렬 처리</a>
   <a href="#pga">15. PGA·정렬</a>
+  <a href="#mem">16. 메모리 관리</a>
   <a href="#road">로드맵</a>
 </div></nav>
 
@@ -1891,6 +1892,63 @@ Note: Degree of Parallelism is 2 because of table property</span></pre>
   <div class="why"><span class="h">정렬이 필요없는 집계는 해시가 이긴다</span>group by·distinct는 "중복을 뭉치는" 일이지 "순서를 매기는" 일이 아니다 — 그래서 정렬(O(n log n))보다 해시(O(n))가 유리하다. 정렬된 결과가 필요하면 명시적 order by를 붙이거나(그럼 SORT가 추가) 힌트로 옛 알고리즘을 부른다. 정렬 결과를 만드는 오퍼레이션(SORT ORDER BY·SORT GROUP BY·SORT UNIQUE·MERGE JOIN의 SORT)을 구분해 읽는 게 실행계획 독해의 마지막 조각. <span class="muted">(정렬 trace: tracefile_identifier·10046 level 8·tkprof — 홈랩)</span></div>
 </section>
 
+<section class="part" id="mem">
+  <div class="phead"><div class="pnum">16</div><div><div class="ptitle">메모리 관리 — 버퍼 캐시 풀과 자동화 3세대 <span class="db add">84일차</span></div><div class="psub">DEFAULT/KEEP/RECYCLE/nK 버퍼 풀 · Redo Log Buffer · 자동 PGA(9i)→ASMM(10g)→AMM(11g) · <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/memory-architecture.html" style="color:var(--muted)">공식 매뉴얼 § Memory Architecture ↗</a></div></div></div>
+  <p>§15가 <b>PGA</b>(프로세스 전용 작업 공간)였다면, 여기는 <b class="k">SGA</b>의 버퍼 캐시를 어떻게 나눠 쓰고, 그 모든 메모리를 어떻게 자동으로 관리하는가다. 튜닝의 마지막 무대는 "무엇을 메모리에 남길 것인가".</p>
+
+  <h3 class="blk"><span class="ix">16.1</span>Database Buffer Cache — 그리고 세 개의 풀</h3>
+  <p><b class="k">Data Buffer Cache</b> = 데이터파일에서 읽은 블록의 <b>복사본</b>을 담는 메모리 — 물리 I/O를 최소화하려 최근 블록을 남긴다(모든 유저가 공유·동적 크기 조정). 기본은 <b>DEFAULT</b> 풀에 담기지만, 성격이 다른 데이터를 위해 풀을 나눌 수 있다:</p>
+  <table>
+    <tr><th>풀</th><th>어떤 데이터</th><th>목적 · 파라미터</th></tr>
+    <tr><td><b>DEFAULT</b></td><td>일반</td><td>기본 — <code class="inl">db_cache_size</code></td></tr>
+    <tr><td><b>KEEP</b></td><td>사용 빈도 높고 <b>작은</b> 테이블</td><td>재사용 블록을 캐시에 <b>붙잡아 둠</b> — <code class="inl">db_keep_cache_size</code></td></tr>
+    <tr><td><b>RECYCLE</b></td><td>빈도 낮고 <b>읽는 양 많은</b> 테이블</td><td>재사용 안 될 블록을 격리해 <b>DEFAULT를 보호</b> — <code class="inl">db_recycle_cache_size</code></td></tr>
+    <tr><td><b>nK</b></td><td>표준 블록과 다른 크기</td><td>nonstandard 블록 테이블스페이스용 — <code class="inl">db_{2,4,8,16,32}k_cache_size</code></td></tr>
+  </table>
+  <div class="why"><span class="h">KEEP과 RECYCLE은 정반대 목적</span>KEEP은 "자주 쓰는 작은 것을 <b>안 밀려나게</b>" — 코드 테이블처럼. RECYCLE은 "한 번 크게 훑고 버릴 것이 <b>남의 캐시를 밀어내지 않게</b>" — 배치 대상 대용량처럼. 둘 다 <b>DEFAULT 풀의 LRU를 지키는</b> 장치다(내부구조편의 LRU·touch count와 이어진다).</div>
+
+  <h3 class="blk"><span class="ix">16.2</span>풀 지정 실습 — 세그먼트에 꼬리표를 단다</h3>
+  <pre class="term"><span class="pr">SQL&gt;</span> alter system set db_keep_cache_size = 16m scope=both;   <span class="cm">-- 풀부터 만들고</span>
+<span class="pr">SQL&gt;</span> select name, block_size, buffers, current_size from v$buffer_pool;
+<span class="out">KEEP     8192  1958   16      DEFAULT  8192  35244  288   ← DEFAULT에서 떼어 KEEP에 할당</span>
+<span class="pr">SQL&gt;</span> alter table hr.employees storage(<span class="hl">buffer_pool keep</span>);   <span class="cm">-- 세그먼트에 꼬리표</span>
+<span class="pr">SQL&gt;</span> alter index hr.emp_emp_id_pk storage(buffer_pool keep);    <span class="cm">-- 인덱스도 개별 지정</span>
+<span class="pr">SQL&gt;</span> alter table hr.employees storage(buffer_pool default);    <span class="cm">-- 되돌리기</span></pre>
+  <p>블록 크기가 다른 <b>nonstandard 블록 테이블스페이스</b>를 쓰려면, 먼저 그 크기의 캐시를 열어야 한다 — 표준(<code class="inl">db_block_size</code> 8K)과 별개다:</p>
+  <pre class="term"><span class="pr">SQL&gt;</span> alter system set <span class="hl">db_4k_cache_size = 16m</span>;   <span class="cm">-- 4K 캐시부터</span>
+<span class="pr">SQL&gt;</span> create tablespace oltp_tbs datafile '…oltp_tbs01.dbf' size 5m <span class="hl">blocksize 4k</span>
+     extent management local uniform size 1m segment space management auto;
+<span class="pr">SQL&gt;</span> create table hr.oltp_emp tablespace oltp_tbs as select * from hr.employees;
+<span class="out">-- 같은 employees가 8K 블록엔 8블록, 4K 블록 세그먼트엔 더 잘게 나뉜다(블록당 용량 절반)</span></pre>
+  <div class="tip"><b>세그먼트마다 캐시가 달라질 수 있다.</b> 테이블·인덱스별로 <code class="inl">buffer_pool</code> 꼬리표를 달고(dba_tables·dba_indexes의 buffer_pool), 블록 크기가 다르면 그에 맞는 nK 캐시가 필요하다 — "이 데이터는 어느 메모리에 살까"를 설계로 정하는 것.</div>
+
+  <h3 class="blk"><span class="ix">16.3</span>Redo Log Buffer — 목적은 오직 복구</h3>
+  <ul class="tight">
+    <li>DB 데이터 블록의 <b>모든 변경사항을 기록</b>한다 — 기본 목적은 <b>복구(recovery)</b>. 기록 단위가 <b>redo entry</b>(변경을 재구성·재실행할 정보).</li>
+    <li>redo가 생성되는 SQL — DML(insert·update·delete·merge) · DDL(create·alter·drop) · <code class="inl">select … for update</code>(잠금도 변경).</li>
+    <li><code class="inl">log_buffer</code>로 크기 조정 — <b>static parameter</b>라 <code class="inl">scope=spfile</code>로만 바꾸고 재기동해야 반영.</li>
+  </ul>
+  <div class="why"><span class="h">순수 select은 왜 빠지나</span>redo는 "무엇을 되돌리고 다시 하나"의 기록이라 <b>변경</b>이 있어야 생긴다 — 읽기만 하는 select은 바꾼 게 없으니 redo가 없다. 예외가 <code class="inl">select for update</code>: 행에 잠금을 걸어 상태를 바꾸므로 redo가 남는다.</div>
+
+  <h3 class="blk"><span class="ix">16.4</span>메모리 자동 관리 3세대 — 손이 점점 덜 간다</h3>
+  <table>
+    <tr><th>세대</th><th>파라미터 하나로</th><th>관리 범위</th></tr>
+    <tr><td><b>자동 PGA</b> (9i)</td><td><code class="inl">pga_aggregate_target</code></td><td>PGA의 SQL 작업 공간만(§15.2)</td></tr>
+    <tr><td><b>ASMM</b> (10g)</td><td><code class="inl">sga_target</code></td><td>SGA의 자동 구성요소 — <code class="inl">mman</code> 프로세스가 memory advisor로</td></tr>
+    <tr><td><b>AMM</b> (11g)</td><td><code class="inl">memory_target</code></td><td>SGA + PGA를 워크로드에 따라 <b>통째로</b> 조정</td></tr>
+  </table>
+  <p><b>ASMM</b>에서도 <b>손으로 잡아야 하는 것</b>이 있다 — 자동 관리에서 빠지는 영역:</p>
+  <table>
+    <tr><th>sga_target이 자동 관리(O)</th><th>여전히 수동(X)</th></tr>
+    <tr><td><code class="inl">shared_pool_size</code> · <code class="inl">db_cache_size</code> · <code class="inl">large_pool_size</code> · <code class="inl">java_pool_size</code> · <code class="inl">streams_pool_size</code></td><td><b>db_keep/recycle_cache_size</b> · <b>db_nK_cache_size</b> · <b>log_buffer</b></td></tr>
+  </table>
+  <ul class="tight">
+    <li><code class="inl">sga_target</code> ≤ <code class="inl">sga_max_size</code>, 운영 중 조정 가능. 자동 관리 값을 수동으로 키우면 즉시 조정, 줄이면 최소 기준값만 변경.</li>
+    <li><b>AMM</b>: <code class="inl">memory_target</code>(≤ <code class="inl">memory_max_target</code>)을 잡으면 <code class="inl">sga_target</code>·<code class="inl">pga_aggregate_target</code>이 0이 되고 둘을 함께 자동 배분. 확인은 <code class="inl">v$sga_dynamic_components</code>(ASMM)·<code class="inl">v$memory_dynamic_components</code>(AMM).</li>
+  </ul>
+  <div class="why"><span class="h">왜 KEEP/RECYCLE은 자동에서 빠지나</span>이들은 옵티마이저가 워크로드를 보고 크기를 조절할 대상이 아니라 <b>DBA가 특정 세그먼트를 지목해 격리</b>하는 풀이다 — 자동 관리가 크기를 재분배하면 그 격리(어느 데이터를 어느 풀에 둘지)가 무너진다. §16.1의 KEEP/RECYCLE이 "설계로 정하는 것"이라 자동화의 예외인 셈. 이것으로 SQL 튜닝편의 메모리 무대가 끝나고, 다음은 여러 노드가 한 DB를 공유하는 <b>RAC</b>로 — 설치부터 시작한다. <span class="muted">(RAC 설치 실습은 인프라 구성이라 본 문서 범위 밖 — 복습 시트에 절차 요지)</span></div>
+</section>
+
 <section class="part" id="road">
   <div class="phead"><div class="pnum">▶</div><div><div class="ptitle">앞으로 다룰 것 (로드맵)</div><div class="psub">수업이 진행되며 채워 나갈 목차</div></div></div>
   <ul class="road">
@@ -1904,7 +1962,9 @@ Note: Degree of Parallelism is 2 because of table property</span></pre>
     <li class="done"><span class="n">13</span><a href="#pi" style="color:var(--tune);font-weight:600">파티션 인덱스</a> — local(1:1·PREFIXED·140→3) · ITERATOR · global(다른 축) · UNUSABLE→rebuild partition <span class="tag">완료</span></li>
     <li class="done"><span class="n">14</span><a href="#px" style="color:var(--tune);font-weight:600">병렬 처리</a> — QC·서버 집합·IN-OUT 5종·PQ Distrib·gby_pushdown·파티션 wise 조인 4조합·parallel DML·direct path I/O <span class="tag">완료</span></li>
     <li class="done"><span class="n">15</span><a href="#pga" style="color:var(--tune);font-weight:600">PGA·정렬</a> — PGA 구조·자동 관리(target/limit)·optimal/onepass/multipass·정렬 vs 해시 <span class="tag">완료</span></li>
-    <li><span class="n">16</span>증상→원인→처방 안티패턴 + 자주 쓰는 힌트 <span class="tag">예정</span></li>
+    <li class="done"><span class="n">16</span><a href="#mem" style="color:var(--tune);font-weight:600">메모리 관리</a> — 버퍼 캐시 풀(DEFAULT/KEEP/RECYCLE/nK)·Redo Log Buffer·자동화 3세대(PGA→ASMM→AMM) <span class="tag">완료</span></li>
+    <li><span class="n">17</span><b>RAC</b> — 여러 노드가 한 DB를 공유(설치부터) <span class="tag">진행 중(84일차~)</span></li>
+    <li><span class="n">18</span>증상→원인→처방 안티패턴 + 자주 쓰는 힌트 <span class="tag">예정</span></li>
   </ul>
   <div class="why"><span class="h">메모</span>구조 지식(HWM·scattered read·버퍼 캐시·블록)은 <b>내부구조편 가이드</b>에, 그걸 활용하는 기법은 이 문서에 쌓는다. 새 수업이 오면 위 로드맵을 하나씩 완료로 바꿔 간다.</div>
 </section>
