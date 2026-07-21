@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>83일차 복습 시트</title>
+<style>
+body{margin:0;background:#f6f8fa;color:#34343c;font-family:'Lato','Noto Sans KR',-apple-system,sans-serif;line-height:1.7}
+.wrap{max-width:820px;margin:0 auto;padding:36px 22px 80px}
+.top{font-size:12px;color:#7c828a;margin-bottom:6px}
+h2{color:#1b1b1f;font-size:22px;margin:4px 0 14px}
+h3{color:#1b1b1f;font-size:16px;margin:26px 0 8px;padding-top:14px;border-top:1px solid #e7ebef}
+h4{font-size:14px;color:#7c828a;margin:16px 0 4px}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(23,32,50,.05)}
+th{text-align:left;font-size:12px;color:#7c828a;padding:9px 12px;border-bottom:2px solid #e7ebef;background:#fbfcfd}
+td{padding:8px 12px;border-bottom:1px solid #eef1f4;vertical-align:top}
+code{font-family:ui-monospace,monospace;font-size:.85em;background:#eef1f4;padding:1px 6px;border-radius:5px}
+.note{background:#e9f2fb;border:1px solid #cfe0fb;border-radius:11px;padding:11px 14px;font-size:13px;color:#1f4f9e;margin:10px 0}
+hr{border:none;border-top:1px dashed #e7ebef;margin:18px 0}
+ul,ol{padding-left:22px}
+.back{position:fixed;right:16px;bottom:16px;background:#1d7dcc;color:#fff;font:700 13px/1 system-ui;text-decoration:none;padding:11px 15px;border-radius:24px;box-shadow:0 4px 14px rgba(0,0,0,.22)}
+</style></head><body><div class="wrap">
+<div class="top">Oracle DBA 학습 자료실 · 일일 복습</div>
+<h2>83일차 복습 시트 (결석 — 동료 필기 기반)</h2>
+<div class='note'>오늘 하루를 한 장으로 — 축·개념·명령어·요약. 막히는 개념은 옆의 [문서 §] 링크로 바로 이동해 다시 읽고, 마지막에 허브에서 문제로 마무리.</div>
+<hr>
+<h3>[오늘의 축]</h3>
+<div class='note'><b>데이터를 옮기는 비용을 줄인다 — 병렬은 재분배를 없애고(파티션 wise), I/O는 캐시를 우회하고(direct path), 정렬은 메모리에 담는다(optimal). 세 가지 다 '이동을 줄이는' 이야기.</b></div>
+<p>병렬 조인 완결(pq_distribute 4조합) + parallel DML + direct path I/O로 병렬 파트 마무리 → 새 주제 PGA·정렬(구조·자동 관리·3등급·정렬 vs 해시).</p>
+<h3>[개념 제목] (수업 등장 순)</h3>
+<ol>
+<li><b>pq_distribute 4조합</b> — 무엇이 파티션됐나로 재분배가 갈림 · <a href='../assets/sql_tuning.html#px' class='cmp-link'>문서 §14.10</a></li>
+<li><b>partition,none의 블룸</b> — PART JOIN FILTER(:BF0000)로 상대 파티션만 프루닝(§8.11 재등장) · <a href='../assets/sql_tuning.html#px' class='cmp-link'>문서 §14.10</a></li>
+<li><b>hash/broadcast</b> — 둘 다 넌파티션: 대용량끼리 hash·hash, 한쪽 작으면 broadcast · <a href='../assets/sql_tuning.html#px' class='cmp-link'>문서 §14.10</a></li>
+<li><b>parallel DML</b> — 기본 load는 serial(IN-OUT 공백), enable parallel dml·ORA-12841 · <a href='../assets/sql_tuning.html#px' class='cmp-link'>문서 §14.11</a></li>
+<li><b>direct path read/write</b> — 버퍼 캐시 우회(병렬·temp·expdp / DML·append·CTAS·impdp) · <a href='../assets/sql_tuning.html#px' class='cmp-link'>문서 §14.12</a></li>
+<li><b>serial direct read</b> — full scan 블록 &gt; _small_table_threshold(704) → PGA로 직접 · <a href='../assets/sql_tuning.html#px' class='cmp-link'>문서 §14.12</a></li>
+<li><b>PGA 구조</b> — stack·UGA(cursor state·SQL work area: sort/hash/bitmap area) · <a href='../assets/sql_tuning.html#pga' class='cmp-link'>문서 §15.1</a></li>
+<li><b>자동 PGA 관리</b> — target(soft)/limit(hard, 12c)·workarea_size_policy·OLTP 20%/DSS 50% · <a href='../assets/sql_tuning.html#pga' class='cmp-link'>문서 §15.2</a></li>
+<li><b>정렬 3등급</b> — optimal(디스크0)/onepass(1회)/multipass(여러 번·저하) · <a href='../assets/sql_tuning.html#pga' class='cmp-link'>문서 §15.3</a></li>
+<li><b>Used-Temp·direct path temp</b> — 메모리 부족분(KB)·디스크 소트 대기 · <a href='../assets/sql_tuning.html#pga' class='cmp-link'>문서 §15.3</a></li>
+<li><b>정렬 vs 해시</b> — order by/집계=SORT / group by·distinct=HASH(_gby_hash_aggregation_enabled) · <a href='../assets/sql_tuning.html#pga' class='cmp-link'>문서 §15.4</a></li>
+</ol>
+<h3>[실습 명령어 정리] (실행 순서 + 결과 요지)</h3>
+<table><tr><th>#</th><th>명령/플랜</th><th>결과 요지</th></tr>
+<tr><td>1</td><td><code>pq_distribute(e,none,partition)</code> dept_part⋈emp_non</td><td>PX SEND PARTITION(KEY)·HASH JOIN BUFFERED — emp_non을 부서코드 KEY로 재분배</td></tr>
+<tr><td>2</td><td><code>pq_distribute(e,partition,none)</code> dept_non⋈emp_part</td><td><b>PART JOIN FILTER CREATE(:BF0000)</b> + PX PARTITION LIST JOIN-FILTER — 블룸으로 파티션 프루닝</td></tr>
+<tr><td>3</td><td>〃 v$pq_tqstat</td><td>P002·P003 추출 → P000(17)·P001(10) 소비 → 조인 45·61 → QC 106</td></tr>
+<tr><td>4</td><td><code>pq_distribute(e,hash,hash)</code> dept_non⋈emp_non</td><td>둘 다 대용량: 조인 키 해시로 양쪽 동적 파티셔닝</td></tr>
+<tr><td>5</td><td><code>pq_distribute(e,broadcast,none)</code></td><td>작은 테이블 복제 — <b>num_rows로 작은 쪽 복제 확인 필수</b>(큰 쪽 broadcast=재앙)</td></tr>
+<tr><td>6</td><td><code>insert /*+ parallel */ select /*+ parallel */</code> (dml 안 켬)</td><td><b>Id 1 IN-OUT 공백=serial load</b> — 읽기만 병렬</td></tr>
+<tr><td>7</td><td><code>alter session enable parallel dml</code> (트랜잭션 중)</td><td><b>ORA-12841</b> → rollback 후 재실행</td></tr>
+<tr><td>8</td><td><code>insert /*+ enable_parallel_dml parallel */</code></td><td>12c 힌트로 문장 단위 병렬 DML</td></tr>
+<tr><td>9</td><td>serial direct read 확인</td><td>full scan 블록 &gt; <b>_small_table_threshold 704</b> → PGA 직접(캐시 우회)</td></tr>
+<tr><td>10</td><td><code>alter session set events '10949 …'</code></td><td>direct path read 끔 → <b>db file scattered read</b>로 복귀</td></tr>
+<tr><td>11</td><td><code>show parameter pga</code> / <code>workarea_size_policy</code></td><td>auto — pga_aggregate_target 내 자동 관리</td></tr>
+<tr><td>12</td><td>OLTP/DSS 산정</td><td>물리 10GB→OS 2GB 제외 8GB: OLTP SGA 6.4·PGA 1.6 / DSS 4·4</td></tr>
+<tr><td>13</td><td><code>alter session set sort_area_size = 1048576</code> + order by</td><td>SORT AREA 초과 → 디스크 소트, <b>Used-Temp</b> 등장</td></tr>
+<tr><td>14</td><td>〃 v$session_event</td><td><b>direct path write temp 289 / read temp 146</b> — sort run 디스크 왕복</td></tr>
+<tr><td>15</td><td><code>v$sql_shared_cursor</code>·<code>v$sql_workarea</code></td><td>sort_area_size 다르면 <b>child cursor</b> 갈림, last_tempseg_size로 추적</td></tr>
+<tr><td>16</td><td><code>distinct department_id</code></td><td><b>HASH UNIQUE</b>(정렬 안 됨) — _gby_hash_aggregation_enabled 기본 TRUE</td></tr>
+<tr><td>17</td><td><code>opt_param('_gby_hash_aggregation_enabled','false')</code></td><td><b>SORT UNIQUE</b>(정렬됨) — 옛 알고리즘</td></tr>
+</table>
+<h3>[5줄 요약]</h3>
+<ol>
+<li><b>pq_distribute는 파티션 여부가 정한다</b> — none,none(재분배 없음)·none,partition(inner 재분배)·partition,none(outer 재분배+블룸 프루닝)·hash·broadcast(둘 다 넌파티션). broadcast는 작은 쪽이 복제됐는지 꼭 확인.</li>
+<li><b>쓰기도 병렬이 되지만 기본은 아니다</b> — 병렬 insert도 load는 serial(IN-OUT 공백). enable parallel dml로 켜고(트랜잭션 중이면 ORA-12841) 작업 후 disable.</li>
+<li><b>direct path는 캐시를 우회한다</b> — 병렬 쿼리·CTAS·append·Data Pump. full scan이 _small_table_threshold(704)를 넘으면 serial direct read로 PGA에 직접 — 병렬 QC Buffers 5의 정체.</li>
+<li><b>정렬은 담기면 빠르고 넘치면 느리다</b> — optimal(메모리)·onepass(디스크 1회)·multipass(여러 번·저하). 부족분은 Used-Temp(KB)와 direct path read/write temp 대기로 드러난다. PGA는 target(soft)/limit(hard)로 관리.</li>
+<li><b>group by·distinct는 이제 해시</b> — 중복 뭉치기엔 해시 O(n)가 정렬 O(n log n)보다 유리(_gby_hash_aggregation_enabled). HASH GROUP BY/UNIQUE는 정렬 안 됨 — 순서가 필요하면 order by를 명시.</li>
+</ol>
+<h3>[건너뛴 것 — 매뉴얼 대비]</h3>
+<table><tr><th>안 다룬 것</th><th>추정 이유</th><th>공부하러 가기</th></tr>
+<tr><td>정렬 trace(tracefile_identifier·10046 L8·tkprof) 실물</td><td>명령만, 캡처 없음</td><td>? → 홈랩 1번</td></tr>
+<tr><td>Auto DOP·parallel_degree_policy</td><td>다음 심화 추정</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html' class='cmp-link'>매뉴얼 § Parallel Execution</a></td></tr>
+<tr><td>PGA advisor(v$pga_target_advice)</td><td>튜닝 심화</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/memory-architecture.html' class='cmp-link'>매뉴얼 § Memory Architecture</a></td></tr>
+<tr><td>hash join의 build/probe 메모리(hash_area) 세부</td><td>노트에 열린 질문(이월)</td><td>위 매뉴얼 · 홈랩</td></tr>
+</table>
+<h3>홈랩 재현 목록 (결석일)</h3>
+<ol>
+<li><b>정렬 trace 뜨기</b> — tracefile_identifier='sort' → 10046 level 8 → tkprof report.txt sys=no (알럿로그 위치 확인)</li>
+<li><b>broadcast 검증</b> — pq_distribute(e,broadcast,none) 후 v$pq_tqstat num_rows로 작은 테이블 복제 확인</li>
+<li><b>sort_area_size 스윕</b> — 1MB→0→키우며 optimal/onepass/multipass 경계와 Used-Temp·direct path temp 대기 관찰</li>
+<li><b>_small_table_threshold(704) 경계</b> — 그 근처 블록 테이블로 direct read↔scattered read 전환을 10949로 확인</li>
+<li>(이월) 홀수 DoP·HASH JOIN BUFFERED build/probe 세부</li>
+</ol>
+<hr>
+<h3>복습 동선 (10분)</h3>
+<ol>
+<li><b>[오늘의 축]</b> 한 줄을 소리 내어 설명해보기 — 재분배·캐시·메모리 세 가지 '이동 줄이기'</li>
+<li><b>[개념 제목]</b> 을 훑으며 설명 안 되는 것만 [문서 §] 링크로 이동해 그 부분 재독</li>
+<li><b>[명령어 표]</b> 의 결과(4조합 힌트 / ORA-12841 / 704 / optimal→multipass / HASH vs SORT)를 가리고 떠올려보기</li>
+<li>마무리 — <a href='../assets/study_hub_full.html' class='cmp-link'>허브에서 83일차 문제 풀기</a> (날짜칩 83 필터)</li>
+</ol>
+</div><a class="back" href="../index.html">&larr; 자료실</a></body></html>
