@@ -1707,7 +1707,94 @@ Note: Degree of Parallelism is 2 because of table property</span></pre>
 |  5 |      PX SEND <span class="hl">RANGE</span>     | :TQ10000 | Q1,00 | <span class="hl">P-&gt;P</span>  | ← ① 값 구간으로 재분배
 |  6 |       PX BLOCK ITERATOR|          | Q1,00 | PCWC |
 |* 7 |        TABLE ACCESS FULL| EMP     | Q1,00 | PCWP |</span></pre>
-  <div class="why"><span class="h">분배 방식이 연산의 요구를 말한다</span>count(*)는 부분 합계를 아무 순서로 모아도 돼서 QC(<b>RANDOM</b>) 하나로 끝났다. order by는 ① 스캔 워커가 값 구간별로 나눠 보내고(<b>RANGE</b>, P-&gt;P) ② 받은 워커들이 각자 정렬(SORT ORDER BY) ③ QC가 구간 순서대로 이어 붙인다(QC <b>ORDER</b>). TQ가 :TQ10000·:TQ10001 두 개 — 전송이 두 번 일어난 병렬이다. 병렬 처리는 오늘이 개막 — 다음 수업에서 계속.</div>
+  <div class="why"><span class="h">분배 방식이 연산의 요구를 말한다</span>count(*)는 부분 합계를 아무 순서로 모아도 돼서 QC(<b>RANDOM</b>) 하나로 끝났다. order by는 ① 스캔 워커가 값 구간별로 나눠 보내고(<b>RANGE</b>, P-&gt;P) ② 받은 워커들이 각자 정렬(SORT ORDER BY) ③ QC가 구간 순서대로 이어 붙인다(QC <b>ORDER</b>). TQ가 :TQ10000·:TQ10001 두 개 — 전송이 두 번 일어난 병렬이다. 그런데 이 "두 워커 집합"의 정체를 다음 절이 v$pq_tqstat으로 파헤친다.</div>
+
+  <h3 class="blk"><span class="ix">14.4</span>DoP 2인데 프로세스가 4개 — 추출과 정렬은 다른 집합 <span class="db add">82일차</span></h3>
+  <p>같은 order by 병렬을 <code class="inl">v$pq_tqstat</code>으로 열어 보면, 병렬도가 2인데 <b>서버 프로세스는 4개</b>가 나온다 — 추출하는 집합과 정렬하는 집합이 따로이기 때문:</p>
+  <pre class="term"><span class="pr">SQL&gt;</span> select tq_id, server_type, process, num_rows, bytes, waits from v$pq_tqstat …;
+<span class="out">TQ_ID SERVER_TYPE  PROCESS   NUM_ROWS    BYTES   WAITS
+    0 Ranger       QC               2    19199       1   ← 범위 경계(A~M/N~Z)를 정해 주는 역할
+    0 Producer     P002         53309  2794691      16   ┐ <span class="hl">추출 집합</span>(server set 1)
+    0 Producer     P003         54559  2888826      18   ┘ 테이블을 나눠 읽는다
+    0 Consumer     P000         55000  2898603     955   ┐ <span class="hl">정렬 집합</span>(server set 2)
+    0 Consumer     P001         52000  2765715     955   ┘ 받은 구간만 정렬
+    1 Producer     P000         55000  2898603      53   ┐ 정렬 집합이 이번엔 producer가 되어
+    1 Producer     P001         52000  2765715      88   ┘ 정렬 결과를 QC로
+    1 Consumer     QC          107000  5664318       3   ← 순서대로 머지 → user process</span></pre>
+  <table>
+    <tr><th>단계</th><th>TQ</th><th>누가 → 누가</th><th>하는 일</th></tr>
+    <tr><td>① 추출·분배</td><td>:TQ10000</td><td>P002·P003 → P000·P001</td><td>테이블을 나눠 읽고(53,309·54,559행) 정렬 키 구간에 맞춰 분배 — <b>intra</b>는 각자 읽기, <b>inter</b>는 두 집합 간 전송</td></tr>
+    <tr><td>② 정렬·수합</td><td>:TQ10001</td><td>P000·P001 → QC</td><td>구간별로 정렬한 뒤(각 55,000·52,000행) QC가 순서대로 머지해 107,000행을 사용자에게</td></tr>
+  </table>
+  <div class="why"><span class="h">왜 한 프로세스가 추출+정렬을 안 하나</span>한 프로세스가 추출과 정렬을 다 해서 QC에 주면, <b>QC가 그것들을 다시 정렬해야 한다</b>(여러 정렬 결과를 합치면 순서가 깨지므로). 그래서 추출 집합과 정렬 집합을 나누고, 추출 집합이 정렬 키 구간에 맞게 미리 분배(RANGE)한다 — 그러면 정렬 집합은 받은 것만 정렬하고 QC는 이어 붙이기만 하면 된다. 추출↔정렬 두 집합은 서로 <b>소통</b>하지만(inter-operation), 추출끼리·정렬끼리는 소통하지 않는다(intra-operation).</div>
+
+  <h3 class="blk"><span class="ix">14.5</span>병렬의 산수와 자원 — DoP·서버 집합·서버 풀 <span class="db add">82일차</span></h3>
+  <table>
+    <tr><th>개념</th><th>값 (DoP=2 기준)</th><th>설명</th></tr>
+    <tr><td>병렬도 <b>DoP</b></td><td><code class="inl">parallel(e 2)</code> → 2</td><td>한 오퍼레이션을 몇 갈래로 나눌지</td></tr>
+    <tr><td>병렬 서버 프로세스</td><td>DoP × 2 = <b>4</b></td><td>추출 집합 + 정렬 집합 (두 오퍼레이션이 겹칠 때)</td></tr>
+    <tr><td>통신 채널(파이프라인)</td><td>DoP<sup>2</sup> = <b>4</b></td><td>추출 프로세스 2 × 정렬 프로세스 2 = 서로 연결되는 경로 수</td></tr>
+  </table>
+  <ul class="tight">
+    <li><b>QC</b>(Query Coordinator) — 병렬 SQL을 발생시킨 세션. 작업을 지시하고 진행을 관리·감독한다(직접 정렬엔 참여 안 함).</li>
+    <li><b>병렬 서버 프로세스</b>(=병렬 슬레이브) — 실제 작업을 하는 P000·P001·….</li>
+    <li><b>병렬 서버 풀</b> — 병렬처리가 없어도 <code class="inl">parallel_min_servers</code>(실측 4)만큼 미리 떠 있다 → 매번 프로세스를 띄우는 부하를 줄이려고. 부족하면 <code class="inl">parallel_max_servers</code>(실측 40)까지 추가 생성. <b>large pool</b> 메모리를 쓴다.</li>
+    <li><b>서버 집합(server set)</b> — DoP와 오퍼레이션 종류에 따라 1개 또는 여러 개 할당. 풀에서 필요한 만큼 확보한다.</li>
+  </ul>
+  <div class="tip"><b>large pool은 언제 또 쓰나</b> — 병렬 처리 · shared server 환경(UGA) · RMAN 작업. "메모리 공간이 크게 필요한데 공유돼야 하는" 자리들이다.</div>
+
+  <h3 class="blk"><span class="ix">14.6</span>IN-OUT 표기 완전 정복 — 통신이 있느냐가 갈림 <span class="db add">82일차</span></h3>
+  <p><b>Producer</b>(생산자)는 데이터를 추출해 버퍼에 담아 <code class="inl">PX SEND</code>하고, <b>Consumer</b>(소비자)는 <code class="inl">PX RECEIVE</code>로 꺼내 정렬·그룹 작업을 한다. 그 사이를 잇는 게 <b>테이블 큐(:TQ…)</b> — 프로세스 간 통신 파이프라인.</p>
+  <table>
+    <tr><th>IN-OUT</th><th>뜻</th><th>통신</th><th>언제</th></tr>
+    <tr><td>(공백)</td><td>serial</td><td>—</td><td>병렬 아님</td></tr>
+    <tr><td><b>P-&gt;S</b></td><td>Parallel → Serial</td><td>있음</td><td>병렬 서버가 처리한 데이터를 <b>QC로</b> 전송(맨 위 수합)</td></tr>
+    <tr><td><b>P-&gt;P</b></td><td>Parallel → Parallel</td><td>있음</td><td>정렬·그룹·조인 위해 <b>동적 파티셔닝</b> — 첫 집합이 둘째 집합으로(inter-operation)</td></tr>
+    <tr><td><b>S-&gt;P</b></td><td>Serial → Parallel</td><td>있음</td><td>QC가 읽은 데이터를 병렬 서버로 뿌림. <b>직렬 오퍼레이션</b> — 병목 후보</td></tr>
+    <tr><td><b>PCWC</b></td><td>Parallel Combined With Child</td><td>없음</td><td>한 집합이 현재+자식 스텝을 함께(자식 결과를 입력으로만, intra)</td></tr>
+    <tr><td><b>PCWP</b></td><td>Parallel Combined With Parent</td><td>없음</td><td>한 집합이 현재+부모 스텝을 함께(각자 맡은 범위에서 2스텝 이상, intra)</td></tr>
+  </table>
+  <div class="why"><span class="h">한 줄로 외우기</span>화살표(<b>P-&gt;S·P-&gt;P·S-&gt;P</b>)는 집합을 <b>건너</b> 데이터가 가니 통신이 있고, <b>PCWC·PCWP</b>는 한 집합 <b>안에서</b> 스텝만 이어 붙이니 통신이 없다. QC가 사용자에게 줄 때는 항상 serial. 그리고 <b>S-&gt;P만 직렬 오퍼레이션</b> — 처리량이 수백 MB 이상이면 그 지점이 병목인지 보고 병렬로 바꿀지 고민한다(작은 테이블이면 무시).</div>
+
+  <h3 class="blk"><span class="ix">14.7</span>PQ Distrib — 재분배 방식 세 가지 (RANGE·HASH·KEY) <span class="db add">82일차</span></h3>
+  <p>데이터 재분배(redistribution)는 <code class="inl">S-&gt;P</code>·<code class="inl">P-&gt;P</code>에서 일어난다. 어떤 기준으로 나눠 보내는지가 <b>PQ Distrib</b> 컬럼이다.</p>
+  <table>
+    <tr><th>방식</th><th>언제</th><th>어떻게</th></tr>
+    <tr><td><b>RANGE</b></td><td>ORDER BY · SORT GROUP BY</td><td>정렬 집합의 프로세스마다 범위(A~M·N~Z)를 정하고, 추출 집합이 정렬 키 값에 따라 해당 프로세스로 분배. QC는 범위만 할당하고 정렬엔 불참, 완료 후 순서대로 머지</td></tr>
+    <tr><td><b>HASH</b></td><td>조인 키 · HASH GROUP BY</td><td>키 값을 해시 함수에 넣어 리턴 값으로 분배(S-&gt;P·P-&gt;P 가능)</td></tr>
+    <tr><td><b>KEY</b></td><td>파티션 기준 분배</td><td>실행계획에 <code class="inl">PART (KEY)</code>로 — partial partition wise join · CTAS 파티션 테이블 · 병렬 글로벌 파티션 인덱스 생성 시(넌파티션을 파티션 기준에 맞춰야 할 때)</td></tr>
+  </table>
+
+  <h3 class="blk"><span class="ix">14.8</span>group by push down — 추출하면서 미리 센다 <span class="db add">82일차</span></h3>
+  <p>병렬 쿼리에 group by가 있으면 <b class="k">gby_pushdown</b>(기본)이 걸린다 — 추출 프로세스가 읽으면서 <b>미리 group by를 수행</b>해 건수를 줄이고, consumer에게 넘길 일량을 줄여 성능을 올린다. 그래서 플랜에 <code class="inl">HASH GROUP BY</code>가 <b>두 번</b> 나온다:</p>
+  <pre class="term"><span class="pr">SQL&gt;</span> select /*+ parallel(e 2) */ department_id, count(*) from hr.emp e group by department_id;
+<span class="out">|  2 |   PX SEND QC (RANDOM) | :TQ10001 | P-&gt;S | QC (RAND)
+|  3 |    <span class="hl">HASH GROUP BY</span>     |          | Q1,01 | PCWP |   ← ② 받아서 최종 집계(머지)
+|  4 |     PX RECEIVE       |          | Q1,01 | PCWP |
+|  5 |      PX SEND <span class="hl">HASH</span>    | :TQ10000 | Q1,00 | P-&gt;P | <span class="hl">HASH</span>   ← 부서코드 해시로 분배
+|  6 |       <span class="hl">HASH GROUP BY</span>  |          | Q1,00 | PCWP |   ← ① 추출하며 부서별 중간 집계
+|  7 |        PX BLOCK ITERATOR|        | Q1,00 | PCWC |
+|* 8 |         TABLE ACCESS FULL| EMP   | Q1,00 | PCWP |</span></pre>
+  <p>①번 HASH GROUP BY가 추출 프로세스별 <b>중간 결과</b>(부서별 건수)를 만들어 두면, 정렬 집합은 받아서 머지(②)만 하면 된다. 정렬(sort)이 아니라 해시로 분배·집계하므로 결과가 정렬돼 나오진 않는다. <code class="inl">no_gby_pushdown</code> 힌트를 주면 진화 전 방식 — HASH GROUP BY가 <b>한 번</b>만 나오고, 추출 집합은 원본 107K행을 그대로 넘긴다(TQ10000이 107K vs pushdown은 이미 줄어든 건수).</p>
+  <div class="why"><span class="h">§8.13과 같은 정신</span>"더 앞 단계에서, 더 적은 행으로" — 쿼리 변환(§8)이 옵티마이저 안에서 하던 그 원리를, 병렬은 추출 단계에서 미리 집계하는 방식으로 실현한다. 넘길 데이터를 줄이는 게 곧 통신 비용을 줄이는 것.</div>
+
+  <h3 class="blk"><span class="ix">14.9</span>파티션 wise 조인 — 병렬과 파티션이 만나면 <span class="db add">82일차</span></h3>
+  <p>병렬 조인은 기본적으로 <b>동적 파티셔닝</b>(어느 구간으로 나눌지 기준을 잡아 재분배)을 한다. 그런데 <b>조인 키로 이미 파티션돼 있으면</b> 그 재분배를 통째로 생략할 수 있다. <code class="inl">pq_distribute(inner, outer방식, inner방식)</code> 힌트로 유도한다.</p>
+  <table>
+    <tr><th></th><th>full partition wise join</th><th>partial partition wise join</th></tr>
+    <tr><td>조건</td><td>두 테이블 모두 조인 키로 같은 기준 파티션</td><td>한쪽만 파티션</td></tr>
+    <tr><td>재분배</td><td><b>불필요</b> — 같은 파티션끼리 짝지어 조인</td><td><b>필요</b> — 안 된 쪽을 같은 기준으로 동적 파티셔닝 후 조인</td></tr>
+    <tr><td>힌트</td><td><code class="inl">pq_distribute(e,none,none)</code></td><td><code class="inl">pq_distribute(e,none,partition)</code></td></tr>
+    <tr><td>플랜 표식</td><td><code class="inl">PX PARTITION LIST ALL</code> 아래 <b>HASH JOIN</b> — 각 프로세스가 파티션 통째로 조인</td><td><code class="inl">PX SEND PARTITION (KEY)</code> + <b>HASH JOIN BUFFERED</b> — 넌파티션을 KEY로 재분배</td></tr>
+  </table>
+  <pre class="term"><span class="cm">-- full: emp_part ⋈ dept_part (둘 다 department_id로 list 파티션)</span>
+<span class="pr">SQL&gt;</span> … pq_distribute(e,none,none) … <span class="out">→ PX PARTITION LIST ALL → HASH JOIN (재분배 없음)</span>
+<span class="out">   v$pq_tqstat: P000이 2번 파티션만, P001이 1·3·4번 파티션만 조인 → QC가 붙여서(106행) 전달</span>
+
+<span class="cm">-- partial: emp_non(넌파티션) ⋈ dept_part</span>
+<span class="pr">SQL&gt;</span> … pq_distribute(e,none,partition) … <span class="out">→ PX SEND PARTITION (KEY) → HASH JOIN BUFFERED</span>
+<span class="out">   emp_non을 dept_part의 파티션 기준(부서코드)에 맞춰 재분배 후 조인 (P->P PART KEY)</span></pre>
+  <div class="why"><span class="h">병렬과 파티션의 궁합</span>파티션은 데이터를 <b>미리 나눠</b> 뒀고, 병렬은 그 조각들을 <b>동시에</b> 처리한다 — 조인 키 = 파티션 키면 재분배(통신) 자체가 사라져 가장 이상적(full). 한쪽만 파티션이면 안 된 쪽을 그 기준에 맞춰 KEY로 재분배(partial). 그래서 "<b>파티션 개수만큼 프로세스를 띄우는 게 가장 해피</b>"하고, 병렬 프로세스는 파티션 수 이하여야 한다. <span class="muted">(홀수 DoP·빌드/프로브 해시 세부는 홈랩 재확인)</span></div>
 </section>
 
 <section class="part" id="road">
@@ -1721,7 +1808,7 @@ Note: Degree of Parallelism is 2 because of table property</span></pre>
     <li class="done"><span class="n">11</span><a href="#pt" style="color:var(--tune);font-weight:600">파티션</a> — 파티션 뷰(CHECK+UNION ALL) · range·interval·hash·list·composite · Pstart/Pstop · 정적/동적 pruning · 관리(split·add·merge·exchange·shrink) <span class="tag">완료</span></li>
     <li class="done"><span class="n">12</span><a href="#ar" style="color:var(--tune);font-weight:600">부분범위처리 & arraysize</a> — 운반단위 산수(roundtrips) · 전체범위 강제 조건과 대안 · fetch 재방문과 gets <span class="tag">완료</span></li>
     <li class="done"><span class="n">13</span><a href="#pi" style="color:var(--tune);font-weight:600">파티션 인덱스</a> — local(1:1·PREFIXED·140→3) · ITERATOR · global(다른 축) · UNUSABLE→rebuild partition <span class="tag">완료</span></li>
-    <li class="done"><span class="n">14</span><a href="#px" style="color:var(--tune);font-weight:600">병렬 처리</a> — QC·TQ·IN-OUT·v$pq_tqstat·RANGE 분배 <span class="tag">진행 중(81일차~)</span></li>
+    <li class="done"><span class="n">14</span><a href="#px" style="color:var(--tune);font-weight:600">병렬 처리</a> — QC·서버 집합·IN-OUT 5종·PQ Distrib(RANGE/HASH/KEY)·gby_pushdown·파티션 wise 조인(full/partial) <span class="tag">완료</span></li>
     <li><span class="n">15</span>증상→원인→처방 안티패턴 + 자주 쓰는 힌트 <span class="tag">예정</span></li>
   </ul>
   <div class="why"><span class="h">메모</span>구조 지식(HWM·scattered read·버퍼 캐시·블록)은 <b>내부구조편 가이드</b>에, 그걸 활용하는 기법은 이 문서에 쌓는다. 새 수업이 오면 위 로드맵을 하나씩 완료로 바꿔 간다.</div>

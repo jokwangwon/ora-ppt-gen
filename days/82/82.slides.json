@@ -1,0 +1,156 @@
+{
+  "deck_id": "day82",
+  "title": "DoP 2인데 프로세스는 4개 — 병렬의 속살",
+  "subtitle": "82일차 — Producer/Consumer · IN-OUT 5종 · PQ Distrib · gby_pushdown · 파티션 wise 조인",
+  "source": "assets/sql_tuning.html §14.4~14.9",
+  "slides": [
+    { "type": "title" },
+    { "type": "section", "num": "00", "title": "오늘의 큰 그림", "subtitle": "어제 연 병렬을 v$pq_tqstat으로 파헤친다" },
+    {
+      "type": "content",
+      "title": "어제의 '워커 2명'은 사실 4명이었다 — 오늘은 그 속살",
+      "notes": "어제 병렬을 개막하면서 order by 플랜에 워커 집합이 둘이라고 했죠. 오늘은 그걸 v$pq_tqstat으로 열어봅니다. 병렬도가 2인데 프로세스가 P000부터 P003까지 넷이 나와요 — 추출하는 집합과 정렬하는 집합이 따로이기 때문입니다. 이게 오늘의 출발점이고, 여기서 병렬의 산수가 나옵니다. 병렬 서버 프로세스는 병렬도 곱하기 2, 통신 채널은 병렬도 제곱. 그다음 실행계획을 읽는 문법을 완성해요 — IN-OUT 다섯 가지, 화살표는 통신이 있고 PCW는 없다는 규칙. 그리고 데이터를 어떤 기준으로 재분배하는지 PQ Distrib의 RANGE, HASH, KEY 세 가지. 성능 기법으로 group by push down — 추출하면서 미리 세어 넘길 데이터를 줄이는 것. 마지막으로 병렬과 파티션이 만나는 파티션 wise 조인, full과 partial. 오늘 이걸로 병렬 처리 파트가 마무리됩니다. 결석하셨지만 동료분 필기가 아주 상세해서 실측 숫자까지 다 살렸고, 캡처가 없거나 애매한 부분만 홈랩 목록으로 뺐습니다.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": ["절", "주제", "핵심 숫자·표식"],
+          "rows": [
+            ["§14.4 서버 집합", "추출 집합 vs 정렬 집합", "DoP 2 → 프로세스 4 (P000~P003)"],
+            ["§14.5 자원", "DoP·서버 풀·large pool", "min 4 / max 40 · 채널 DoP²"],
+            ["§14.6 IN-OUT", "P->S·P->P·S->P·PCWC·PCWP", "화살표=통신 · PCW=무통신"],
+            ["§14.7~8 재분배·집계", "RANGE/HASH/KEY · gby_pushdown", "HASH GROUP BY ×2"],
+            ["§14.9 파티션 wise 조인", "full vs partial", "none,none / none,partition"]
+          ]
+        },
+        { "kind": "callout", "tone": "why", "head": "관통하는 원리", "body": "병렬의 모든 비용은 '집합을 건너는 통신'에서 온다 — 재분배를 줄이고(파티션 wise), 넘길 데이터를 줄이는(gby_pushdown) 게 튜닝의 핵심." }
+      ]
+    },
+    { "type": "section", "num": "01", "title": "추출과 정렬은 다른 집합", "subtitle": "DoP 2인데 프로세스 4개의 정체" },
+    {
+      "type": "content",
+      "title": "v$pq_tqstat을 열면 — P002·P003이 읽고, P000·P001이 정렬한다",
+      "notes": "order by 병렬을 v$pq_tqstat으로 봅니다. 맨 위 Ranger가 QC예요 — 정렬 범위의 경계, A부터 M까지는 누구, N부터 Z까지는 누구, 이걸 정해주는 역할입니다. 그 아래 Producer P002와 P003이 추출 집합이에요. 테이블을 나눠 읽어서 각각 5만 3천, 5만 4천 행을 뽑습니다. 그리고 Consumer P000과 P001이 정렬 집합입니다. 추출 집합이 정렬 키 구간에 맞춰 보내준 걸 받아서 각자 정렬해요. 여기까지가 첫 번째 테이블 큐, TQ10000입니다. 그다음이 재밌어요 — 아래를 보면 같은 P000, P001이 이번엔 Producer로 나옵니다. 정렬을 끝낸 집합이 이번엔 생산자가 되어서, 정렬 결과를 Consumer인 QC에게 보내는 거예요. 이게 두 번째 큐 TQ10001이고, QC가 10만 7천 행을 순서대로 머지해서 사용자에게 줍니다. 그러니까 한 프로세스가 producer였다가 consumer였다가 하는 게 아니라, 오퍼레이션마다 역할이 바뀌는 겁니다. 왜 이렇게 나눌까요? 한 프로세스가 추출과 정렬을 다 해서 QC에 주면, QC가 여러 정렬 결과를 또 정렬해야 하거든요. 그래서 추출 집합이 미리 구간을 나눠 보내면, 정렬 집합은 받은 것만 정렬하고 QC는 이어 붙이기만 하면 됩니다.",
+      "blocks": [
+        { "kind": "code", "lines": [
+          "TQ_ID SERVER_TYPE  PROCESS   NUM_ROWS   WAITS",
+          "    0 Ranger       QC              2       1    ← 범위 경계만 정함",
+          "    0 Producer     P002        53309      16   ┐ 추출 집합(읽기)",
+          "    0 Producer     P003        54559      18   ┘  → :TQ10000",
+          "    0 Consumer     P000        55000     955   ┐ 정렬 집합(정렬)",
+          "    0 Consumer     P001        52000     955   ┘",
+          "    1 Producer     P000        55000      53   ┐ 정렬 집합이 이번엔",
+          "    1 Producer     P001        52000      88   ┘ producer → :TQ10001",
+          "    1 Consumer     QC         107000       3    ← 순서대로 머지 → user"
+        ] },
+        { "kind": "callout", "tone": "why", "head": "왜 집합을 나누나", "body": "한 프로세스가 추출+정렬을 다 하면 QC가 여러 정렬 결과를 다시 정렬해야 한다. 추출 집합이 RANGE로 미리 나눠 보내면 → 정렬 집합은 받은 것만, QC는 이어 붙이기만." }
+      ]
+    },
+    {
+      "type": "content",
+      "title": "병렬의 산수와 자원 — DoP×2 프로세스, DoP² 채널, 그리고 서버 풀",
+      "notes": "여기서 세 가지 숫자를 외워둡시다. 병렬도 DoP는 parallel 힌트에 준 값, 여기선 2예요. 병렬 서버 프로세스는 DoP 곱하기 2 — 추출 집합과 정렬 집합 둘이 필요하니까 4개. 통신 채널, 그러니까 파이프라인 수는 DoP 제곱 — 추출 프로세스 2개가 각각 정렬 프로세스 2개에 연결되니까 4개입니다. 다음은 자원이에요. QC는 병렬 SQL을 발생시킨 세션으로, 작업을 지시하고 감독만 하지 직접 정렬엔 안 낍니다. 병렬 서버 프로세스는 실제 일하는 워커고, 병렬 서버, 병렬 프로세스, 병렬 슬레이브 다 같은 말이에요. 중요한 게 병렬 서버 풀입니다. 병렬처리가 없어도 parallel_min_servers만큼, 실측으론 4개가 미리 떠 있어요. 왜냐하면 매번 프로세스를 새로 띄우는 게 부하거든요. 부족하면 parallel_max_servers, 실측 40까지 추가로 만듭니다. 그리고 이 프로세스들은 large pool 메모리를 씁니다. large pool을 언제 또 쓰냐 — 병렬 처리, shared server 환경의 UGA, 그리고 RMAN 작업. 큰 메모리가 공유돼야 하는 자리들이죠.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": ["개념", "DoP=2 값", "의미"],
+          "rows": [
+            ["병렬도 DoP", "parallel(e 2) → 2", "한 오퍼레이션을 몇 갈래로"],
+            ["병렬 서버 프로세스", "DoP × 2 = 4", "추출 집합 + 정렬 집합"],
+            ["통신 채널(파이프라인)", "DoP² = 4", "추출 2 × 정렬 2 경로"],
+            ["parallel_min/max_servers", "4 / 40", "미리 띄움 / 최대 (large pool)"]
+          ]
+        },
+        { "kind": "callout", "tone": "tip", "head": "large pool을 언제 또 쓰나", "body": "병렬 처리 · shared server(UGA) · RMAN — 큰 메모리가 공유돼야 하는 자리들. 병렬 서버 풀도 여기서 나온다." }
+      ]
+    },
+    { "type": "section", "num": "02", "title": "IN-OUT과 PQ Distrib", "subtitle": "실행계획을 읽는 문법 완성" },
+    {
+      "type": "content",
+      "title": "IN-OUT 5종 — 화살표는 통신, PCW는 무통신",
+      "notes": "이제 병렬 실행계획을 읽는 문법을 완성합니다. IN-OUT 컬럼에 다섯 가지가 나와요. 공백은 serial, 병렬이 아닙니다. P화살표S, Parallel to Serial은 병렬 서버가 처리한 걸 QC에게 보내는 거예요 — 플랜 맨 위 수합 지점이죠. P화살표P, Parallel to Parallel은 정렬이나 그룹, 조인을 위해 동적 파티셔닝할 때 — 첫 집합이 둘째 집합으로 보냅니다. S화살표P, Serial to Parallel은 QC가 혼자 읽어서 병렬 서버들에게 뿌리는 겁니다. 그리고 PCWC와 PCWP. PCWC는 Parallel Combined With Child, 한 집합이 현재 스텝과 자식 스텝을 함께 처리하는 거고, PCWP는 With Parent, 부모 스텝을 함께 처리하는 겁니다. 핵심 규칙은 이겁니다 — 화살표 세 개, P화살표S, P화살표P, S화살표P는 데이터가 집합을 건너가니까 통신이 있어요. PCWC와 PCWP는 한 집합 안에서 스텝만 이어 붙이니까 통신이 없습니다. 그리고 딱 하나, S화살표P만 직렬 오퍼레이션이에요. 이게 플랜에 보이면 QC가 혼자 읽는 병목 지점일 수 있으니, 처리할 데이터가 수백 MB 이상이면 병렬로 바꿀지 고민해야 합니다. 작은 테이블이면 신경 안 써도 되고요.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": ["IN-OUT", "뜻", "통신", "언제"],
+          "rows": [
+            ["P->S", "Parallel → Serial", "있음", "워커 → QC 수합"],
+            ["P->P", "Parallel → Parallel", "있음", "정렬·조인 위한 동적 파티셔닝"],
+            ["S->P", "Serial → Parallel", "있음", "QC가 읽어 뿌림 — 직렬, 병목 후보"],
+            ["PCWC / PCWP", "Combined With Child/Parent", "없음", "한 집합이 스텝을 이어 붙임"]
+          ]
+        },
+        { "kind": "callout", "tone": "why", "head": "한 줄로", "body": "화살표(→)는 집합을 건너니 통신 있음, PCW는 한 집합 안이라 통신 없음. QC→사용자는 항상 serial. S->P만 직렬 오퍼레이션 → 큰 테이블이면 병목 점검." }
+      ]
+    },
+    {
+      "type": "content",
+      "title": "PQ Distrib — 무엇을 정렬/집계/조인하느냐가 재분배 방식을 정한다",
+      "notes": "재분배는 S화살표P와 P화살표P에서 일어나고, 어떤 기준으로 나눠 보내는지가 PQ Distrib 컬럼입니다. 세 가지예요. RANGE는 ORDER BY나 SORT GROUP BY를 병렬 처리할 때 씁니다. 정렬 집합의 프로세스마다 범위를 정하고 — A부터 M은 1번, N부터 Z는 2번 — 추출 집합이 정렬 키 값에 따라 해당 프로세스로 보내는 거죠. QC는 범위만 할당하고 정렬엔 안 끼고, 끝나면 순서대로 받아 머지만 합니다. HASH는 조인 키나 HASH GROUP BY를 병렬 처리할 때예요. 키 값을 해시 함수에 넣어서 리턴 값에 따라 분배합니다. 같은 키는 같은 프로세스로 모여야 하니까요. KEY는 파티션 기준으로 분배할 때 쓰고, 플랜에 PART KEY로 표시됩니다. 이건 뒤에 나올 partial partition wise 조인, 그리고 CTAS로 파티션 테이블 만들 때, 병렬로 글로벌 파티션 인덱스 만들 때 나옵니다. 넌파티션을 파티션 기준에 맞춰야 할 때죠. 정리하면, 무엇을 하려는지가 재분배 방식을 결정합니다 — 정렬이면 RANGE, 조인이나 해시 그룹이면 HASH, 파티션 맞춤이면 KEY.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": ["방식", "언제", "어떻게"],
+          "rows": [
+            ["RANGE", "ORDER BY · SORT GROUP BY", "범위(A~M·N~Z) 할당, 정렬 키로 분배"],
+            ["HASH", "조인 키 · HASH GROUP BY", "키를 해시 함수에 넣어 리턴 값으로"],
+            ["KEY", "파티션 기준(PART KEY)", "partial PWJ · CTAS · 병렬 글로벌 인덱스"]
+          ]
+        },
+        { "kind": "callout", "tone": "tip", "head": "읽는 법", "body": "PQ Distrib 한 컬럼만 봐도 이 병렬이 무슨 일을 하는지 보인다 — RANGE=정렬, HASH=조인/해시집계, KEY=파티션 맞춤." }
+      ]
+    },
+    { "type": "section", "num": "03", "title": "gby_pushdown", "subtitle": "추출하면서 미리 센다" },
+    {
+      "type": "content",
+      "title": "HASH GROUP BY가 두 번 나오는 이유 — 미리 세서 넘길 걸 줄인다",
+      "notes": "병렬 group by의 성능 기법입니다. 병렬 쿼리에 group by가 있으면 기본으로 gby_pushdown이 걸려요. 플랜을 보면 HASH GROUP BY가 두 번 나옵니다. 아래쪽, 6번 HASH GROUP BY가 추출 집합이 하는 거예요. 테이블을 읽으면서 부서코드별로 미리 중간 집계를 만듭니다. 예를 들어 내가 읽은 블록에서 50번 부서가 몇 건, 80번이 몇 건, 이렇게요. 그다음 5번 PX SEND HASH가 그 중간 결과를 부서코드 해시 값에 따라 정렬 집합으로 보냅니다 — 같은 부서는 같은 프로세스로 모여야 최종 집계가 되니까요. 그리고 위쪽 3번 HASH GROUP BY가 정렬 집합이 받아서 최종 머지하는 겁니다. 왜 이렇게 하냐면, 추출하면서 미리 세두면 넘길 데이터 건수가 확 줄거든요. 10만 7천 행을 그대로 넘기는 대신, 부서별로 뭉쳐서 몇 십 건만 넘기는 거죠. 통신량이 줄고 성능이 오릅니다. no_gby_pushdown 힌트를 주면 이 진화 전 방식으로 돌아가요 — HASH GROUP BY가 한 번만 나오고, 추출 집합이 원본 10만 7천 행을 그대로 넘깁니다. 이건 8장에서 배운 쿼리 변환의 정신과 똑같아요 — 더 앞 단계에서, 더 적은 행으로.",
+      "blocks": [
+        { "kind": "code", "lines": [
+          "select /*+ parallel(e 2) */ department_id, count(*)",
+          "  from hr.emp e group by department_id;",
+          "|  3 |  HASH GROUP BY   | Q1,01 | PCWP |   ② 받아서 최종 집계(머지)",
+          "|  5 |   PX SEND HASH   | Q1,00 | P->P | HASH  ← 부서코드 해시로 분배",
+          "|  6 |    HASH GROUP BY | Q1,00 | PCWP |   ① 추출하며 부서별 중간 집계",
+          "|  8 |     TABLE ACCESS FULL EMP | Q1,00 | PCWP |",
+          "-- no_gby_pushdown이면: HASH GROUP BY 1번, 원본 107K 그대로 전달"
+        ] },
+        { "kind": "callout", "tone": "why", "head": "§8.13과 같은 정신", "body": "'더 앞 단계에서, 더 적은 행으로'를 병렬은 추출 단계 선(先)집계로 실현한다 — 넘길 데이터를 줄이는 게 곧 통신 비용을 줄이는 것." }
+      ]
+    },
+    { "type": "section", "num": "04", "title": "파티션 wise 조인", "subtitle": "병렬과 파티션이 만나면" },
+    {
+      "type": "content",
+      "title": "full vs partial — 재분배가 사라지느냐, KEY로 맞추느냐",
+      "notes": "마지막입니다. 병렬 조인은 기본적으로 동적 파티셔닝을 해요 — 어느 구간으로 나눠 조인할지 기준을 잡아서 재분배하는 거죠. 그런데 조인 키로 이미 파티션이 돼 있으면 그 재분배를 통째로 생략할 수 있습니다. 이게 파티션 wise 조인이에요. full은 두 테이블 모두 조인 키 컬럼으로 같은 기준 파티션된 경우입니다. emp_part와 dept_part 둘 다 department_id로 리스트 파티션 했다고 해봐요. 그러면 1번 파티션끼리, 2번끼리 짝지어 조인하면 되니까 재분배가 아예 필요 없어요. 힌트는 pq_distribute에 none, none. 플랜에는 PX PARTITION LIST ALL 아래 HASH JOIN이 뜨고, 실측을 보면 P000이 2번 파티션만, P001이 1, 3, 4번 파티션만 조인해서 QC가 106행으로 그냥 붙여 전달합니다. partial은 한쪽만 파티션된 경우예요. emp_non이라는 넌파티션 테이블을 dept_part와 조인한다면, emp_non을 dept_part의 기준에 맞춰 동적 파티셔닝한 뒤에 조인해야 합니다. 힌트는 none, partition. 세 번째 인자 partition이 inner 테이블을 outer 파티션 기준에 맞추라는 뜻이에요. 플랜엔 PX SEND PARTITION KEY와 HASH JOIN BUFFERED가 뜹니다. 그래서 결론은, 파티션 개수만큼 병렬 프로세스를 띄우는 게 가장 행복하다는 거예요. 각 프로세스가 파티션 하나씩 맡으면 재분배 없이 조인이 완결되니까요. 그래서 병렬 프로세스는 파티션 수 이하여야 합니다. 홀수 병렬도나 빌드, 프로브 해시 세부는 노트에 열린 질문으로 남아서 홈랩 목록에 넣었어요.",
+      "blocks": [
+        {
+          "kind": "table",
+          "headers": ["", "full PWJ", "partial PWJ"],
+          "rows": [
+            ["조건", "둘 다 조인 키로 파티션", "한쪽만 파티션"],
+            ["재분배", "불필요 (같은 파티션끼리)", "필요 (넌파티션을 KEY로)"],
+            ["힌트", "pq_distribute(e,none,none)", "pq_distribute(e,none,partition)"],
+            ["플랜 표식", "PX PARTITION LIST ALL", "PX SEND PARTITION(KEY) · JOIN BUFFERED"]
+          ]
+        },
+        { "kind": "callout", "tone": "why", "head": "가장 해피한 그림", "body": "조인 키 = 파티션 키면 재분배(통신)가 사라진다(full). 그래서 '파티션 개수만큼 프로세스'가 이상적이고, 병렬 프로세스는 파티션 수 이하." }
+      ]
+    },
+    { "type": "section", "num": "05", "title": "빈틈 & 질문", "subtitle": "결석일 — 홈랩 재확인 목록" },
+    {
+      "type": "content",
+      "title": "남긴 것 — 홀수 DoP, 빌드/프로브, 그리고 병렬은 여기서 마무리",
+      "notes": "오늘 결석이라 동료 필기 기반으로 재구성했는데, 필기에 열린 질문 몇 개가 있어서 홈랩 목록으로 남겼습니다. 첫째, 병렬 프로세스는 짝수 개념이라는데 홀수 병렬도는 왜 안 되는지 — 노트에 물음표로만 있어요. 둘째, partial 조인에서 HASH JOIN BUFFERED의 빌드 테이블과 프로브 테이블이 해시로 만들어지는 건지 — 이것도 열린 질문입니다. 셋째, v$pq_tqstat의 WAITS 컬럼 — 어제도 남긴 건데 정렬 집합의 WAITS가 955로 유독 큰 게 뭘 뜻하는지. 홈랩에서 emp_part와 dept_part로 full, partial 조인을 직접 돌려보면서 v$pq_tqstat의 행수가 필기 설명과 맞는지 대조하는 게 최고의 복습입니다. 특히 partial에서 P002, P003이 추출하고 P000, P001이 조인하는데, 50번 부서만 P000으로 가고 나머지가 P001로 가는 그 재분배를 눈으로 확인해보세요. 이걸로 병렬 처리 파트가 마무리됩니다. 로드맵 14가 완료로 넘어가고, 이제 15번 안티패턴과 자주 쓰는 힌트만 남았어요. 지금까지 쌓은 액세스 경로, 조인, 쿼리 변환, 옵티마이저, 파티션, 병렬 — 이 모든 게 그 안티패턴 처방의 재료가 됩니다.",
+      "blocks": [
+        { "kind": "bullets", "items": [
+          "홀수 DoP는 왜 안 되나 — 병렬 프로세스가 '짝수 개념'인 이유(노트에 물음표)",
+          "partial 조인의 HASH JOIN BUFFERED — 빌드/프로브 테이블이 해시로 만들어지나",
+          "v$pq_tqstat WAITS 컬럼 — 정렬 집합 955의 의미(이월)",
+          "홈랩 — emp_part⋈dept_part로 full/partial 직접 실행, v$pq_tqstat 행수 대조",
+          "다음 예고 — 병렬 완료(로드맵 14), 이제 안티패턴+힌트(15)가 마지막 파트"
+        ] },
+        { "kind": "callout", "tone": "tip", "head": "오늘의 한 줄", "body": "병렬의 비용은 '집합을 건너는 통신'에서 온다 — 재분배를 없애고(파티션 wise) 넘길 데이터를 줄이는(gby_pushdown) 게 병렬 튜닝의 전부다." }
+      ]
+    }
+  ]
+}

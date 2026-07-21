@@ -9,7 +9,7 @@
 <style>
 :root{
   --bg:#F6F7F9;--panel:#FFFFFF;--ink:#161B22;--muted:#5A6472;--line:#E4E8EE;
-  --d62:#6E56CF;--d63:#0E9F8C;--d64:#DB7B2B;--d65:#34528C;--d66:#B23A6F;--d67:#8C6A43;--d68:#4E8A57;--d69:#A23E8C;--d70:#3C7D5A;--d71:#B5642A;--d72:#C74634;--d73:#0563C1;--d74:#70AD47;--d75:#7C3AED;--d76:#0F766E;--d77:#B45309;--d78:#BE185D;--d79:#4338CA;--d80:#C74634;--d81:#0563C1;--dsim:#2B7A9B;
+  --d62:#6E56CF;--d63:#0E9F8C;--d64:#DB7B2B;--d65:#34528C;--d66:#B23A6F;--d67:#8C6A43;--d68:#4E8A57;--d69:#A23E8C;--d70:#3C7D5A;--d71:#B5642A;--d72:#C74634;--d73:#0563C1;--d74:#70AD47;--d75:#7C3AED;--d76:#0F766E;--d77:#B45309;--d78:#BE185D;--d79:#4338CA;--d80:#C74634;--d81:#0563C1;--d82:#70AD47;--dsim:#2B7A9B;
   --ok:#1F9D63;--ok-t:#e3f5ec;--no:#D6453D;--no-t:#fbe6e4;--accent:#2D6FE0;--accent-t:#e7f0fd;--cl:#C9622B;--cl-t:#fbeadf;
   --mono:'JetBrains Mono',ui-monospace,monospace;--sans:'Pretendard',system-ui,sans-serif;
 }
@@ -29,14 +29,14 @@ h1{font-size:24px;font-weight:800;letter-spacing:-.02em;margin:7px 0 3px}
 .chip.d62.on{background:var(--d62);border-color:var(--d62)}.chip.d63.on{background:var(--d63);border-color:var(--d63)}
 .chip.d64.on{background:var(--d64);border-color:var(--d64)}.chip.d65.on{background:var(--d65);border-color:var(--d65)}
 .chip.d66.on{background:var(--d66);border-color:var(--d66)}.chip.d67.on{background:var(--d67);border-color:var(--d67)}
-.chip.d68.on{background:var(--d68);border-color:var(--d68)}.chip.d69.on{background:var(--d69);border-color:var(--d69)}.chip.d70.on{background:var(--d70);border-color:var(--d70)}.chip.d71.on{background:var(--d71);border-color:var(--d71)}.chip.dsim.on{background:var(--dsim);border-color:var(--dsim)}.chip.d72.on{background:var(--d72);border-color:var(--d72)}.chip.d73.on{background:var(--d73);border-color:var(--d73)}.chip.d74.on{background:var(--d74);border-color:var(--d74)}.chip.d75.on{background:var(--d75);border-color:var(--d75)}.chip.d76.on{background:var(--d76);border-color:var(--d76)}.chip.d77.on{background:var(--d77);border-color:var(--d77)}.chip.d78.on{background:var(--d78);border-color:var(--d78)}.chip.d79.on{background:var(--d79);border-color:var(--d79)}.chip.d80.on{background:var(--d80);border-color:var(--d80)}.chip.d81.on{background:var(--d81);border-color:var(--d81)}
+.chip.d68.on{background:var(--d68);border-color:var(--d68)}.chip.d69.on{background:var(--d69);border-color:var(--d69)}.chip.d70.on{background:var(--d70);border-color:var(--d70)}.chip.d71.on{background:var(--d71);border-color:var(--d71)}.chip.dsim.on{background:var(--dsim);border-color:var(--dsim)}.chip.d72.on{background:var(--d72);border-color:var(--d72)}.chip.d73.on{background:var(--d73);border-color:var(--d73)}.chip.d74.on{background:var(--d74);border-color:var(--d74)}.chip.d75.on{background:var(--d75);border-color:var(--d75)}.chip.d76.on{background:var(--d76);border-color:var(--d76)}.chip.d77.on{background:var(--d77);border-color:var(--d77)}.chip.d78.on{background:var(--d78);border-color:var(--d78)}.chip.d79.on{background:var(--d79);border-color:var(--d79)}.chip.d80.on{background:var(--d80);border-color:var(--d80)}.chip.d81.on{background:var(--d81);border-color:var(--d81)}.chip.d82.on{background:var(--d82);border-color:var(--d82)}
 .bar{height:7px;background:var(--line);border-radius:99px;overflow:hidden;margin:10px 0 2px}
 .bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
 .meta{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:12px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:17px;margin:11px 0;box-shadow:0 1px 2px rgba(0,0,0,.03)}
 .daytag{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;margin-bottom:8px}
 .dt62{background:#efeafc;color:var(--d62)}.dt63{background:#e2f6f3;color:var(--d63)}.dt64{background:#fbeedd;color:var(--d64)}
-.dt65{background:#e8edf6;color:var(--d65)}.dt66{background:#f9e7f0;color:var(--d66)}.dt67{background:#f0e9dd;color:var(--d67)}.dt68{background:#e7f1e9;color:var(--d68)}.dt69{background:#f4e3ef;color:var(--d69)}.dt70{background:#e4f1ea;color:var(--d70)}.dt71{background:#f6e9dd;color:var(--d71)}.dt72{background:#fbe7de;color:var(--d72)}.dt73{background:var(--d73);color:#fff}.dt74{background:var(--d74);color:#fff}.dt75{background:var(--d75);color:#fff}.dt76{background:var(--d76);color:#fff}.dt77{background:var(--d77);color:#fff}.dt78{background:var(--d78);color:#fff}.dt79{background:var(--d79);color:#fff}.dt80{background:var(--d80);color:#fff}.dt81{background:var(--d81);color:#fff}.dtsim{background:#e1f0f5;color:var(--dsim)}
+.dt65{background:#e8edf6;color:var(--d65)}.dt66{background:#f9e7f0;color:var(--d66)}.dt67{background:#f0e9dd;color:var(--d67)}.dt68{background:#e7f1e9;color:var(--d68)}.dt69{background:#f4e3ef;color:var(--d69)}.dt70{background:#e4f1ea;color:var(--d70)}.dt71{background:#f6e9dd;color:var(--d71)}.dt72{background:#fbe7de;color:var(--d72)}.dt73{background:var(--d73);color:#fff}.dt74{background:var(--d74);color:#fff}.dt75{background:var(--d75);color:#fff}.dt76{background:var(--d76);color:#fff}.dt77{background:var(--d77);color:#fff}.dt78{background:var(--d78);color:#fff}.dt79{background:var(--d79);color:#fff}.dt80{background:var(--d80);color:#fff}.dt81{background:var(--d81);color:#fff}.dt82{background:var(--d82);color:#fff}.dtsim{background:#e1f0f5;color:var(--dsim)}
 .q{font-size:17px;font-weight:700;margin:2px 0 14px;line-height:1.45}
 .q code,.opt code,.ex code,.model code,.def code{font-family:var(--mono);font-size:.85em;background:#eef1f5;padding:1px 5px;border-radius:5px}
 .opt{display:block;width:100%;text-align:left;padding:14px 15px;border:1.5px solid var(--line);border-radius:11px;background:var(--panel);margin:8px 0;font-size:15px;cursor:pointer;font-family:inherit;color:inherit;line-height:1.4;transition:.12s}
@@ -3148,7 +3148,94 @@ Note: Degree of Parallelism is 2 because of table property</span></pre>
 |  5 |      PX SEND <span class="hl">RANGE</span>     | :TQ10000 | Q1,00 | <span class="hl">P-&gt;P</span>  | ← ① 값 구간으로 재분배
 |  6 |       PX BLOCK ITERATOR|          | Q1,00 | PCWC |
 |* 7 |        TABLE ACCESS FULL| EMP     | Q1,00 | PCWP |</span></pre>
-  <div class="why"><span class="h">분배 방식이 연산의 요구를 말한다</span>count(*)는 부분 합계를 아무 순서로 모아도 돼서 QC(<b>RANDOM</b>) 하나로 끝났다. order by는 ① 스캔 워커가 값 구간별로 나눠 보내고(<b>RANGE</b>, P-&gt;P) ② 받은 워커들이 각자 정렬(SORT ORDER BY) ③ QC가 구간 순서대로 이어 붙인다(QC <b>ORDER</b>). TQ가 :TQ10000·:TQ10001 두 개 — 전송이 두 번 일어난 병렬이다. 병렬 처리는 오늘이 개막 — 다음 수업에서 계속.</div>
+  <div class="why"><span class="h">분배 방식이 연산의 요구를 말한다</span>count(*)는 부분 합계를 아무 순서로 모아도 돼서 QC(<b>RANDOM</b>) 하나로 끝났다. order by는 ① 스캔 워커가 값 구간별로 나눠 보내고(<b>RANGE</b>, P-&gt;P) ② 받은 워커들이 각자 정렬(SORT ORDER BY) ③ QC가 구간 순서대로 이어 붙인다(QC <b>ORDER</b>). TQ가 :TQ10000·:TQ10001 두 개 — 전송이 두 번 일어난 병렬이다. 그런데 이 "두 워커 집합"의 정체를 다음 절이 v$pq_tqstat으로 파헤친다.</div>
+
+  <h3 class="blk"><span class="ix">14.4</span>DoP 2인데 프로세스가 4개 — 추출과 정렬은 다른 집합 <span class="db add">82일차</span></h3>
+  <p>같은 order by 병렬을 <code class="inl">v$pq_tqstat</code>으로 열어 보면, 병렬도가 2인데 <b>서버 프로세스는 4개</b>가 나온다 — 추출하는 집합과 정렬하는 집합이 따로이기 때문:</p>
+  <pre class="term"><span class="pr">SQL&gt;</span> select tq_id, server_type, process, num_rows, bytes, waits from v$pq_tqstat …;
+<span class="out">TQ_ID SERVER_TYPE  PROCESS   NUM_ROWS    BYTES   WAITS
+    0 Ranger       QC               2    19199       1   ← 범위 경계(A~M/N~Z)를 정해 주는 역할
+    0 Producer     P002         53309  2794691      16   ┐ <span class="hl">추출 집합</span>(server set 1)
+    0 Producer     P003         54559  2888826      18   ┘ 테이블을 나눠 읽는다
+    0 Consumer     P000         55000  2898603     955   ┐ <span class="hl">정렬 집합</span>(server set 2)
+    0 Consumer     P001         52000  2765715     955   ┘ 받은 구간만 정렬
+    1 Producer     P000         55000  2898603      53   ┐ 정렬 집합이 이번엔 producer가 되어
+    1 Producer     P001         52000  2765715      88   ┘ 정렬 결과를 QC로
+    1 Consumer     QC          107000  5664318       3   ← 순서대로 머지 → user process</span></pre>
+  <table>
+    <tr><th>단계</th><th>TQ</th><th>누가 → 누가</th><th>하는 일</th></tr>
+    <tr><td>① 추출·분배</td><td>:TQ10000</td><td>P002·P003 → P000·P001</td><td>테이블을 나눠 읽고(53,309·54,559행) 정렬 키 구간에 맞춰 분배 — <b>intra</b>는 각자 읽기, <b>inter</b>는 두 집합 간 전송</td></tr>
+    <tr><td>② 정렬·수합</td><td>:TQ10001</td><td>P000·P001 → QC</td><td>구간별로 정렬한 뒤(각 55,000·52,000행) QC가 순서대로 머지해 107,000행을 사용자에게</td></tr>
+  </table>
+  <div class="why"><span class="h">왜 한 프로세스가 추출+정렬을 안 하나</span>한 프로세스가 추출과 정렬을 다 해서 QC에 주면, <b>QC가 그것들을 다시 정렬해야 한다</b>(여러 정렬 결과를 합치면 순서가 깨지므로). 그래서 추출 집합과 정렬 집합을 나누고, 추출 집합이 정렬 키 구간에 맞게 미리 분배(RANGE)한다 — 그러면 정렬 집합은 받은 것만 정렬하고 QC는 이어 붙이기만 하면 된다. 추출↔정렬 두 집합은 서로 <b>소통</b>하지만(inter-operation), 추출끼리·정렬끼리는 소통하지 않는다(intra-operation).</div>
+
+  <h3 class="blk"><span class="ix">14.5</span>병렬의 산수와 자원 — DoP·서버 집합·서버 풀 <span class="db add">82일차</span></h3>
+  <table>
+    <tr><th>개념</th><th>값 (DoP=2 기준)</th><th>설명</th></tr>
+    <tr><td>병렬도 <b>DoP</b></td><td><code class="inl">parallel(e 2)</code> → 2</td><td>한 오퍼레이션을 몇 갈래로 나눌지</td></tr>
+    <tr><td>병렬 서버 프로세스</td><td>DoP × 2 = <b>4</b></td><td>추출 집합 + 정렬 집합 (두 오퍼레이션이 겹칠 때)</td></tr>
+    <tr><td>통신 채널(파이프라인)</td><td>DoP<sup>2</sup> = <b>4</b></td><td>추출 프로세스 2 × 정렬 프로세스 2 = 서로 연결되는 경로 수</td></tr>
+  </table>
+  <ul class="tight">
+    <li><b>QC</b>(Query Coordinator) — 병렬 SQL을 발생시킨 세션. 작업을 지시하고 진행을 관리·감독한다(직접 정렬엔 참여 안 함).</li>
+    <li><b>병렬 서버 프로세스</b>(=병렬 슬레이브) — 실제 작업을 하는 P000·P001·….</li>
+    <li><b>병렬 서버 풀</b> — 병렬처리가 없어도 <code class="inl">parallel_min_servers</code>(실측 4)만큼 미리 떠 있다 → 매번 프로세스를 띄우는 부하를 줄이려고. 부족하면 <code class="inl">parallel_max_servers</code>(실측 40)까지 추가 생성. <b>large pool</b> 메모리를 쓴다.</li>
+    <li><b>서버 집합(server set)</b> — DoP와 오퍼레이션 종류에 따라 1개 또는 여러 개 할당. 풀에서 필요한 만큼 확보한다.</li>
+  </ul>
+  <div class="tip"><b>large pool은 언제 또 쓰나</b> — 병렬 처리 · shared server 환경(UGA) · RMAN 작업. "메모리 공간이 크게 필요한데 공유돼야 하는" 자리들이다.</div>
+
+  <h3 class="blk"><span class="ix">14.6</span>IN-OUT 표기 완전 정복 — 통신이 있느냐가 갈림 <span class="db add">82일차</span></h3>
+  <p><b>Producer</b>(생산자)는 데이터를 추출해 버퍼에 담아 <code class="inl">PX SEND</code>하고, <b>Consumer</b>(소비자)는 <code class="inl">PX RECEIVE</code>로 꺼내 정렬·그룹 작업을 한다. 그 사이를 잇는 게 <b>테이블 큐(:TQ…)</b> — 프로세스 간 통신 파이프라인.</p>
+  <table>
+    <tr><th>IN-OUT</th><th>뜻</th><th>통신</th><th>언제</th></tr>
+    <tr><td>(공백)</td><td>serial</td><td>—</td><td>병렬 아님</td></tr>
+    <tr><td><b>P-&gt;S</b></td><td>Parallel → Serial</td><td>있음</td><td>병렬 서버가 처리한 데이터를 <b>QC로</b> 전송(맨 위 수합)</td></tr>
+    <tr><td><b>P-&gt;P</b></td><td>Parallel → Parallel</td><td>있음</td><td>정렬·그룹·조인 위해 <b>동적 파티셔닝</b> — 첫 집합이 둘째 집합으로(inter-operation)</td></tr>
+    <tr><td><b>S-&gt;P</b></td><td>Serial → Parallel</td><td>있음</td><td>QC가 읽은 데이터를 병렬 서버로 뿌림. <b>직렬 오퍼레이션</b> — 병목 후보</td></tr>
+    <tr><td><b>PCWC</b></td><td>Parallel Combined With Child</td><td>없음</td><td>한 집합이 현재+자식 스텝을 함께(자식 결과를 입력으로만, intra)</td></tr>
+    <tr><td><b>PCWP</b></td><td>Parallel Combined With Parent</td><td>없음</td><td>한 집합이 현재+부모 스텝을 함께(각자 맡은 범위에서 2스텝 이상, intra)</td></tr>
+  </table>
+  <div class="why"><span class="h">한 줄로 외우기</span>화살표(<b>P-&gt;S·P-&gt;P·S-&gt;P</b>)는 집합을 <b>건너</b> 데이터가 가니 통신이 있고, <b>PCWC·PCWP</b>는 한 집합 <b>안에서</b> 스텝만 이어 붙이니 통신이 없다. QC가 사용자에게 줄 때는 항상 serial. 그리고 <b>S-&gt;P만 직렬 오퍼레이션</b> — 처리량이 수백 MB 이상이면 그 지점이 병목인지 보고 병렬로 바꿀지 고민한다(작은 테이블이면 무시).</div>
+
+  <h3 class="blk"><span class="ix">14.7</span>PQ Distrib — 재분배 방식 세 가지 (RANGE·HASH·KEY) <span class="db add">82일차</span></h3>
+  <p>데이터 재분배(redistribution)는 <code class="inl">S-&gt;P</code>·<code class="inl">P-&gt;P</code>에서 일어난다. 어떤 기준으로 나눠 보내는지가 <b>PQ Distrib</b> 컬럼이다.</p>
+  <table>
+    <tr><th>방식</th><th>언제</th><th>어떻게</th></tr>
+    <tr><td><b>RANGE</b></td><td>ORDER BY · SORT GROUP BY</td><td>정렬 집합의 프로세스마다 범위(A~M·N~Z)를 정하고, 추출 집합이 정렬 키 값에 따라 해당 프로세스로 분배. QC는 범위만 할당하고 정렬엔 불참, 완료 후 순서대로 머지</td></tr>
+    <tr><td><b>HASH</b></td><td>조인 키 · HASH GROUP BY</td><td>키 값을 해시 함수에 넣어 리턴 값으로 분배(S-&gt;P·P-&gt;P 가능)</td></tr>
+    <tr><td><b>KEY</b></td><td>파티션 기준 분배</td><td>실행계획에 <code class="inl">PART (KEY)</code>로 — partial partition wise join · CTAS 파티션 테이블 · 병렬 글로벌 파티션 인덱스 생성 시(넌파티션을 파티션 기준에 맞춰야 할 때)</td></tr>
+  </table>
+
+  <h3 class="blk"><span class="ix">14.8</span>group by push down — 추출하면서 미리 센다 <span class="db add">82일차</span></h3>
+  <p>병렬 쿼리에 group by가 있으면 <b class="k">gby_pushdown</b>(기본)이 걸린다 — 추출 프로세스가 읽으면서 <b>미리 group by를 수행</b>해 건수를 줄이고, consumer에게 넘길 일량을 줄여 성능을 올린다. 그래서 플랜에 <code class="inl">HASH GROUP BY</code>가 <b>두 번</b> 나온다:</p>
+  <pre class="term"><span class="pr">SQL&gt;</span> select /*+ parallel(e 2) */ department_id, count(*) from hr.emp e group by department_id;
+<span class="out">|  2 |   PX SEND QC (RANDOM) | :TQ10001 | P-&gt;S | QC (RAND)
+|  3 |    <span class="hl">HASH GROUP BY</span>     |          | Q1,01 | PCWP |   ← ② 받아서 최종 집계(머지)
+|  4 |     PX RECEIVE       |          | Q1,01 | PCWP |
+|  5 |      PX SEND <span class="hl">HASH</span>    | :TQ10000 | Q1,00 | P-&gt;P | <span class="hl">HASH</span>   ← 부서코드 해시로 분배
+|  6 |       <span class="hl">HASH GROUP BY</span>  |          | Q1,00 | PCWP |   ← ① 추출하며 부서별 중간 집계
+|  7 |        PX BLOCK ITERATOR|        | Q1,00 | PCWC |
+|* 8 |         TABLE ACCESS FULL| EMP   | Q1,00 | PCWP |</span></pre>
+  <p>①번 HASH GROUP BY가 추출 프로세스별 <b>중간 결과</b>(부서별 건수)를 만들어 두면, 정렬 집합은 받아서 머지(②)만 하면 된다. 정렬(sort)이 아니라 해시로 분배·집계하므로 결과가 정렬돼 나오진 않는다. <code class="inl">no_gby_pushdown</code> 힌트를 주면 진화 전 방식 — HASH GROUP BY가 <b>한 번</b>만 나오고, 추출 집합은 원본 107K행을 그대로 넘긴다(TQ10000이 107K vs pushdown은 이미 줄어든 건수).</p>
+  <div class="why"><span class="h">§8.13과 같은 정신</span>"더 앞 단계에서, 더 적은 행으로" — 쿼리 변환(§8)이 옵티마이저 안에서 하던 그 원리를, 병렬은 추출 단계에서 미리 집계하는 방식으로 실현한다. 넘길 데이터를 줄이는 게 곧 통신 비용을 줄이는 것.</div>
+
+  <h3 class="blk"><span class="ix">14.9</span>파티션 wise 조인 — 병렬과 파티션이 만나면 <span class="db add">82일차</span></h3>
+  <p>병렬 조인은 기본적으로 <b>동적 파티셔닝</b>(어느 구간으로 나눌지 기준을 잡아 재분배)을 한다. 그런데 <b>조인 키로 이미 파티션돼 있으면</b> 그 재분배를 통째로 생략할 수 있다. <code class="inl">pq_distribute(inner, outer방식, inner방식)</code> 힌트로 유도한다.</p>
+  <table>
+    <tr><th></th><th>full partition wise join</th><th>partial partition wise join</th></tr>
+    <tr><td>조건</td><td>두 테이블 모두 조인 키로 같은 기준 파티션</td><td>한쪽만 파티션</td></tr>
+    <tr><td>재분배</td><td><b>불필요</b> — 같은 파티션끼리 짝지어 조인</td><td><b>필요</b> — 안 된 쪽을 같은 기준으로 동적 파티셔닝 후 조인</td></tr>
+    <tr><td>힌트</td><td><code class="inl">pq_distribute(e,none,none)</code></td><td><code class="inl">pq_distribute(e,none,partition)</code></td></tr>
+    <tr><td>플랜 표식</td><td><code class="inl">PX PARTITION LIST ALL</code> 아래 <b>HASH JOIN</b> — 각 프로세스가 파티션 통째로 조인</td><td><code class="inl">PX SEND PARTITION (KEY)</code> + <b>HASH JOIN BUFFERED</b> — 넌파티션을 KEY로 재분배</td></tr>
+  </table>
+  <pre class="term"><span class="cm">-- full: emp_part ⋈ dept_part (둘 다 department_id로 list 파티션)</span>
+<span class="pr">SQL&gt;</span> … pq_distribute(e,none,none) … <span class="out">→ PX PARTITION LIST ALL → HASH JOIN (재분배 없음)</span>
+<span class="out">   v$pq_tqstat: P000이 2번 파티션만, P001이 1·3·4번 파티션만 조인 → QC가 붙여서(106행) 전달</span>
+
+<span class="cm">-- partial: emp_non(넌파티션) ⋈ dept_part</span>
+<span class="pr">SQL&gt;</span> … pq_distribute(e,none,partition) … <span class="out">→ PX SEND PARTITION (KEY) → HASH JOIN BUFFERED</span>
+<span class="out">   emp_non을 dept_part의 파티션 기준(부서코드)에 맞춰 재분배 후 조인 (P->P PART KEY)</span></pre>
+  <div class="why"><span class="h">병렬과 파티션의 궁합</span>파티션은 데이터를 <b>미리 나눠</b> 뒀고, 병렬은 그 조각들을 <b>동시에</b> 처리한다 — 조인 키 = 파티션 키면 재분배(통신) 자체가 사라져 가장 이상적(full). 한쪽만 파티션이면 안 된 쪽을 그 기준에 맞춰 KEY로 재분배(partial). 그래서 "<b>파티션 개수만큼 프로세스를 띄우는 게 가장 해피</b>"하고, 병렬 프로세스는 파티션 수 이하여야 한다. <span class="muted">(홀수 DoP·빌드/프로브 해시 세부는 홈랩 재확인)</span></div>
 </section>
 
 <section class="part" id="road">
@@ -3162,7 +3249,7 @@ Note: Degree of Parallelism is 2 because of table property</span></pre>
     <li class="done"><span class="n">11</span><a href="#pt" style="color:var(--tune);font-weight:600">파티션</a> — 파티션 뷰(CHECK+UNION ALL) · range·interval·hash·list·composite · Pstart/Pstop · 정적/동적 pruning · 관리(split·add·merge·exchange·shrink) <span class="tag">완료</span></li>
     <li class="done"><span class="n">12</span><a href="#ar" style="color:var(--tune);font-weight:600">부분범위처리 & arraysize</a> — 운반단위 산수(roundtrips) · 전체범위 강제 조건과 대안 · fetch 재방문과 gets <span class="tag">완료</span></li>
     <li class="done"><span class="n">13</span><a href="#pi" style="color:var(--tune);font-weight:600">파티션 인덱스</a> — local(1:1·PREFIXED·140→3) · ITERATOR · global(다른 축) · UNUSABLE→rebuild partition <span class="tag">완료</span></li>
-    <li class="done"><span class="n">14</span><a href="#px" style="color:var(--tune);font-weight:600">병렬 처리</a> — QC·TQ·IN-OUT·v$pq_tqstat·RANGE 분배 <span class="tag">진행 중(81일차~)</span></li>
+    <li class="done"><span class="n">14</span><a href="#px" style="color:var(--tune);font-weight:600">병렬 처리</a> — QC·서버 집합·IN-OUT 5종·PQ Distrib(RANGE/HASH/KEY)·gby_pushdown·파티션 wise 조인(full/partial) <span class="tag">완료</span></li>
     <li><span class="n">15</span>증상→원인→처방 안티패턴 + 자주 쓰는 힌트 <span class="tag">예정</span></li>
   </ul>
   <div class="why"><span class="h">메모</span>구조 지식(HWM·scattered read·버퍼 캐시·블록)은 <b>내부구조편 가이드</b>에, 그걸 활용하는 기법은 이 문서에 쌓는다. 새 수업이 오면 위 로드맵을 하나씩 완료로 바꿔 간다.</div>
@@ -3731,7 +3818,15 @@ const MCQ=[
   {id:"m81e",d:81,q:"글로벌 인덱스 전 파티션이 UNUSABLE인 상태에서의 실측 동작은?",o:["힌트 강제 시 ORA-01502, 힌트 없이는 full scan 우회", "힌트가 있든 없든 항상 ORA-01502 에러가 발생해 쿼리 수행이 실패한다", "옵티마이저가 UNUSABLE 파티션만 건너뛰고 나머지 파티션 인덱스로 조회한다", "통계가 stale로 표시되고 다음 유지보수 윈도우에서 자동으로 rebuild된다"],a:0,e:"index_rs 힌트 강제 → ORA-01502(unusable state). 힌트 없이 실행 → PARTITION RANGE ALL + TABLE ACCESS FULL Starts 5, Buffers 608·Reads 604 — 인덱스를 버리고 우회한다. 인덱스가 죽으면 에러가 아니라 '조용한 성능 저하'로 나타날 수 있다는 뜻."},
   {id:"m81f",d:81,q:"UNUSABLE이 된 파티션 인덱스를 복구하려고 alter index … rebuild를 실행하면?",o:["ORA-14086 — 통째는 불가, rebuild partition으로 조각별", "정상 수행 — 모든 파티션이 한 번의 명령으로 USABLE 상태로 돌아온다", "ORA-01502 — unusable 상태의 인덱스에는 rebuild 명령 자체가 거부된다", "drop index 후 create index를 처음부터 다시 만드는 것이 유일한 방법이다"],a:0,e:"실측 ORA-14086(a partitioned index may not be rebuilt as a whole). rebuild partition을 4번(p2004·p2005·p2006·pmax) 실행해 전부 USABLE — leaf도 77→63 등으로 컴팩트해졌다. 인덱스에도 split partition이 있다는 것까지 확인."},
   {id:"m81g",d:81,q:"impdp의 sqlfile=sql_emp.sql 옵션이 하는 일은?",o:["덤프를 실행하지 않고 안에 든 DDL만 파일로 추출한다", "import 실행 로그를 SQL 형식으로 함께 기록한다", "덤프의 데이터 전체를 insert 문 스크립트로 변환해 그대로 적재한다", "import 대상 스키마를 SQL 파일의 목록대로 필터링한다"],a:0,e:"실측: impdp … sqlfile=sql_emp.sql → 실행 없이 sql_emp.sql(2,801B)만 생성, vi로 열어 create table 문 확인. drop한 파티션을 복구할 때 원래 경계의 근거가 된다 — 이후 split으로 빈 p1 재생성, :p1 content=data_only로 49행 복원.",ref:"https://docs.oracle.com/en/database/oracle/oracle-database/19/sutil/oracle-data-pump-export-utility.html"},
-  {id:"m81h",d:81,q:"parallel(e 2)의 count(*)는 PX SEND QC(RANDOM) 하나였는데, order by가 붙자 PX SEND RANGE(P->P) 뒤 QC(ORDER)가 됐다. 이유는?",o:["정렬은 값 구간별 재분배(RANGE) 후 각자 정렬하고 순서대로(ORDER) 모아야 해서", "order by는 병렬 처리가 불가능해 QC 혼자 정렬하도록 전체가 직렬화됐기 때문", "RANGE 분배가 RANDOM보다 항상 빠르기 때문에 옵티마이저가 승격한 것", "TQ 큐가 가득 차서 두 번째 큐(:TQ10001)로 넘친 것"],a:0,e:"count(*)는 부분 합계를 아무 순서로 모아도 된다(QC RANDOM, TQ 1개). order by는 ① 스캔 워커가 값 구간별로 나눠 보내고(PX SEND RANGE, P->P) ② 받은 워커들이 SORT ORDER BY ③ QC가 구간 순서대로 수합(QC ORDER) — TQ가 :TQ10000·:TQ10001 두 개가 된다. 분배 방식이 연산의 요구를 말해준다.",ref:"https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html"}
+  {id:"m81h",d:81,q:"parallel(e 2)의 count(*)는 PX SEND QC(RANDOM) 하나였는데, order by가 붙자 PX SEND RANGE(P->P) 뒤 QC(ORDER)가 됐다. 이유는?",o:["정렬은 값 구간별 재분배(RANGE) 후 각자 정렬하고 순서대로(ORDER) 모아야 해서", "order by는 병렬 처리가 불가능해 QC 혼자 정렬하도록 전체가 직렬화됐기 때문", "RANGE 분배가 RANDOM보다 항상 빠르기 때문에 옵티마이저가 승격한 것", "TQ 큐가 가득 차서 두 번째 큐(:TQ10001)로 넘친 것"],a:0,e:"count(*)는 부분 합계를 아무 순서로 모아도 된다(QC RANDOM, TQ 1개). order by는 ① 스캔 워커가 값 구간별로 나눠 보내고(PX SEND RANGE, P->P) ② 받은 워커들이 SORT ORDER BY ③ QC가 구간 순서대로 수합(QC ORDER) — TQ가 :TQ10000·:TQ10001 두 개가 된다. 분배 방식이 연산의 요구를 말해준다.",ref:"https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html"},
+  {id:"m82a",d:82,q:"parallel(e 2)로 order by를 실행했을 때 v$pq_tqstat에 서버 프로세스가 4개(P000~P003) 나온 이유는?",o:["추출하는 서버 집합과 정렬하는 서버 집합이 따로라서 — DoP×2=4", "병렬도가 실제로는 4로 자동 상향 조정되어 프로세스가 그만큼 배정되었기 때문", "정렬이 실패해 재시도 프로세스 2개가 추가로 떴기 때문", "QC가 워커마다 백업 프로세스를 하나씩 붙였기 때문"],a:0,e:"order by는 추출(P002·P003)과 정렬(P000·P001) 두 오퍼레이션이 겹쳐 서버 집합이 2개 할당된다 — 병렬 서버 프로세스 = DoP×2 = 2×2 = 4. 통신 채널은 DoP²=4.",ref:"https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html"},
+  {id:"m82b",d:82,q:"병렬 처리에서 한 프로세스가 추출과 정렬을 모두 하지 않고 집합을 나누는 이유는?",o:["각자 정렬한 결과를 모으면 순서가 깨져 QC가 다시 정렬해야 하기 때문", "한 프로세스가 두 작업을 하면 메모리 부족으로 항상 실패하기 때문", "추출과 정렬은 서로 다른 CPU 코어에서만 실행되도록 강제되기 때문", "QC가 추출은 직접 하고 정렬만 워커에게 맡기는 구조이기 때문"],a:0,e:"한 프로세스가 추출+정렬을 다 해서 QC에 주면 여러 정렬 결과를 QC가 다시 정렬해야 한다. 그래서 추출 집합이 정렬 키 구간(RANGE)에 맞춰 미리 분배 → 정렬 집합은 받은 것만 정렬, QC는 순서대로 머지만.",ref:"https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html"},
+  {id:"m82c",d:82,q:"병렬 서버 풀(parallel execution server pool)과 parallel_min_servers에 대한 설명으로 옳은 것은?",o:["병렬처리가 없어도 지정 개수만큼 미리 유지 — 프로세스 띄우는 부하를 줄이려고", "병렬처리가 시작될 때만 프로세스를 만들고 끝나면 즉시 모두 종료한다", "parallel_min_servers는 한 쿼리가 쓸 수 있는 최소 병렬도를 지정한다", "풀에 있는 프로세스는 각자 PGA 메모리를 독점하며 세션 종료 전까지 반납하지 않는다"],a:0,e:"parallel_min_servers(실측 4)만큼 병렬처리가 없어도 미리 떠 있다 — 매번 서브 프로세스를 띄우는 부하를 줄이기 위해. 부족하면 parallel_max_servers(실측 40)까지 추가. large pool 메모리를 쓴다."},
+  {id:"m82d",d:82,q:"IN-OUT 표기 중 '프로세스 간 통신이 발생하지 않는' 것끼리 묶인 것은?",o:["PCWC · PCWP — 한 집합 안에서 스텝만 이어 붙인다", "P->S · P->P — 워커가 QC나 다른 집합으로 보낸다", "S->P · P->S — QC가 관여하는 전송이다", "P->P · PCWP — 부모 스텝으로 넘어가는 흐름이다"],a:0,e:"화살표(P->S·P->P·S->P)는 집합을 건너 데이터가 가니 통신이 있고, PCWC(현재+자식)·PCWP(현재+부모)는 한 집합 안에서 스텝을 이어 붙일 뿐이라 통신이 없다. 자식 결과를 입력으로만 쓴다.",ref:"https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html"},
+  {id:"m82e",d:82,q:"실행계획의 IN-OUT 중 유일하게 '직렬(Serial) 오퍼레이션'이라 병목 여부를 살펴야 하는 것은?",o:["S->P — QC가 혼자 읽어 병렬 서버에 뿌리는 지점", "P->S — 워커들이 QC로 결과를 모으는 지점", "P->P — 두 병렬 집합 사이의 재분배", "PCWP — 부모 스텝과 결합된 병렬 처리로 한 집합이 두 스텝을 함께 수행하는 경우"],a:0,e:"S->P는 QC(직렬)가 읽은 데이터를 병렬 서버로 뿌리는 직렬 오퍼레이션 — 처리량이 수백 MB 이상이면 병목인지 보고 병렬로 바꿀지 고민한다(작은 테이블이면 무시). 나머지 화살표·PCW*는 병렬 오퍼레이션.",ref:"https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html"},
+  {id:"m82f",d:82,q:"PQ Distrib 방식 중 ORDER BY·SORT GROUP BY를 병렬로 처리할 때 쓰이는 것은?",o:["RANGE — 정렬 프로세스마다 범위(A~M·N~Z)를 정해 키 값에 따라 분배", "HASH — 조인 키 값을 해시 함수에 넣고 리턴 값에 따라 프로세스로 분배", "KEY — 파티션 기준으로 데이터를 나눠 PART(KEY)로 실행계획에 표시", "RANDOM — 순서가 필요 없을 때 아무 프로세스에나 균등하게 분배"],a:0,e:"RANGE는 ORDER BY·SORT GROUP BY용 — 정렬 집합 프로세스마다 구간을 할당하고 추출 집합이 정렬 키에 따라 분배. HASH는 조인 키·HASH GROUP BY용, KEY는 파티션 기준(partial PWJ·CTAS·글로벌 인덱스)용.",ref:"https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html"},
+  {id:"m82g",d:82,q:"병렬 group by에서 gby_pushdown이 걸리면 실행계획에 HASH GROUP BY가 두 번 나온다. 첫 번째(추출 쪽)의 역할은?",o:["추출하면서 부서별 중간 집계를 만들어 넘길 건수를 미리 줄인다", "추출한 원본 107K행을 정렬 프로세스에 그대로 전달한다", "정렬 프로세스가 만든 최종 결과를 다시 검증하면서 중복된 부서 집계를 제거하는 역할", "QC가 최종 집계하기 전 데이터를 임시 테이블에 저장한다"],a:0,e:"gby_pushdown은 추출하면서 미리 group by를 수행해 건수를 줄인다(①번 HASH GROUP BY=중간 집계). 그러면 정렬 집합은 받아서 머지(②번)만. no_gby_pushdown이면 GROUP BY가 한 번뿐이고 원본 107K를 그대로 넘긴다."},
+  {id:"m82h",d:82,q:"두 테이블이 조인 키(department_id)로 같은 기준 파티션돼 있을 때 pq_distribute(e,none,none)로 유도되는 조인은?",o:["full partition wise join — 재분배 없이 같은 파티션끼리 조인(PX PARTITION LIST ALL)", "partial partition wise join — 넌파티션 쪽을 KEY로 재분배한 뒤에 조인하는 방식", "broadcast join — 작은 테이블을 모든 병렬 워커에게 복제해 뿌린 뒤 조인", "hash join buffered — 양쪽 테이블을 모두 해시로 재분배한 다음 버퍼링 조인"],a:0,e:"양쪽이 조인 키로 같은 기준 파티션이면 재분배가 불필요 — full partition wise join(PX PARTITION LIST ALL 아래 HASH JOIN). partial(none,partition)은 한쪽만 파티션일 때 넌파티션을 KEY로 재분배(PX SEND PARTITION KEY·HASH JOIN BUFFERED).",ref:"https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html"}
 ];
 
 const ESSAY=[
@@ -3777,7 +3872,9 @@ const ESSAY=[
   {id:"e80a",d:80,q:"부분범위처리가 무엇인지 정의하고, 전체범위처리가 강제되는 세 경우와 각각의 대체 방안, 그리고 arraysize를 키웠을 때 얻는 두 가지 이점을 535,000행 실측(roundtrips·consistent gets)을 근거로 설명하라. '무작정 크게'가 답이 아닌 이유(임계점)도 포함할 것.",a:"부분범위처리는 조건을 만족하는 데이터를 전체 범위로 처리하지 않고 운반단위(arraysize)만큼만 먼저 처리해 유저 프로세스에 전달하고, 다음 요구가 올 때까지 잠정적으로 멈추는 방식이다. 그룹함수/group by(집계는 전체 필요), order by(전체 정렬), union·minus·intersect(집합 연산)는 전체범위가 강제되며, 대안은 order by→해당 컬럼 인덱스 이용, union→union all+not exists, minus→not exists, intersect→exists. arraysize를 키우면 ① fetch가 끊길 때마다 보던 블록을 다시 집는 재방문이 줄어 서버가 읽을 블록 수(I/O)가 준다 — 실측 gets 38,685(15)→3,467(2000). ② fetch count(SQL*Net roundtrips)가 줄어 네트워크 부하가 감소한다 — 35,668(15)→269(2000). 단 gets는 테이블 블록 수(≈3,300) 아래로 못 내려가는 임계점이 있고, 받을 active set이 무한이 아니므로 설정에 따라 성능이 나빠질 수도 있다.",k:["운반단위", "잠정", "union all", "재방문", "roundtrips", "임계점"],ref:"https://docs.oracle.com/en/database/oracle/oracle-database/19/tgsql/sql-processing.html"},
   {id:"e80b",d:80,q:"업무팀 요청 시나리오별로 파티션 관리 명령을 설명하라: ① p1<5000·p2<15000·p3<25000에 10000 경계 추가 ② 파티션 키(salary)를 경계 밖 값으로 update ③ 새 데이터 대량 적재 ④ truncate·DML 반복 후 1행인데 1,006블록인 파티션. 각 경우의 에러 번호(있다면)와 처방을 포함할 것.",a:"① add partition …<10000은 ORA-14074(마지막 경계보다 작음) — split partition p2 at(10000)으로 쪼갠다. ② 경계를 넘는 파티션 키 update는 ORA-14402 — 행이 다른 파티션으로 이동해야 하므로 enable row movement 후 update하고 작업 후 disable을 부탁한다. ③ 일반 테이블에 load한 뒤 exchange partition p5 with table exch_emp — 세그먼트 소속만 맞바꿔 데이터 이동 없이 적재 완료(빈 테이블과 바꾸면 truncate 대용). ④ 파티션도 세그먼트라 HWM 아래 공간이 반납되지 않아 생기는 현상 — enable row movement 후 alter table … modify partition p3 shrink space cascade, 이후 disable. 파티션만 통계를 다시 걷으려면 gather_table_stats(…, partname=>'p3', granularity=>'partition').",k:["14074", "split", "14402", "row movement", "exchange", "shrink"],ref:"https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/partition-admin.html"},
   {id:"e81a",d:81,q:"로컬 파티션 인덱스와 글로벌 파티션 인덱스를 비교 설명하라 — 정의(파티션 키), pruning이 일어나는 축, 테이블 파티션 작업 시의 영향(UNUSABLE), 복구 방법(ORA-14086), 그리고 어떤 기준으로 선택할지. 실측 수치(140→3, Buffers 5, 608블록)를 근거로 들 것.",a:"로컬은 테이블 파티션과 인덱스 파티션이 1:1로 매핑되고 개수·파티션 키가 일치한다(EMP_LOCAL_IDX: LOCAL PREFIXED 6개) — employee_id=1000이 pruning(RANGE SINGLE)+INDEX UNIQUE SCAN으로 140→3블록. 유지관리는 오라클 자동이며 테이블 파티션 작업이 다른 파티션에 영향을 주지 않는다. 글로벌은 테이블 파티션 키와 인덱스 파티션 키가 불일치 — 테이블은 employee_id 6개, 인덱스는 hire_date 4개로, hire_date 조건이 인덱스 축에서 pruning되어(RANGE SINGLE=p2004) RANGE SCAN Buffers 5로 끝난다. 대신 테이블 파티션 변경 작업에 인덱스 전체가 UNUSABLE이 될 수 있고, 그 상태에선 힌트 강제 시 ORA-01502, 힌트 없이는 full 우회(RANGE ALL, 608블록)로 조용히 느려진다. 복구는 ORA-14086 때문에 통째가 아니라 rebuild partition을 파티션별로. 선택 기준: 관리 안정성·파티션 단위 작업이 많으면 local, 테이블 축과 다른 조회 축(예: 기간)으로 인덱스 pruning이 필요하면 global — 재빌드 시간을 운영 계산에 넣는다.",k:["1:1", "키 불일치", "인덱스 축 pruning", "UNUSABLE", "ORA-14086", "rebuild partition"]},
-  {id:"e81b",d:81,q:"실수로 drop partition p1(49행)을 한 상황. 사전에 받아 둔 테이블 전체 덤프(hr_sal_emp.pump)만 있다고 할 때, Data Pump로 p1을 복구하는 절차를 실습 순서대로 설명하라(에러·옵션 이름 포함). 파티션 하나만 미리 백업해 두는 방법도 덧붙일 것.",a:"drop partition p1 후 partition(p1) 조회는 ORA-02149(존재하지 않는 파티션). ① impdp … sqlfile=sql_emp.sql로 덤프 속 DDL만 추출해(실행 없음) 원래 경계(5000)를 확인한다. ② alter table … split partition p2 at(5000) into (p1, p2)로 빈 p1을 재생성한다(add는 중간 경계라 ORA-14074). ③ impdp … tables=hr.sal_emp:p1 content=data_only로 p1의 데이터만 49행 복원한다. ④ 새 파티션의 통계는 NULL이므로 gather_table_stats(…, partname=>'p1', granularity=>'partition')로 재수집(49행/19블록). 파티션만 백업하려면 expdp … tables=hr.sal_emp:p1 dumpfile=hr_sal_emp_p1.pump(실측 204,800B) — truncate 후 같은 :p1 content=data_only로 되돌리는 것까지 실습으로 확인했다.",k:["ORA-02149", "sqlfile", "split", "content=data_only", "partname", ":p1"],ref:"https://docs.oracle.com/en/database/oracle/oracle-database/19/sutil/oracle-data-pump-export-utility.html"}
+  {id:"e81b",d:81,q:"실수로 drop partition p1(49행)을 한 상황. 사전에 받아 둔 테이블 전체 덤프(hr_sal_emp.pump)만 있다고 할 때, Data Pump로 p1을 복구하는 절차를 실습 순서대로 설명하라(에러·옵션 이름 포함). 파티션 하나만 미리 백업해 두는 방법도 덧붙일 것.",a:"drop partition p1 후 partition(p1) 조회는 ORA-02149(존재하지 않는 파티션). ① impdp … sqlfile=sql_emp.sql로 덤프 속 DDL만 추출해(실행 없음) 원래 경계(5000)를 확인한다. ② alter table … split partition p2 at(5000) into (p1, p2)로 빈 p1을 재생성한다(add는 중간 경계라 ORA-14074). ③ impdp … tables=hr.sal_emp:p1 content=data_only로 p1의 데이터만 49행 복원한다. ④ 새 파티션의 통계는 NULL이므로 gather_table_stats(…, partname=>'p1', granularity=>'partition')로 재수집(49행/19블록). 파티션만 백업하려면 expdp … tables=hr.sal_emp:p1 dumpfile=hr_sal_emp_p1.pump(실측 204,800B) — truncate 후 같은 :p1 content=data_only로 되돌리는 것까지 실습으로 확인했다.",k:["ORA-02149", "sqlfile", "split", "content=data_only", "partname", ":p1"],ref:"https://docs.oracle.com/en/database/oracle/oracle-database/19/sutil/oracle-data-pump-export-utility.html"},
+  {id:"e82a",d:82,q:"parallel(e 2)로 order by를 실행하면 병렬도는 2인데 서버 프로세스는 4개가 뜬다. Producer/Consumer·서버 집합·테이블 큐 개념으로 v$pq_tqstat의 흐름(:TQ10000, :TQ10001)을 설명하고, intra-operation과 inter-operation parallelism의 차이를 함께 서술하라.",a:"order by는 추출과 정렬 두 오퍼레이션이 겹쳐 서버 집합이 2개 할당되고, 병렬 서버 프로세스는 DoP×2=4가 된다. :TQ10000에서는 추출 집합(P002·P003)이 테이블을 나눠 읽어(53,309·54,559행) 정렬 키 구간(RANGE, A~M/N~Z)에 맞게 정렬 집합(P000·P001)에 분배한다 — QC(Ranger)가 경계만 정해준다. :TQ10001에서는 정렬 집합이 이번엔 producer가 되어 각자 정렬한 결과(55,000·52,000행)를 consumer인 QC에 보내고, QC가 순서대로 머지해 107,000행을 사용자에게 전달한다. intra-operation parallelism은 한 집합 안에서 서로 배타적인 범위를 독립적으로 동시에 처리하는 것으로 집합 내 프로세스 간 통신이 없고(추출끼리·정렬끼리 소통 안 함), inter-operation parallelism은 다른 서버 집합에 분배하거나 QC에 전송하는 것으로 통신 채널(테이블 큐)이 필요하다(추출↔정렬은 소통).",k:["DoP×2", "추출 집합", "정렬 집합", "테이블 큐", "intra", "inter"],ref:"https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html"},
+  {id:"e82b",d:82,q:"병렬 조인에서 full partition wise join과 partial partition wise join의 차이를 설명하라 — 각각의 조건, 데이터 재분배 필요 여부, pq_distribute 힌트, 실행계획 표식(PX PARTITION LIST ALL / PX SEND PARTITION KEY). 그리고 '파티션 개수만큼 프로세스를 띄우는 게 가장 해피한' 이유도 덧붙일 것.",a:"full partition wise join은 조인하려는 두 테이블이 조인 키 컬럼으로 같은 기준 파티션된 경우로, 같은 파티션끼리 짝지어 조인하면 되므로 데이터 재분배가 필요 없다 — pq_distribute(e,none,none), 플랜은 PX PARTITION LIST ALL 아래 HASH JOIN(실측: P000이 2번 파티션, P001이 1·3·4번 파티션만 조인해 QC가 106행으로 붙여 전달). partial partition wise join은 한쪽만 파티션된 경우로, 파티션 안 된 테이블을 같은 기준으로 동적 파티셔닝(재분배)한 뒤 조인한다 — pq_distribute(e,none,partition), 플랜은 PX SEND PARTITION (KEY) + HASH JOIN BUFFERED로 넌파티션(emp_non)을 dept_part의 부서코드 기준에 맞춰 KEY로 재분배한다. 파티션 개수만큼 프로세스를 띄우면 각 프로세스가 파티션 하나씩 맡아 재분배 없이 병렬 조인이 완결되므로 가장 이상적이고, 그래서 병렬 프로세스 수는 파티션 수 이하로 잡는다.",k:["조인 키 파티션", "재분배 없음", "none,none", "none,partition", "PARTITION LIST ALL", "SEND PARTITION KEY"],ref:"https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html"}
 ];
 
 const PLANQ=[
@@ -3832,7 +3929,9 @@ const PLANQ=[
   {id:"pl80a",q:"arraysize 15(기본값)로 hr.sal_emp(535,000행, 3,254블록)를 전량 조회한 autotrace Statistics다. ① 운반단위를 이 숫자들에서 도출하고 ② consistent gets(38,685)가 테이블 블록 수(3,254)의 12배나 되는 이유를 설명하라.",plan:"Statistics\n----------------------------------------------------\n     24  recursive calls\n     41  db block gets\n  38685  consistent gets\n   3195  physical reads\n29974775 bytes sent via SQL*Net to client\n  35668  SQL*Net roundtrips to/from client\n      0  sorts (memory)\n 535000  rows processed",a:"① rows processed ÷ roundtrips = 535,000 ÷ 35,668 = 14.99 ≈ 15 — roundtrips가 fetch count이고, 한 번에 arraysize(15)행씩 실어 날랐다. ② fetch가 끊길 때마다 서버는 보던 블록을 다시 집는다 — gets ≈ 블록 수 + fetch 횟수(3,254+35,668≈38,922 ≈ 실측 38,685). 즉 38,685의 대부분은 데이터가 아니라 '재방문' 비용이고, arraysize를 키우면 이 부분이 사라진다."},
   {id:"pl80b",q:"같은 조회를 arraysize 1000과 2000으로 실행한 두 Statistics다. roundtrips는 절반(536→269)이 됐는데 consistent gets는 3,732→3,467로 조금밖에 안 줄었다 — 이유와, 여기서 읽어낼 '임계점'을 설명하라.",plan:"[arraysize 1000]                    [arraysize 2000]\n   3732  consistent gets               3467  consistent gets\n    536  SQL*Net roundtrips             269  SQL*Net roundtrips\n 535000  rows processed              535000  rows processed\n-- 535000/536 = 998.13               -- 535000/269 = 1988.8",a:"roundtrips는 총 행수÷arraysize라 배열을 2배로 키우면 정확히 절반이 된다. 반면 gets는 '블록 수 + fetch 재방문'인데 재방문(536→269)은 이미 전체에서 작은 비중이라, 줄여봤자 테이블 블록 수(≈3,300) 아래로는 내려갈 수 없다 — 그게 바닥이자 임계점이다. 실측 코멘트 그대로 'fetch count 수가 비약적으로 줄어들지는 않는 어느 정도 임계점이 있다' — 이후로는 키워도 이득이 미미하고, 받을 active set이 무한이 아니므로 성능이 나빠질 수도 있다."},
   {id:"pl81a",q:"같은 조회(employee_id=1000)의 로컬 인덱스 생성 전/후 플랜이다. 두 플랜 모두 PARTITION RANGE SINGLE(1·1)인데 Buffers가 140→3이 된 이유와, 'BY LOCAL INDEX ROWID'가 말해주는 것을 설명하라.",plan:"[생성 전]\n|  1 |  PARTITION RANGE SINGLE|           | Pstart 1 Pstop 1 | Buffers 140 |\n|* 2 |   TABLE ACCESS FULL    | EMP_LOCAL | filter(\"EMPLOYEE_ID\"=1000)\n\n[생성 후]\n|  1 |  PARTITION RANGE SINGLE            |               | Pstart 1 Pstop 1 | Buffers 3 |\n|  2 |   TABLE ACCESS BY LOCAL INDEX ROWID| EMP_LOCAL     |\n|* 3 |    INDEX UNIQUE SCAN               | EMP_LOCAL_IDX | access(\"EMPLOYEE_ID\"=1000)",a:"pruning(RANGE SINGLE)은 두 플랜 모두 같다 — 6파티션 중 P1 하나로 줄이는 일까지만 한다. 생성 전에는 그 조각 안을 전부 스캔(FULL, P1의 140여 블록), 생성 후에는 파티션별 독립 B*Tree인 로컬 인덱스에서 UNIQUE SCAN으로 위치를 찾아 rowid로 한 행만 집는다(루트→리프 2블록 + 테이블 1블록 = 3). 'BY LOCAL INDEX ROWID'는 그 rowid가 로컬 인덱스 파티션에서 나왔다는 표시 — 파티션은 '어느 조각', 인덱스는 '조각 안 어디'를 담당한다는 분업이 플랜에 그대로 찍힌 것."},
-  {id:"pl81b",q:"parallel(e 2)로 order by를 실행한 병렬 플랜이다. TQ가 두 개(:TQ10000·:TQ10001)인 이유, PX SEND RANGE(P->P)와 PX SEND QC(ORDER)의 역할 분담, 그리고 count(*) 때(QC RANDOM 하나)와 달라진 이유를 설명하라.",plan:"|  1 |  PX COORDINATOR        |          |        |      |            | A-Rows 107K |\n|  2 |   PX SEND QC (ORDER)   | :TQ10001 | Q1,01 | P->S | QC (ORDER) |\n|  3 |    SORT ORDER BY       |          | Q1,01 | PCWP |            |\n|  4 |     PX RECEIVE         |          | Q1,01 | PCWP |            |\n|  5 |      PX SEND RANGE     | :TQ10000 | Q1,00 | P->P | RANGE      |\n|  6 |       PX BLOCK ITERATOR|          | Q1,00 | PCWC |            |\n|* 7 |        TABLE ACCESS FULL| EMP     | Q1,00 | PCWP |            |",a:"정렬은 '모으는 순서'가 결과인 연산이라 전송이 두 번 필요하다. ① 스캔 워커 집합(Q1,00)이 last_name 값 구간별로 행을 재분배한다 — PX SEND RANGE, P->P(:TQ10000). ② 받은 워커 집합(Q1,01)이 각자 자기 구간만 SORT ORDER BY로 정렬한다 — 구간이 나뉘어 있으니 부분 정렬이 곧 전체 정렬의 조각이 된다. ③ QC가 구간 순서대로 이어 붙인다 — PX SEND QC(ORDER), P->S(:TQ10001). count(*)는 부분 합계를 아무 순서로 모아도 되므로 재분배가 필요 없어 QC(RANDOM) TQ 하나로 끝났다 — PQ Distrib 컬럼(RANDOM/RANGE/ORDER)이 연산의 요구를 그대로 말해준다."}
+  {id:"pl81b",q:"parallel(e 2)로 order by를 실행한 병렬 플랜이다. TQ가 두 개(:TQ10000·:TQ10001)인 이유, PX SEND RANGE(P->P)와 PX SEND QC(ORDER)의 역할 분담, 그리고 count(*) 때(QC RANDOM 하나)와 달라진 이유를 설명하라.",plan:"|  1 |  PX COORDINATOR        |          |        |      |            | A-Rows 107K |\n|  2 |   PX SEND QC (ORDER)   | :TQ10001 | Q1,01 | P->S | QC (ORDER) |\n|  3 |    SORT ORDER BY       |          | Q1,01 | PCWP |            |\n|  4 |     PX RECEIVE         |          | Q1,01 | PCWP |            |\n|  5 |      PX SEND RANGE     | :TQ10000 | Q1,00 | P->P | RANGE      |\n|  6 |       PX BLOCK ITERATOR|          | Q1,00 | PCWC |            |\n|* 7 |        TABLE ACCESS FULL| EMP     | Q1,00 | PCWP |            |",a:"정렬은 '모으는 순서'가 결과인 연산이라 전송이 두 번 필요하다. ① 스캔 워커 집합(Q1,00)이 last_name 값 구간별로 행을 재분배한다 — PX SEND RANGE, P->P(:TQ10000). ② 받은 워커 집합(Q1,01)이 각자 자기 구간만 SORT ORDER BY로 정렬한다 — 구간이 나뉘어 있으니 부분 정렬이 곧 전체 정렬의 조각이 된다. ③ QC가 구간 순서대로 이어 붙인다 — PX SEND QC(ORDER), P->S(:TQ10001). count(*)는 부분 합계를 아무 순서로 모아도 되므로 재분배가 필요 없어 QC(RANDOM) TQ 하나로 끝났다 — PQ Distrib 컬럼(RANDOM/RANGE/ORDER)이 연산의 요구를 그대로 말해준다."},
+  {id:"pl82a",q:"parallel(e 2) group by의 gby_pushdown 플랜이다. HASH GROUP BY가 두 번(Id 3·6) 나온 이유, Id 5의 PX SEND HASH(P->P)가 하는 일, 그리고 no_gby_pushdown이면 무엇이 달라지는지 설명하라.",plan:"| Id | Operation             | Name     | TQ     |IN-OUT| PQ Distrib | A-Rows |\n|  0 | SELECT STATEMENT      |          |        |      |            |     12 |\n|  1 |  PX COORDINATOR       |          |        |      |            |     12 |\n|  2 |   PX SEND QC (RANDOM) | :TQ10001 | Q1,01  | P->S | QC (RAND)  |      0 |\n|  3 |    HASH GROUP BY      |          | Q1,01  | PCWP |            |      0 |\n|  4 |     PX RECEIVE        |          | Q1,01  | PCWP |            |      0 |\n|  5 |      PX SEND HASH     | :TQ10000 | Q1,00  | P->P | HASH       |      0 |\n|  6 |       HASH GROUP BY   |          | Q1,00  | PCWP |            |      0 |\n|  7 |        PX BLOCK ITERATOR|        | Q1,00  | PCWC |            |      0 |\n|* 8 |         TABLE ACCESS FULL| EMP   | Q1,00  | PCWP |            |      0 |",a:"Id 6의 HASH GROUP BY는 추출 집합(Q1,00)이 테이블을 읽으면서(Id 8) 부서코드별 중간 집계를 미리 만드는 단계다 — gby_pushdown이 밀어 넣은 것으로, 여기서 이미 건수가 크게 줄어든다. Id 5의 PX SEND HASH(P->P)는 그 중간 결과를 부서코드 해시 값에 따라 정렬 집합(Q1,01)의 정해진 프로세스로 재분배한다 — 같은 부서는 같은 consumer로 모여야 최종 집계가 가능하기 때문. Id 3의 HASH GROUP BY는 정렬 집합이 받은 것들을 부서별로 머지(최종 집계)하는 2회차이고, Id 2에서 QC로 순서 무관(RANDOM) 전송된다. no_gby_pushdown이면 Id 6의 1회차가 사라져 HASH GROUP BY가 한 번뿐이고, 추출 집합이 원본 107K행을 그대로 :TQ10000으로 넘겨 통신량이 커진다."},
+  {id:"pl82b",q:"한쪽만 파티션된 partial partition wise join 플랜이다(dept_part는 파티션, emp_non은 넌파티션). Id 7의 PX SEND PARTITION (KEY)가 하는 일, HASH JOIN BUFFERED의 의미, 그리고 full partition wise join이라면 이 플랜이 어떻게 달라졌을지 설명하라.",plan:"| Id | Operation                  | Name      | TQ     |IN-OUT| PQ Distrib | A-Rows |\n|  0 | SELECT STATEMENT           |           |        |      |            |    106 |\n|  1 |  PX COORDINATOR            |           |        |      |            |    106 |\n|  2 |   PX SEND QC (RANDOM)      | :TQ10001  | Q1,01  | P->S | QC (RAND)  |      0 |\n|* 3 |    HASH JOIN BUFFERED      |           | Q1,01  | PCWP |            |      0 |\n|  4 |     PX PARTITION LIST ALL  |           | Q1,01  | PCWC |            |      0 |\n|  5 |      TABLE ACCESS FULL     | DEPT_PART | Q1,01  | PCWP |            |      0 |\n|  6 |     PX RECEIVE             |           | Q1,01  | PCWP |            |      0 |\n|  7 |      PX SEND PARTITION(KEY)| :TQ10000  | Q1,00  | P->P | PART (KEY) |      0 |\n|  8 |       PX BLOCK ITERATOR    |           | Q1,00  | PCWC |            |      0 |\n|* 9 |        TABLE ACCESS FULL   | EMP_NON   | Q1,00  | PCWP |            |      0 |",a:"emp_non은 파티션이 안 돼 있으므로 그대로는 dept_part의 파티션과 짝지을 수 없다. Id 7의 PX SEND PARTITION (KEY)는 추출 집합이 emp_non을 읽어(Id 9) dept_part의 파티션 기준인 부서코드(KEY)에 맞춰 동적으로 재분배하는 단계다 — 이 재분배가 partial의 핵심(pq_distribute의 세 번째 인자 partition). HASH JOIN BUFFERED는 조인 집합(Q1,01)이 받은 데이터를 버퍼에 모아 두고 해시 조인하는 것으로, 재분배로 흘러드는 probe 쪽을 버퍼링해야 하기 때문에 BUFFERED가 붙는다. full partition wise join(양쪽 다 조인 키로 파티션)이라면 재분배가 필요 없어 Id 6~7의 PX RECEIVE·PX SEND PARTITION(KEY)이 사라지고, PX PARTITION LIST ALL 아래에서 두 테이블을 바로 HASH JOIN(BUFFERED 없이)하는 형태가 된다 — pq_distribute(e,none,none)."}
 ];
 function findQ(id){return ESSAY.find(x=>x.id===id)||PLANQ.find(x=>x.id===id);}
 
@@ -4033,10 +4132,21 @@ const TERMS=[
   {t:"sqlfile= (impdp)",e:"덤프의 DDL만 파일로 추출",d:"impdp … sqlfile=sql_emp.sql — 실행하지 않고 덤프 안의 create 문들만 뽑는다(실측 2,801B). drop한 파티션의 원래 경계를 확인해 split으로 재생성할 때의 근거.",day:81},
   {t:"tables=…:p1 / content=data_only",e:"파티션 지정 + 데이터만 import",d:"tables=hr.sal_emp:p1처럼 콜론으로 파티션을 지정하고, content=data_only는 구조를 건드리지 않고 데이터만 넣는다. 실측: 빈 p1에 49행 복원, 파티션만 export한 덤프는 204,800B.",day:81},
   {t:"병렬 처리 (PX·QC)",e:"작업을 나눠 여러 프로세스가 동시에",d:"SQL 작업 범위를 작은 단위로 나눠 동시 처리 — 대용량에 효과적. PX COORDINATOR(QC)가 지휘, :TQ 큐로 전달, IN-OUT의 P->S(워커→QC)·P->P(워커 간 재분배)·PCWP/PCWC(같은 워커가 연속 수행)로 흐름을 읽는다.",day:81},
-  {t:"v$pq_tqstat",e:"병렬 TQ별 분담 실측 뷰",d:"TQ마다 Producer/Consumer의 행수·바이트를 보여준다. 실측: DoP 2의 count(*)에서 P000·P001이 부분 집계 1행씩 → QC가 2행 수신(DoP 4면 4행). allstats last는 QC 기준이라 워커 몫이 0으로 보이므로 이 뷰로 확인.",day:81}
+  {t:"v$pq_tqstat",e:"병렬 TQ별 분담 실측 뷰",d:"TQ마다 Producer/Consumer의 행수·바이트를 보여준다. 실측: DoP 2의 count(*)에서 P000·P001이 부분 집계 1행씩 → QC가 2행 수신(DoP 4면 4행). allstats last는 QC 기준이라 워커 몫이 0으로 보이므로 이 뷰로 확인.",day:81},
+  {t:"QC (Query Coordinator)",e:"병렬 SQL을 지휘·감독하는 세션",d:"병렬 SQL문을 발생시킨 세션 — 작업을 지시하고 진행을 관리·감독한다. 직접 정렬엔 참여하지 않고(RANGE에선 경계만 할당), 마지막에 결과를 순서대로 머지해 사용자에게 serial로 전달.",day:82},
+  {t:"병렬 서버 프로세스",e:"실제 작업을 하는 워커(P000…)",d:"병렬 서버=병렬 프로세스=병렬 슬레이브. order by처럼 오퍼레이션이 겹치면 서버 집합이 2개 → 프로세스는 DoP×2개(DoP 2면 P000~P003). 통신 채널(파이프라인)은 DoP²개.",day:82},
+  {t:"병렬 서버 풀",e:"미리 떠 있는 병렬 프로세스 대기 집단",d:"병렬처리가 없어도 parallel_min_servers(실측 4)만큼 유지 — 매번 프로세스 띄우는 부하를 줄이려고. 부족하면 parallel_max_servers(실측 40)까지 추가. large pool 메모리 사용(shared server·UGA·RMAN도 large pool).",day:82},
+  {t:"서버 집합 (server set)",e:"한 오퍼레이션을 맡는 프로세스 그룹",d:"DoP와 오퍼레이션 종류에 따라 1개 또는 여러 개 할당된다. order by는 추출 집합·정렬 집합 2개. 풀에서 필요한 만큼 확보. 한 집합 내부는 통신이 없다(intra-operation).",day:82},
+  {t:"Producer / Consumer",e:"추출하는 쪽 / 소비(정렬·집계)하는 쪽",d:"Producer는 데이터를 추출해 버퍼에 담아 PX SEND, Consumer는 PX RECEIVE로 꺼내 정렬·그룹 작업. 정렬 집합은 :TQ10000에선 consumer지만 :TQ10001에선 producer가 되어 QC로 보낸다.",day:82},
+  {t:"테이블 큐 (:TQ)",e:"프로세스 간 통신 파이프라인",d:"서버 집합 사이 또는 집합→QC로 메시지·데이터를 전송하는 통신 채널. 전송이 일어날 때마다 :TQ10000·:TQ10001처럼 번호가 붙는다 — TQ 개수가 곧 재분배 횟수.",day:82},
+  {t:"intra / inter-operation parallelism",e:"집합 내 독립 처리 / 집합 간 전송",d:"intra: 한 집합이 배타적 범위를 독립 동시 처리, 집합 내 통신 없음(PCWC·PCWP). inter: 다른 집합에 분배하거나 QC로 전송, 통신 채널 필요(P->S·P->P·S->P).",day:82},
+  {t:"IN-OUT (P->S·P->P·S->P)",e:"데이터가 집합을 건너는 통신 흐름",d:"P->S=워커→QC 수합, P->P=집합 간 동적 파티셔닝(정렬·조인), S->P=QC가 읽어 워커로 뿌림(유일한 직렬 오퍼레이션, 병목 후보). 화살표는 통신 있음, PCWC/PCWP는 통신 없음.",day:82},
+  {t:"PQ Distrib (RANGE·HASH·KEY)",e:"재분배를 어떤 기준으로 하나",d:"S->P·P->P에서 일어나는 재분배 방식. RANGE=ORDER BY/SORT GROUP BY(범위 분배), HASH=조인 키/HASH GROUP BY(해시 분배), KEY=파티션 기준(PART KEY — partial PWJ·CTAS·병렬 글로벌 인덱스).",day:82},
+  {t:"gby_pushdown",e:"추출하며 미리 group by (건수 줄이기)",d:"병렬 group by 기본 힌트 — 추출 프로세스가 읽으면서 중간 집계를 만들어(HASH GROUP BY 1회차) 넘길 건수를 줄이고 통신 비용을 낮춘다. 플랜에 HASH GROUP BY 2회. no_gby_pushdown이면 1회·원본 그대로 전달.",day:82},
+  {t:"partition wise join",e:"파티션 단위로 나눠 병렬 조인",d:"full=양쪽이 조인 키로 같은 기준 파티션(재분배 없음, pq_distribute none,none, PX PARTITION LIST ALL). partial=한쪽만 파티션(넌파티션을 KEY로 재분배, none,partition, PX SEND PARTITION KEY·HASH JOIN BUFFERED). 파티션 수만큼 프로세스가 이상적.",day:82}
 ];
 
-const DAYS=[62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,'심화'];
+const DAYS=[62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,'심화'];
 const dcls=d=>d==='심화'?'dsim':'d'+d;
 const dlab=d=>d==='심화'?'심화':d+'일차';
 
@@ -4098,6 +4208,7 @@ const DAY_REF={
   79:{ext:TG+'improving-rwp-cursor-sharing.html',xt:'매뉴얼 § Cursor Sharing'},
   80:{ext:'https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/partition-admin.html',xt:'매뉴얼 § Partition Administration'},
   81:{ext:'https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/partition-concepts.html',xt:'매뉴얼 § Partitioning Concepts'},
+  82:{ext:TG.replace('/tgsql/','/vldbg/')+'parallel-exec-intro.html',xt:'매뉴얼 § Parallel Execution'},
   '심화':{ext:CN,xt:'Concepts 매뉴얼'}
 };
 function linkHtml(d,ref){
@@ -5067,6 +5178,73 @@ renderChips();startMcq();
 <li><b>[개념 제목]</b> 을 훑으며 설명 안 되는 것만 [문서 §] 링크로 이동해 그 부분 재독</li>
 <li><b>[명령어 표]</b> 의 결과 숫자(1,006→1 / 140→3 / 5 vs 608 / P000·P001 각 1행)를 가리고 떠올려보기</li>
 <li>마무리 — <a href='study_hub_full.html' class='cmp-link'>허브에서 81일차 문제 풀기</a> (날짜칩 81 필터)</li>
+</ol></script>
+<script type="text/plain" id="cmp-82"><h2>82일차 복습 시트 (결석 — 동료 필기 기반)</h2>
+<div class='note'>오늘 하루를 한 장으로 — 축·개념·명령어·요약. 막히는 개념은 옆의 [문서 §] 링크로 바로 이동해 다시 읽고, 마지막에 허브에서 문제로 마무리.</div>
+<hr>
+<h3>[오늘의 축]</h3>
+<div class='note'><b>병렬의 모든 비용은 '집합을 건너는 통신'에서 온다 — 재분배를 없애고(파티션 wise 조인), 넘길 데이터를 줄이는(gby_pushdown) 게 병렬 튜닝의 전부다. 그리고 DoP 2인데 프로세스는 4개(추출 집합 + 정렬 집합).</b></div>
+<p>어제 개막한 §14를 v$pq_tqstat으로 파헤친 날 — Producer/Consumer, IN-OUT 5종, PQ Distrib(RANGE/HASH/KEY), gby_pushdown, 파티션 wise 조인(full/partial). 병렬 파트 마무리.</p>
+<h3>[개념 제목] (수업 등장 순)</h3>
+<ol>
+<li><b>추출 집합 vs 정렬 집합</b> — DoP 2인데 프로세스 4개(P002·P003 추출 / P000·P001 정렬) · <a href='sql_tuning.html#px' class='cmp-link'>문서 §14.4</a></li>
+<li><b>왜 집합을 나누나</b> — 한 프로세스가 다 하면 QC가 재정렬해야 함 → 추출이 RANGE로 미리 분배 · <a href='sql_tuning.html#px' class='cmp-link'>문서 §14.4</a></li>
+<li><b>병렬 산수</b> — 프로세스=DoP×2, 통신 채널=DoP² · <a href='sql_tuning.html#px' class='cmp-link'>문서 §14.5</a></li>
+<li><b>QC·병렬 서버·서버 풀</b> — min 4/max 40 미리 띄움, large pool(shared server·UGA·RMAN) · <a href='sql_tuning.html#px' class='cmp-link'>문서 §14.5</a></li>
+<li><b>서버 집합(server set)</b> — DoP·오퍼레이션 종류에 따라 1~여러 개 · <a href='sql_tuning.html#px' class='cmp-link'>문서 §14.5</a></li>
+<li><b>intra / inter-operation</b> — 집합 내 무통신 / 집합 간 통신(테이블 큐) · <a href='sql_tuning.html#px' class='cmp-link'>문서 §14.4</a></li>
+<li><b>IN-OUT 5종</b> — P-&gt;S·P-&gt;P·S-&gt;P(통신○) / PCWC·PCWP(통신✗), S-&gt;P만 직렬 · <a href='sql_tuning.html#px' class='cmp-link'>문서 §14.6</a></li>
+<li><b>PQ Distrib</b> — RANGE(정렬)·HASH(조인/해시집계)·KEY(파티션) · <a href='sql_tuning.html#px' class='cmp-link'>문서 §14.7</a></li>
+<li><b>gby_pushdown</b> — 추출하며 미리 group by(HASH GROUP BY ×2), no_gby_pushdown이면 ×1 · <a href='sql_tuning.html#px' class='cmp-link'>문서 §14.8</a></li>
+<li><b>full partition wise join</b> — 둘 다 조인 키 파티션, 재분배 없음(none,none·PARTITION LIST ALL) · <a href='sql_tuning.html#px' class='cmp-link'>문서 §14.9</a></li>
+<li><b>partial partition wise join</b> — 한쪽만 파티션, KEY로 재분배(none,partition·SEND PARTITION KEY) · <a href='sql_tuning.html#px' class='cmp-link'>문서 §14.9</a></li>
+</ol>
+<h3>[실습 명령어 정리] (실행 순서 + 결과 요지)</h3>
+<table><tr><th>#</th><th>명령/플랜</th><th>결과 요지</th></tr>
+<tr><td>1</td><td><code>parallel(e 2)</code> order by + v$pq_tqstat</td><td><b>프로세스 4개</b> — Ranger QC / Producer P002·P003(추출 53309·54559) / Consumer P000·P001(정렬 55000·52000)</td></tr>
+<tr><td>2</td><td>〃 TQ10001</td><td>정렬 집합이 producer로 → QC가 107000행 머지 → user</td></tr>
+<tr><td>3</td><td><code>show parameter parallel_min_servers</code></td><td><b>4</b> — 병렬 없어도 미리 떠 있음</td></tr>
+<tr><td>4</td><td><code>show parameter parallel_max_servers</code></td><td><b>40</b> — 부족 시 여기까지 추가(large pool)</td></tr>
+<tr><td>5</td><td>IN-OUT 판별</td><td>화살표(P-&gt;S·P-&gt;P·S-&gt;P)=통신○ / PCWC·PCWP=통신✗ / S-&gt;P만 직렬</td></tr>
+<tr><td>6</td><td><code>parallel(e 2)</code> group by (gby_pushdown 기본)</td><td><b>HASH GROUP BY ×2</b> — 추출(Id 6 중간집계)→PX SEND HASH→정렬(Id 3 머지)</td></tr>
+<tr><td>7</td><td>v$pq_tqstat (pushdown)</td><td>Producer P002·P003 각 12행(미리 집계) → Consumer P000 8·P001 16</td></tr>
+<tr><td>8</td><td><code>no_gby_pushdown</code></td><td>HASH GROUP BY <b>×1</b> — 추출이 원본 107K(P000 87000·P001 20000) 그대로 넘김</td></tr>
+<tr><td>9</td><td>emp_part·dept_part 생성 (department_id list 파티션)</td><td>조인 키 = 파티션 키로 준비</td></tr>
+<tr><td>10</td><td>full PWJ: <code>pq_distribute(e,none,none)</code></td><td><b>PX PARTITION LIST ALL</b> + HASH JOIN — 재분배 없음</td></tr>
+<tr><td>11</td><td>〃 v$pq_tqstat</td><td>P000이 2번 파티션, P001이 1·3·4번 파티션 조인 → QC 106행 붙여 전달</td></tr>
+<tr><td>12</td><td>emp_non 생성(넌파티션)</td><td>partial 준비</td></tr>
+<tr><td>13</td><td>partial PWJ: <code>pq_distribute(e,none,partition)</code></td><td><b>PX SEND PARTITION (KEY)</b> + HASH JOIN BUFFERED — emp_non을 부서코드 KEY로 재분배</td></tr>
+<tr><td>14</td><td>〃 v$pq_tqstat</td><td>P002·P003 추출→P000(46, null 포함)·P001(61) 재분배→조인결과 45·61→QC 106</td></tr>
+</table>
+<h3>[5줄 요약]</h3>
+<ol>
+<li><b>DoP 2인데 프로세스 4개</b> — order by는 추출 집합(P002·P003)과 정렬 집합(P000·P001)이 따로. 프로세스=DoP×2, 통신 채널=DoP². 한 프로세스가 다 하면 QC가 재정렬해야 하니 나눈다.</li>
+<li><b>IN-OUT은 통신 여부</b> — 화살표(P-&gt;S·P-&gt;P·S-&gt;P)는 집합을 건너니 통신○, PCWC·PCWP는 한 집합 안이라 통신✗. S-&gt;P만 직렬 오퍼레이션(큰 테이블이면 병목 점검).</li>
+<li><b>PQ Distrib이 연산을 말한다</b> — RANGE=정렬(범위 분배), HASH=조인/해시집계(해시 분배), KEY=파티션 맞춤(PART KEY). 재분배는 S-&gt;P·P-&gt;P에서.</li>
+<li><b>gby_pushdown은 미리 세기</b> — 추출하며 부서별 중간 집계(HASH GROUP BY ×2)로 넘길 건수를 줄인다. §8.13 '더 앞 단계에서 더 적은 행으로'의 병렬판. no_gby_pushdown이면 원본 그대로.</li>
+<li><b>파티션 wise 조인</b> — 조인 키=파티션 키면 재분배 없음(full, none,none). 한쪽만 파티션이면 KEY로 재분배(partial, none,partition). 파티션 수만큼 프로세스가 이상적(병렬 프로세스 ≤ 파티션 수).</li>
+</ol>
+<h3>[건너뛴 것 — 매뉴얼 대비]</h3>
+<table><tr><th>안 다룬 것</th><th>추정 이유</th><th>공부하러 가기</th></tr>
+<tr><td>홀수 DoP가 안 되는 이유</td><td>노트에 물음표만</td><td>? → 홈랩 1번</td></tr>
+<tr><td>broadcast 분배(작은 테이블 복제)</td><td>실측은 none/partition만</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html' class='cmp-link'>매뉴얼 § Parallel Execution</a></td></tr>
+<tr><td>parallel DML·DoP 자동 결정(Auto DOP)</td><td>다음 심화 추정</td><td>위 매뉴얼 같은 장</td></tr>
+<tr><td>HASH JOIN BUFFERED의 빌드/프로브 세부</td><td>노트에 열린 질문</td><td>위 매뉴얼 · 홈랩 2번</td></tr>
+</table>
+<h3>홈랩 재현 목록 (결석일 — 열린 질문)</h3>
+<ol>
+<li><b>홀수 DoP 실험</b> — parallel(e 3)으로 order by 실행 시 프로세스 수·동작 확인('짝수 개념'의 진짜 이유)</li>
+<li><b>HASH JOIN BUFFERED</b> — partial 조인에서 빌드/프로브 테이블이 어떻게 만들어지는지 dbms_xplan 상세로</li>
+<li><b>v$pq_tqstat WAITS</b> — 정렬 집합의 WAITS 955가 유독 큰 의미(이월)</li>
+<li><b>full/partial 직접 실행</b> — emp_part⋈dept_part(full), emp_non⋈dept_part(partial) 돌려 v$pq_tqstat 행수를 필기와 대조 (특히 partial의 50번 부서만 P000으로 가는 재분배)</li>
+</ol>
+<hr>
+<h3>복습 동선 (10분)</h3>
+<ol>
+<li><b>[오늘의 축]</b> 한 줄을 소리 내어 설명해보기 — 통신이 곧 비용, 재분배·데이터 줄이기</li>
+<li><b>[개념 제목]</b> 을 훑으며 설명 안 되는 것만 [문서 §] 링크로 이동해 그 부분 재독</li>
+<li><b>[명령어 표]</b> 의 결과(프로세스 4개 / HASH GROUP BY ×2 / none,none vs none,partition)를 가리고 떠올려보기</li>
+<li>마무리 — <a href='study_hub_full.html' class='cmp-link'>허브에서 82일차 문제 풀기</a> (날짜칩 82 필터)</li>
 </ol></script>
 </body>
 </html>

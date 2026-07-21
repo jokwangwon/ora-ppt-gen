@@ -1,0 +1,218 @@
+{
+  "MCQ": [
+    {
+      "id": "m82a",
+      "d": 82,
+      "q": "parallel(e 2)로 order by를 실행했을 때 v$pq_tqstat에 서버 프로세스가 4개(P000~P003) 나온 이유는?",
+      "ref": "https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html",
+      "o": [
+        "추출하는 서버 집합과 정렬하는 서버 집합이 따로라서 — DoP×2=4",
+        "병렬도가 실제로는 4로 자동 상향 조정되어 프로세스가 그만큼 배정되었기 때문",
+        "정렬이 실패해 재시도 프로세스 2개가 추가로 떴기 때문",
+        "QC가 워커마다 백업 프로세스를 하나씩 붙였기 때문"
+      ],
+      "a": 0,
+      "e": "order by는 추출(P002·P003)과 정렬(P000·P001) 두 오퍼레이션이 겹쳐 서버 집합이 2개 할당된다 — 병렬 서버 프로세스 = DoP×2 = 2×2 = 4. 통신 채널은 DoP²=4."
+    },
+    {
+      "id": "m82b",
+      "d": 82,
+      "q": "병렬 처리에서 한 프로세스가 추출과 정렬을 모두 하지 않고 집합을 나누는 이유는?",
+      "ref": "https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html",
+      "o": [
+        "각자 정렬한 결과를 모으면 순서가 깨져 QC가 다시 정렬해야 하기 때문",
+        "한 프로세스가 두 작업을 하면 메모리 부족으로 항상 실패하기 때문",
+        "추출과 정렬은 서로 다른 CPU 코어에서만 실행되도록 강제되기 때문",
+        "QC가 추출은 직접 하고 정렬만 워커에게 맡기는 구조이기 때문"
+      ],
+      "a": 0,
+      "e": "한 프로세스가 추출+정렬을 다 해서 QC에 주면 여러 정렬 결과를 QC가 다시 정렬해야 한다. 그래서 추출 집합이 정렬 키 구간(RANGE)에 맞춰 미리 분배 → 정렬 집합은 받은 것만 정렬, QC는 순서대로 머지만."
+    },
+    {
+      "id": "m82c",
+      "d": 82,
+      "q": "병렬 서버 풀(parallel execution server pool)과 parallel_min_servers에 대한 설명으로 옳은 것은?",
+      "o": [
+        "병렬처리가 없어도 지정 개수만큼 미리 유지 — 프로세스 띄우는 부하를 줄이려고",
+        "병렬처리가 시작될 때만 프로세스를 만들고 끝나면 즉시 모두 종료한다",
+        "parallel_min_servers는 한 쿼리가 쓸 수 있는 최소 병렬도를 지정한다",
+        "풀에 있는 프로세스는 각자 PGA 메모리를 독점하며 세션 종료 전까지 반납하지 않는다"
+      ],
+      "a": 0,
+      "e": "parallel_min_servers(실측 4)만큼 병렬처리가 없어도 미리 떠 있다 — 매번 서브 프로세스를 띄우는 부하를 줄이기 위해. 부족하면 parallel_max_servers(실측 40)까지 추가. large pool 메모리를 쓴다."
+    },
+    {
+      "id": "m82d",
+      "d": 82,
+      "q": "IN-OUT 표기 중 '프로세스 간 통신이 발생하지 않는' 것끼리 묶인 것은?",
+      "ref": "https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html",
+      "o": [
+        "PCWC · PCWP — 한 집합 안에서 스텝만 이어 붙인다",
+        "P->S · P->P — 워커가 QC나 다른 집합으로 보낸다",
+        "S->P · P->S — QC가 관여하는 전송이다",
+        "P->P · PCWP — 부모 스텝으로 넘어가는 흐름이다"
+      ],
+      "a": 0,
+      "e": "화살표(P->S·P->P·S->P)는 집합을 건너 데이터가 가니 통신이 있고, PCWC(현재+자식)·PCWP(현재+부모)는 한 집합 안에서 스텝을 이어 붙일 뿐이라 통신이 없다. 자식 결과를 입력으로만 쓴다."
+    },
+    {
+      "id": "m82e",
+      "d": 82,
+      "q": "실행계획의 IN-OUT 중 유일하게 '직렬(Serial) 오퍼레이션'이라 병목 여부를 살펴야 하는 것은?",
+      "ref": "https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html",
+      "o": [
+        "S->P — QC가 혼자 읽어 병렬 서버에 뿌리는 지점",
+        "P->S — 워커들이 QC로 결과를 모으는 지점",
+        "P->P — 두 병렬 집합 사이의 재분배",
+        "PCWP — 부모 스텝과 결합된 병렬 처리로 한 집합이 두 스텝을 함께 수행하는 경우"
+      ],
+      "a": 0,
+      "e": "S->P는 QC(직렬)가 읽은 데이터를 병렬 서버로 뿌리는 직렬 오퍼레이션 — 처리량이 수백 MB 이상이면 병목인지 보고 병렬로 바꿀지 고민한다(작은 테이블이면 무시). 나머지 화살표·PCW*는 병렬 오퍼레이션."
+    },
+    {
+      "id": "m82f",
+      "d": 82,
+      "q": "PQ Distrib 방식 중 ORDER BY·SORT GROUP BY를 병렬로 처리할 때 쓰이는 것은?",
+      "ref": "https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html",
+      "o": [
+        "RANGE — 정렬 프로세스마다 범위(A~M·N~Z)를 정해 키 값에 따라 분배",
+        "HASH — 조인 키 값을 해시 함수에 넣고 리턴 값에 따라 프로세스로 분배",
+        "KEY — 파티션 기준으로 데이터를 나눠 PART(KEY)로 실행계획에 표시",
+        "RANDOM — 순서가 필요 없을 때 아무 프로세스에나 균등하게 분배"
+      ],
+      "a": 0,
+      "e": "RANGE는 ORDER BY·SORT GROUP BY용 — 정렬 집합 프로세스마다 구간을 할당하고 추출 집합이 정렬 키에 따라 분배. HASH는 조인 키·HASH GROUP BY용, KEY는 파티션 기준(partial PWJ·CTAS·글로벌 인덱스)용."
+    },
+    {
+      "id": "m82g",
+      "d": 82,
+      "q": "병렬 group by에서 gby_pushdown이 걸리면 실행계획에 HASH GROUP BY가 두 번 나온다. 첫 번째(추출 쪽)의 역할은?",
+      "o": [
+        "추출하면서 부서별 중간 집계를 만들어 넘길 건수를 미리 줄인다",
+        "추출한 원본 107K행을 정렬 프로세스에 그대로 전달한다",
+        "정렬 프로세스가 만든 최종 결과를 다시 검증하면서 중복된 부서 집계를 제거하는 역할",
+        "QC가 최종 집계하기 전 데이터를 임시 테이블에 저장한다"
+      ],
+      "a": 0,
+      "e": "gby_pushdown은 추출하면서 미리 group by를 수행해 건수를 줄인다(①번 HASH GROUP BY=중간 집계). 그러면 정렬 집합은 받아서 머지(②번)만. no_gby_pushdown이면 GROUP BY가 한 번뿐이고 원본 107K를 그대로 넘긴다."
+    },
+    {
+      "id": "m82h",
+      "d": 82,
+      "q": "두 테이블이 조인 키(department_id)로 같은 기준 파티션돼 있을 때 pq_distribute(e,none,none)로 유도되는 조인은?",
+      "ref": "https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html",
+      "o": [
+        "full partition wise join — 재분배 없이 같은 파티션끼리 조인(PX PARTITION LIST ALL)",
+        "partial partition wise join — 넌파티션 쪽을 KEY로 재분배한 뒤에 조인하는 방식",
+        "broadcast join — 작은 테이블을 모든 병렬 워커에게 복제해 뿌린 뒤 조인",
+        "hash join buffered — 양쪽 테이블을 모두 해시로 재분배한 다음 버퍼링 조인"
+      ],
+      "a": 0,
+      "e": "양쪽이 조인 키로 같은 기준 파티션이면 재분배가 불필요 — full partition wise join(PX PARTITION LIST ALL 아래 HASH JOIN). partial(none,partition)은 한쪽만 파티션일 때 넌파티션을 KEY로 재분배(PX SEND PARTITION KEY·HASH JOIN BUFFERED)."
+    }
+  ],
+  "ESSAY": [
+    {
+      "id": "e82a",
+      "d": 82,
+      "q": "parallel(e 2)로 order by를 실행하면 병렬도는 2인데 서버 프로세스는 4개가 뜬다. Producer/Consumer·서버 집합·테이블 큐 개념으로 v$pq_tqstat의 흐름(:TQ10000, :TQ10001)을 설명하고, intra-operation과 inter-operation parallelism의 차이를 함께 서술하라.",
+      "ref": "https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html",
+      "a": "order by는 추출과 정렬 두 오퍼레이션이 겹쳐 서버 집합이 2개 할당되고, 병렬 서버 프로세스는 DoP×2=4가 된다. :TQ10000에서는 추출 집합(P002·P003)이 테이블을 나눠 읽어(53,309·54,559행) 정렬 키 구간(RANGE, A~M/N~Z)에 맞게 정렬 집합(P000·P001)에 분배한다 — QC(Ranger)가 경계만 정해준다. :TQ10001에서는 정렬 집합이 이번엔 producer가 되어 각자 정렬한 결과(55,000·52,000행)를 consumer인 QC에 보내고, QC가 순서대로 머지해 107,000행을 사용자에게 전달한다. intra-operation parallelism은 한 집합 안에서 서로 배타적인 범위를 독립적으로 동시에 처리하는 것으로 집합 내 프로세스 간 통신이 없고(추출끼리·정렬끼리 소통 안 함), inter-operation parallelism은 다른 서버 집합에 분배하거나 QC에 전송하는 것으로 통신 채널(테이블 큐)이 필요하다(추출↔정렬은 소통).",
+      "k": [
+        "DoP×2",
+        "추출 집합",
+        "정렬 집합",
+        "테이블 큐",
+        "intra",
+        "inter"
+      ]
+    },
+    {
+      "id": "e82b",
+      "d": 82,
+      "q": "병렬 조인에서 full partition wise join과 partial partition wise join의 차이를 설명하라 — 각각의 조건, 데이터 재분배 필요 여부, pq_distribute 힌트, 실행계획 표식(PX PARTITION LIST ALL / PX SEND PARTITION KEY). 그리고 '파티션 개수만큼 프로세스를 띄우는 게 가장 해피한' 이유도 덧붙일 것.",
+      "ref": "https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html",
+      "a": "full partition wise join은 조인하려는 두 테이블이 조인 키 컬럼으로 같은 기준 파티션된 경우로, 같은 파티션끼리 짝지어 조인하면 되므로 데이터 재분배가 필요 없다 — pq_distribute(e,none,none), 플랜은 PX PARTITION LIST ALL 아래 HASH JOIN(실측: P000이 2번 파티션, P001이 1·3·4번 파티션만 조인해 QC가 106행으로 붙여 전달). partial partition wise join은 한쪽만 파티션된 경우로, 파티션 안 된 테이블을 같은 기준으로 동적 파티셔닝(재분배)한 뒤 조인한다 — pq_distribute(e,none,partition), 플랜은 PX SEND PARTITION (KEY) + HASH JOIN BUFFERED로 넌파티션(emp_non)을 dept_part의 부서코드 기준에 맞춰 KEY로 재분배한다. 파티션 개수만큼 프로세스를 띄우면 각 프로세스가 파티션 하나씩 맡아 재분배 없이 병렬 조인이 완결되므로 가장 이상적이고, 그래서 병렬 프로세스 수는 파티션 수 이하로 잡는다.",
+      "k": [
+        "조인 키 파티션",
+        "재분배 없음",
+        "none,none",
+        "none,partition",
+        "PARTITION LIST ALL",
+        "SEND PARTITION KEY"
+      ]
+    }
+  ],
+  "TERMS": [
+    {
+      "t": "QC (Query Coordinator)",
+      "e": "병렬 SQL을 지휘·감독하는 세션",
+      "d": "병렬 SQL문을 발생시킨 세션 — 작업을 지시하고 진행을 관리·감독한다. 직접 정렬엔 참여하지 않고(RANGE에선 경계만 할당), 마지막에 결과를 순서대로 머지해 사용자에게 serial로 전달."
+    },
+    {
+      "t": "병렬 서버 프로세스",
+      "e": "실제 작업을 하는 워커(P000…)",
+      "d": "병렬 서버=병렬 프로세스=병렬 슬레이브. order by처럼 오퍼레이션이 겹치면 서버 집합이 2개 → 프로세스는 DoP×2개(DoP 2면 P000~P003). 통신 채널(파이프라인)은 DoP²개."
+    },
+    {
+      "t": "병렬 서버 풀",
+      "e": "미리 떠 있는 병렬 프로세스 대기 집단",
+      "d": "병렬처리가 없어도 parallel_min_servers(실측 4)만큼 유지 — 매번 프로세스 띄우는 부하를 줄이려고. 부족하면 parallel_max_servers(실측 40)까지 추가. large pool 메모리 사용(shared server·UGA·RMAN도 large pool)."
+    },
+    {
+      "t": "서버 집합 (server set)",
+      "e": "한 오퍼레이션을 맡는 프로세스 그룹",
+      "d": "DoP와 오퍼레이션 종류에 따라 1개 또는 여러 개 할당된다. order by는 추출 집합·정렬 집합 2개. 풀에서 필요한 만큼 확보. 한 집합 내부는 통신이 없다(intra-operation)."
+    },
+    {
+      "t": "Producer / Consumer",
+      "e": "추출하는 쪽 / 소비(정렬·집계)하는 쪽",
+      "d": "Producer는 데이터를 추출해 버퍼에 담아 PX SEND, Consumer는 PX RECEIVE로 꺼내 정렬·그룹 작업. 정렬 집합은 :TQ10000에선 consumer지만 :TQ10001에선 producer가 되어 QC로 보낸다."
+    },
+    {
+      "t": "테이블 큐 (:TQ)",
+      "e": "프로세스 간 통신 파이프라인",
+      "d": "서버 집합 사이 또는 집합→QC로 메시지·데이터를 전송하는 통신 채널. 전송이 일어날 때마다 :TQ10000·:TQ10001처럼 번호가 붙는다 — TQ 개수가 곧 재분배 횟수."
+    },
+    {
+      "t": "intra / inter-operation parallelism",
+      "e": "집합 내 독립 처리 / 집합 간 전송",
+      "d": "intra: 한 집합이 배타적 범위를 독립 동시 처리, 집합 내 통신 없음(PCWC·PCWP). inter: 다른 집합에 분배하거나 QC로 전송, 통신 채널 필요(P->S·P->P·S->P)."
+    },
+    {
+      "t": "IN-OUT (P->S·P->P·S->P)",
+      "e": "데이터가 집합을 건너는 통신 흐름",
+      "d": "P->S=워커→QC 수합, P->P=집합 간 동적 파티셔닝(정렬·조인), S->P=QC가 읽어 워커로 뿌림(유일한 직렬 오퍼레이션, 병목 후보). 화살표는 통신 있음, PCWC/PCWP는 통신 없음."
+    },
+    {
+      "t": "PQ Distrib (RANGE·HASH·KEY)",
+      "e": "재분배를 어떤 기준으로 하나",
+      "d": "S->P·P->P에서 일어나는 재분배 방식. RANGE=ORDER BY/SORT GROUP BY(범위 분배), HASH=조인 키/HASH GROUP BY(해시 분배), KEY=파티션 기준(PART KEY — partial PWJ·CTAS·병렬 글로벌 인덱스).",
+      "day": 82
+    },
+    {
+      "t": "gby_pushdown",
+      "e": "추출하며 미리 group by (건수 줄이기)",
+      "d": "병렬 group by 기본 힌트 — 추출 프로세스가 읽으면서 중간 집계를 만들어(HASH GROUP BY 1회차) 넘길 건수를 줄이고 통신 비용을 낮춘다. 플랜에 HASH GROUP BY 2회. no_gby_pushdown이면 1회·원본 그대로 전달."
+    },
+    {
+      "t": "partition wise join",
+      "e": "파티션 단위로 나눠 병렬 조인",
+      "d": "full=양쪽이 조인 키로 같은 기준 파티션(재분배 없음, pq_distribute none,none, PX PARTITION LIST ALL). partial=한쪽만 파티션(넌파티션을 KEY로 재분배, none,partition, PX SEND PARTITION KEY·HASH JOIN BUFFERED). 파티션 수만큼 프로세스가 이상적."
+    }
+  ],
+  "PLANQ": [
+    {
+      "id": "pl82a",
+      "q": "parallel(e 2) group by의 gby_pushdown 플랜이다. HASH GROUP BY가 두 번(Id 3·6) 나온 이유, Id 5의 PX SEND HASH(P->P)가 하는 일, 그리고 no_gby_pushdown이면 무엇이 달라지는지 설명하라.",
+      "plan": "| Id | Operation             | Name     | TQ     |IN-OUT| PQ Distrib | A-Rows |\n|  0 | SELECT STATEMENT      |          |        |      |            |     12 |\n|  1 |  PX COORDINATOR       |          |        |      |            |     12 |\n|  2 |   PX SEND QC (RANDOM) | :TQ10001 | Q1,01  | P->S | QC (RAND)  |      0 |\n|  3 |    HASH GROUP BY      |          | Q1,01  | PCWP |            |      0 |\n|  4 |     PX RECEIVE        |          | Q1,01  | PCWP |            |      0 |\n|  5 |      PX SEND HASH     | :TQ10000 | Q1,00  | P->P | HASH       |      0 |\n|  6 |       HASH GROUP BY   |          | Q1,00  | PCWP |            |      0 |\n|  7 |        PX BLOCK ITERATOR|        | Q1,00  | PCWC |            |      0 |\n|* 8 |         TABLE ACCESS FULL| EMP   | Q1,00  | PCWP |            |      0 |",
+      "a": "Id 6의 HASH GROUP BY는 추출 집합(Q1,00)이 테이블을 읽으면서(Id 8) 부서코드별 중간 집계를 미리 만드는 단계다 — gby_pushdown이 밀어 넣은 것으로, 여기서 이미 건수가 크게 줄어든다. Id 5의 PX SEND HASH(P->P)는 그 중간 결과를 부서코드 해시 값에 따라 정렬 집합(Q1,01)의 정해진 프로세스로 재분배한다 — 같은 부서는 같은 consumer로 모여야 최종 집계가 가능하기 때문. Id 3의 HASH GROUP BY는 정렬 집합이 받은 것들을 부서별로 머지(최종 집계)하는 2회차이고, Id 2에서 QC로 순서 무관(RANDOM) 전송된다. no_gby_pushdown이면 Id 6의 1회차가 사라져 HASH GROUP BY가 한 번뿐이고, 추출 집합이 원본 107K행을 그대로 :TQ10000으로 넘겨 통신량이 커진다."
+    },
+    {
+      "id": "pl82b",
+      "q": "한쪽만 파티션된 partial partition wise join 플랜이다(dept_part는 파티션, emp_non은 넌파티션). Id 7의 PX SEND PARTITION (KEY)가 하는 일, HASH JOIN BUFFERED의 의미, 그리고 full partition wise join이라면 이 플랜이 어떻게 달라졌을지 설명하라.",
+      "plan": "| Id | Operation                  | Name      | TQ     |IN-OUT| PQ Distrib | A-Rows |\n|  0 | SELECT STATEMENT           |           |        |      |            |    106 |\n|  1 |  PX COORDINATOR            |           |        |      |            |    106 |\n|  2 |   PX SEND QC (RANDOM)      | :TQ10001  | Q1,01  | P->S | QC (RAND)  |      0 |\n|* 3 |    HASH JOIN BUFFERED      |           | Q1,01  | PCWP |            |      0 |\n|  4 |     PX PARTITION LIST ALL  |           | Q1,01  | PCWC |            |      0 |\n|  5 |      TABLE ACCESS FULL     | DEPT_PART | Q1,01  | PCWP |            |      0 |\n|  6 |     PX RECEIVE             |           | Q1,01  | PCWP |            |      0 |\n|  7 |      PX SEND PARTITION(KEY)| :TQ10000  | Q1,00  | P->P | PART (KEY) |      0 |\n|  8 |       PX BLOCK ITERATOR    |           | Q1,00  | PCWC |            |      0 |\n|* 9 |        TABLE ACCESS FULL   | EMP_NON   | Q1,00  | PCWP |            |      0 |",
+      "a": "emp_non은 파티션이 안 돼 있으므로 그대로는 dept_part의 파티션과 짝지을 수 없다. Id 7의 PX SEND PARTITION (KEY)는 추출 집합이 emp_non을 읽어(Id 9) dept_part의 파티션 기준인 부서코드(KEY)에 맞춰 동적으로 재분배하는 단계다 — 이 재분배가 partial의 핵심(pq_distribute의 세 번째 인자 partition). HASH JOIN BUFFERED는 조인 집합(Q1,01)이 받은 데이터를 버퍼에 모아 두고 해시 조인하는 것으로, 재분배로 흘러드는 probe 쪽을 버퍼링해야 하기 때문에 BUFFERED가 붙는다. full partition wise join(양쪽 다 조인 키로 파티션)이라면 재분배가 필요 없어 Id 6~7의 PX RECEIVE·PX SEND PARTITION(KEY)이 사라지고, PX PARTITION LIST ALL 아래에서 두 테이블을 바로 HASH JOIN(BUFFERED 없이)하는 형태가 된다 — pq_distribute(e,none,none)."
+    }
+  ]
+}
