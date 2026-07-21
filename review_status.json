@@ -94,6 +94,10 @@
     "82": {
       "status": "reviewing",
       "note": "결석일 — 동료 필기 기반. 축=병렬 비용은 '집합 건너는 통신'(재분배 없애기+데이터 줄이기). 문서 §14.4~14.9(DoP2인데 프로세스4=추출P002/3+정렬P000/1·프로세스=DoP×2/채널=DoP²·서버풀 min4/max40 large pool·IN-OUT 5종 화살표=통신 PCW=무통신 S->P만 직렬·PQ Distrib RANGE/HASH/KEY·gby_pushdown HASH GROUP BY×2·파티션 wise 조인 full(none,none PARTITION LIST ALL)/partial(none,partition SEND PARTITION KEY BUFFERED)) — Part 14 완료. 홀수 DoP·HASH JOIN BUFFERED 세부는 열린 질문→홈랩. 문제 MCQ8·ESSAY2·TERMS11·PLANQ2(편향0·근거0, 리밸런싱). 덱 18장. DAY_REF 82→Parallel Execution."
+    },
+    "83": {
+      "status": "reviewing",
+      "note": "결석일 — 동료 필기 기반. 축=데이터 이동 비용 줄이기(재분배 없애기·캐시 우회·메모리에 담기). 문서 §14.10~14.12(pq_distribute 4조합: none,none/none,partition/partition,none(PART JOIN FILTER 블룸 :BF0000)/hash·broadcast·parallel DML enable+ORA-12841·direct path read/write·serial direct read _small_table_threshold 704·10949) + Part 15 신규(§15.1~15.4: PGA stack/UGA/work area·자동관리 target soft/limit hard 12c OLTP20%/DSS50%·정렬 3등급 optimal/onepass/multipass·Used-Temp·direct path temp·정렬 vs 해시 _gby_hash_aggregation_enabled HASH GROUP BY/UNIQUE) — Part 14·15 완료, 로드맵 16 안티패턴만 남음. 정렬 trace·broadcast 검증은 홈랩. 문제 MCQ8·ESSAY2·TERMS10·PLANQ2(편향0·근거0 리밸런싱, PLANQ 146은 실측 trace값). 덱 17장. DAY_REF 83→Memory Architecture."
     }
   }
 }

@@ -91,6 +91,7 @@ footer{padding:30px 0 50px;color:var(--muted);font-size:13px}
   <a href="#ar">12. 부분범위처리</a>
   <a href="#pi">13. 파티션 인덱스</a>
   <a href="#px">14. 병렬 처리</a>
+  <a href="#pga">15. PGA·정렬</a>
   <a href="#road">로드맵</a>
 </div></nav>
 
@@ -1795,6 +1796,99 @@ Note: Degree of Parallelism is 2 because of table property</span></pre>
 <span class="pr">SQL&gt;</span> … pq_distribute(e,none,partition) … <span class="out">→ PX SEND PARTITION (KEY) → HASH JOIN BUFFERED</span>
 <span class="out">   emp_non을 dept_part의 파티션 기준(부서코드)에 맞춰 재분배 후 조인 (P->P PART KEY)</span></pre>
   <div class="why"><span class="h">병렬과 파티션의 궁합</span>파티션은 데이터를 <b>미리 나눠</b> 뒀고, 병렬은 그 조각들을 <b>동시에</b> 처리한다 — 조인 키 = 파티션 키면 재분배(통신) 자체가 사라져 가장 이상적(full). 한쪽만 파티션이면 안 된 쪽을 그 기준에 맞춰 KEY로 재분배(partial). 그래서 "<b>파티션 개수만큼 프로세스를 띄우는 게 가장 해피</b>"하고, 병렬 프로세스는 파티션 수 이하여야 한다. <span class="muted">(홀수 DoP·빌드/프로브 해시 세부는 홈랩 재확인)</span></div>
+
+  <h3 class="blk"><span class="ix">14.10</span>pq_distribute 네 조합 — 무엇이 파티션돼 있느냐로 갈린다 <span class="db add">83일차</span></h3>
+  <p><code class="inl">pq_distribute(inner, outer분배, inner분배)</code>의 두 인자가 각 테이블을 어떻게 재분배할지 정한다. 무엇이 파티션돼 있느냐에 따라 네 가지:</p>
+  <table>
+    <tr><th>상황</th><th>힌트</th><th>재분배</th><th>플랜 표식</th></tr>
+    <tr><td>둘 다 조인 키로 파티션</td><td><code class="inl">none,none</code></td><td><b>없음</b> (full PWJ)</td><td>PX PARTITION LIST ALL → HASH JOIN</td></tr>
+    <tr><td>inner만 넌파티션</td><td><code class="inl">none,partition</code></td><td>inner를 outer 파티션 기준으로</td><td>PX SEND PARTITION(KEY) → HASH JOIN <b>BUFFERED</b></td></tr>
+    <tr><td>outer만 넌파티션</td><td><code class="inl">partition,none</code></td><td>outer를 inner 파티션 기준으로</td><td><b>PART JOIN FILTER CREATE</b>(:BF0000) → PX PARTITION LIST JOIN-FILTER</td></tr>
+    <tr><td>둘 다 넌파티션</td><td><code class="inl">hash,hash</code> 또는 <code class="inl">broadcast,none</code></td><td>양쪽 동적 파티셔닝 / 작은 쪽 복제</td><td>PX SEND HASH ×2 / PX SEND BROADCAST</td></tr>
+  </table>
+  <div class="why"><span class="h">둘 다 넌파티션이면 — hash vs broadcast</span>대용량끼리면 <code class="inl">hash,hash</code>: 조인 키를 해시 함수에 넣어 <b>양쪽을 동적 파티셔닝</b>(같은 해시 값끼리 같은 프로세스로). 한쪽이 아주 작으면 <code class="inl">broadcast,none</code>: <b>작은 테이블을 큰 테이블 쪽 모든 프로세스에 복제</b>. 힌트를 잘못 써서 <b>큰 테이블이 broadcast</b>되면 재앙이니, v$pq_tqstat의 num_rows로 어느 쪽이 복제됐는지 꼭 확인한다. 실측 partial(<code class="inl">partition,none</code>)에서는 <code class="inl">PART JOIN FILTER CREATE</code>로 만든 <b>블룸 필터(:BF0000)</b>가 조인 상대 파티션만 걸러 준다 — §8.11 bloom과 같은 도구가 병렬에서 재등장.</div>
+
+  <h3 class="blk"><span class="ix">14.11</span>Parallel DML — 읽기만 병렬? 쓰기도 병렬 <span class="db add">83일차</span></h3>
+  <p>병렬 <code class="inl">insert … select</code>를 해도 <b>기본은 load(쓰기)가 serial</b>이다 — 플랜의 Id 1에 IN-OUT이 <b>공백(serial)</b>으로 찍힌다. 쓰기까지 병렬화하려면 명시적으로 켜야 한다:</p>
+  <pre class="term"><span class="pr">SQL&gt;</span> alter session <span class="hl">enable parallel dml</span>;
+<span class="cm">-- 트랜잭션 진행 중엔 못 바꾼다:</span>
+<span class="out">ORA-12841: Cannot alter the session parallel DML state within a transaction</span>
+<span class="pr">SQL&gt;</span> rollback;   <span class="cm">-- 커밋/롤백으로 트랜잭션을 끝낸 뒤 다시</span>
+<span class="pr">SQL&gt;</span> alter session enable parallel dml;   <span class="out">Session altered.</span>
+<span class="pr">SQL&gt;</span> insert /*+ parallel(e1 2) */ into hr.emp_dw_copy e1 select /*+ parallel(e2 2) */ * from hr.emp_dw e2;
+<span class="cm">-- 힌트 하나로 세션 설정 없이: enable_parallel_dml 힌트(12c)</span>
+<span class="pr">SQL&gt;</span> insert /*+ <span class="hl">enable_parallel_dml</span> parallel(e1 2) */ into … select …;</pre>
+  <div class="tip"><b>운영 주의.</b> parallel DML을 깜빡하고 대량 적재하는 업무 팀이 있다면 확인 후 고지할 것 — 세션에서 켜고 작업 후 <b>disable</b>까지 한 세트다(트랜잭션 중 disable도 ORA-12841, rollback 필요). <code class="inl">enable_parallel_dml</code> 힌트(12c)는 세션 설정 없이 그 문장만 병렬 DML을 켜 준다.</div>
+
+  <h3 class="blk"><span class="ix">14.12</span>direct path I/O — 버퍼 캐시를 우회한다 <span class="db add">83일차</span></h3>
+  <table>
+    <tr><th></th><th>direct path <b>read</b></th><th>direct path <b>write</b></th></tr>
+    <tr><td>정의</td><td>버퍼 캐시 안 거치고 디스크에서 <b>직접 읽기</b></td><td>버퍼 캐시 안 거치고 디스크로 <b>직접 쓰기</b></td></tr>
+    <tr><td>언제</td><td>병렬 쿼리 · temp segment 읽기 · serial direct read · Data Pump(expdp)</td><td>parallel DML · <code class="inl">insert /*+ append */ … select</code> · CTAS · SQL*Loader direct · Data Pump(impdp)</td></tr>
+  </table>
+  <p><b class="k">serial direct read</b> — full table scan·index fast full scan이 일정 크기를 넘으면, 데이터 블록을 버퍼 캐시에 올리지 않고 <b>서버 프로세스의 PGA로 바로</b> 읽어와 버퍼 캐시의 부담을 던다(multi block I/O). 임계값은 히든 파라미터:</p>
+  <ul class="tight">
+    <li><code class="inl">_small_table_threshold</code> — full scan 대상 블록 수가 이 값보다 <b>크면</b> direct read(실측 704). "작은 테이블"의 경계.</li>
+    <li><code class="inl">_very_large_object_threshold</code> — 이보다 큰 테이블은 direct read.</li>
+    <li><code class="inl">10949</code> 이벤트 — "<b>direct path read를 하지 마라</b>"(<code class="inl">alter session set events '10949 trace name context forever, level 1'</code>) → 다시 <code class="inl">db file scattered read</code>(버퍼 캐시 경유 multi block)로.</li>
+  </ul>
+  <div class="why"><span class="h">§7.8·§3과 이어진다</span>scattered read(버퍼 캐시 경유)와 direct path read(우회)는 full scan의 두 얼굴이다 — 대용량을 읽을 때 버퍼 캐시를 오염시키지 않으려 우회하는 것. 병렬 쿼리가 QC Buffers 5로 유독 작게 찍혔던 것(§14.1)도 이 direct read 때문 — 워커가 PGA로 직접 읽어 버퍼 캐시(logical gets)를 거의 안 썼다.</div>
+</section>
+
+<section class="part" id="pga">
+  <div class="phead"><div class="pnum">15</div><div><div class="ptitle">PGA와 정렬 — 작업 공간의 경제학 <span class="db add">83일차</span></div><div class="psub">PGA 구조 · 자동 관리(pga_aggregate_target) · optimal/onepass/multipass · 정렬 vs 해시 · <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/memory-architecture.html" style="color:var(--muted)">공식 매뉴얼 § Memory Architecture ↗</a></div></div></div>
+  <p>정렬·해시·비트맵 같은 작업은 <b class="k">PGA</b>(Program Global Area)의 작업 공간에서 이뤄진다 — 서버·백그라운드 프로세스의 <b>전용(private) 메모리</b>. 여기에 다 담기면 빠르고, 넘치면 디스크(temp)로 흘러 느려진다.</p>
+
+  <h3 class="blk"><span class="ix">15.1</span>PGA 구조 — stack과 UGA, 그리고 SQL 작업 공간</h3>
+  <ul class="tight">
+    <li><b>stack space</b> — 프로세스 변수·배열 등(패키지 전역 변수류).</li>
+    <li><b>UGA</b>(User Global Area) — cursor state, 세션 데이터, 그리고 <b>SQL 작업 공간(SQL work area)</b>:
+      <br><code class="inl">sort_area_size</code>(정렬) · <code class="inl">hash_area_size</code>(해시) · <code class="inl">create_bitmap_area_size</code>(비트맵 인덱스 생성) · <code class="inl">bitmap_merge_area_size</code>(비트맵 병합).</li>
+  </ul>
+  <div class="why"><span class="h">UGA는 어디에 사나</span>전용 서버(dedicated) 환경에선 UGA가 PGA 안에 있지만, <b>shared server</b> 환경에선 UGA가 large pool(또는 SGA)로 나간다 — §14.5에서 large pool 쓰임에 "shared server(UGA)"가 있던 이유. 세션이 서버 프로세스를 독점하지 못하니 세션 상태를 공유 영역에 둬야 하는 것.</div>
+
+  <h3 class="blk"><span class="ix">15.2</span>자동 PGA 관리 — target은 soft, limit은 hard</h3>
+  <p>9i부터 <code class="inl">pga_aggregate_target</code> 하나로 SQL 작업 공간을 자동 관리한다(<code class="inl">workarea_size_policy=auto</code>). 기본값은 10MB 또는 SGA의 20% 중 큰 값. 권장 산정:</p>
+  <table>
+    <tr><th>환경</th><th>pga_aggregate_target 권장</th><th>예 (물리 10GB, OS 2GB 제외 → 8GB)</th></tr>
+    <tr><td><b>OLTP</b></td><td>(물리 × 80%) × <b>20%</b></td><td>SGA 6.4GB · PGA 1.6GB</td></tr>
+    <tr><td><b>DSS</b></td><td>(물리 × 80%) × <b>50%</b></td><td>SGA 4GB · PGA 4GB</td></tr>
+  </table>
+  <ul class="tight">
+    <li><code class="inl">pga_aggregate_target</code> — auto일 때 자동 확장되는 PGA 영역(<b>soft limit</b>).</li>
+    <li><code class="inl">pga_aggregate_limit</code>(12c) — PGA가 확장 가능한 최대(<b>hard limit</b>). <b>꼭 설정하는 습관</b> — 안 하면 무한대로 커진다.</li>
+    <li><code class="inl">_pga_max_size</code>(한 서버 프로세스 최대 workarea) · <code class="inl">_smm_max_size</code>(단일 operation 최대 = _pga_max_size의 50%) · <code class="inl">_smm_px_max_size</code>(병렬 슬레이브별 workarea).</li>
+  </ul>
+  <div class="tip"><b>수동 관리는 세션까지만.</b> <code class="inl">workarea_size_policy=manual</code> + <code class="inl">sort_area_size</code> 등을 직접 잡을 수 있지만 <b>시스템 레벨에선 절대 금지</b>(전체 세션이 물림). 실험은 세션에서만.</div>
+
+  <h3 class="blk"><span class="ix">15.3</span>정렬의 세 등급 — optimal · onepass · multipass</h3>
+  <p>정렬이 필요하면 오라클은 PGA의 <b>SORT AREA</b>에서 수행한다. 다 담기면 <b>메모리 소트</b>(internal), 넘치면 정렬 중간 결과(<b>sort run</b>)를 temp 세그먼트에 흘리는 <b>디스크 소트</b>(external):</p>
+  <table>
+    <tr><th>등급</th><th>뜻</th><th>디스크 I/O</th></tr>
+    <tr><td><b>optimal</b></td><td>정렬이 SORT_AREA_SIZE 안에서 완료</td><td>없음 (최적)</td></tr>
+    <tr><td><b>onepass</b></td><td>sort run이 디스크에 <b>한 번만</b> 쓰임</td><td>1회</td></tr>
+    <tr><td><b>multipass</b></td><td>sort run이 디스크에 <b>여러 번</b> 쓰임</td><td>많음 → 성능 저하</td></tr>
+  </table>
+  <pre class="term"><span class="cm">-- sort_area_size를 줄여 가며 emp_temp 정렬 → Used-Temp 관찰</span>
+<span class="pr">SQL&gt;</span> alter session set workarea_size_policy = manual;
+<span class="pr">SQL&gt;</span> alter session set sort_area_size = 1048576;   <span class="cm">-- 1MB</span>
+<span class="pr">SQL&gt;</span> select … order by employee_id …;   <span class="cm">-- allstats last에 Used-Tmp 등장</span>
+<span class="out"># Used-Temp: 메모리가 부족해 temp 공간을 쓴 크기(KB)</span>
+<span class="pr">SQL&gt;</span> <span class="cm">-- v$session_event: 42 direct path read temp / 42 direct path write temp</span></pre>
+  <div class="why"><span class="h">child cursor가 갈리는 또 하나의 이유</span>같은 SQL이라도 <code class="inl">sort_area_size</code>처럼 <b>옵티마이저 환경이 다르면</b> child cursor가 새로 생긴다(§10.1의 커서 공유). <code class="inl">v$sql_shared_cursor</code>로 갈린 이유를, <code class="inl">v$sql_workarea</code>의 <code class="inl">last_tempseg_size</code>로 디스크 사용을 추적한다 — 디스크 소트가 많을수록 <code class="inl">direct path read/write temp</code> 대기가 쌓인다.</div>
+
+  <h3 class="blk"><span class="ix">15.4</span>정렬이냐 해시냐 — 결과가 정렬돼 나오는지로 읽는다</h3>
+  <table>
+    <tr><th>연산</th><th>오퍼레이션</th><th>결과 정렬?</th></tr>
+    <tr><td>order by · 집계(sum) 준비</td><td><b>SORT</b> (ORDER BY · AGGREGATE)</td><td>예 — SORT AREA에서</td></tr>
+    <tr><td>group by · distinct · unique</td><td><b>HASH</b> (GROUP BY · UNIQUE)</td><td><b>아니오</b> — HASH AREA에서</td></tr>
+  </table>
+  <p>9iR2부터 <code class="inl">_gby_hash_aggregation_enabled=TRUE</code>(기본) — group by·distinct·unique를 <b>해시로</b> 수행한다. 그래서 <code class="inl">HASH GROUP BY</code>·<code class="inl">HASH UNIQUE</code>가 뜨고 결과가 정렬돼 나오지 않는다. 알고리즘이 바뀐 것:</p>
+  <pre class="term"><span class="pr">SQL&gt;</span> select distinct department_id from hr.employees;   <span class="out">→ HASH UNIQUE (정렬 안 됨)</span>
+<span class="cm">-- 옛 방식(정렬된 결과)을 보려면:</span>
+<span class="pr">SQL&gt;</span> select /*+ opt_param('_gby_hash_aggregation_enabled','false') */ distinct department_id …;
+<span class="out">→ SORT UNIQUE (정렬됨)</span></pre>
+  <div class="why"><span class="h">정렬이 필요없는 집계는 해시가 이긴다</span>group by·distinct는 "중복을 뭉치는" 일이지 "순서를 매기는" 일이 아니다 — 그래서 정렬(O(n log n))보다 해시(O(n))가 유리하다. 정렬된 결과가 필요하면 명시적 order by를 붙이거나(그럼 SORT가 추가) 힌트로 옛 알고리즘을 부른다. 정렬 결과를 만드는 오퍼레이션(SORT ORDER BY·SORT GROUP BY·SORT UNIQUE·MERGE JOIN의 SORT)을 구분해 읽는 게 실행계획 독해의 마지막 조각. <span class="muted">(정렬 trace: tracefile_identifier·10046 level 8·tkprof — 홈랩)</span></div>
 </section>
 
 <section class="part" id="road">
@@ -1808,8 +1902,9 @@ Note: Degree of Parallelism is 2 because of table property</span></pre>
     <li class="done"><span class="n">11</span><a href="#pt" style="color:var(--tune);font-weight:600">파티션</a> — 파티션 뷰(CHECK+UNION ALL) · range·interval·hash·list·composite · Pstart/Pstop · 정적/동적 pruning · 관리(split·add·merge·exchange·shrink) <span class="tag">완료</span></li>
     <li class="done"><span class="n">12</span><a href="#ar" style="color:var(--tune);font-weight:600">부분범위처리 & arraysize</a> — 운반단위 산수(roundtrips) · 전체범위 강제 조건과 대안 · fetch 재방문과 gets <span class="tag">완료</span></li>
     <li class="done"><span class="n">13</span><a href="#pi" style="color:var(--tune);font-weight:600">파티션 인덱스</a> — local(1:1·PREFIXED·140→3) · ITERATOR · global(다른 축) · UNUSABLE→rebuild partition <span class="tag">완료</span></li>
-    <li class="done"><span class="n">14</span><a href="#px" style="color:var(--tune);font-weight:600">병렬 처리</a> — QC·서버 집합·IN-OUT 5종·PQ Distrib(RANGE/HASH/KEY)·gby_pushdown·파티션 wise 조인(full/partial) <span class="tag">완료</span></li>
-    <li><span class="n">15</span>증상→원인→처방 안티패턴 + 자주 쓰는 힌트 <span class="tag">예정</span></li>
+    <li class="done"><span class="n">14</span><a href="#px" style="color:var(--tune);font-weight:600">병렬 처리</a> — QC·서버 집합·IN-OUT 5종·PQ Distrib·gby_pushdown·파티션 wise 조인 4조합·parallel DML·direct path I/O <span class="tag">완료</span></li>
+    <li class="done"><span class="n">15</span><a href="#pga" style="color:var(--tune);font-weight:600">PGA·정렬</a> — PGA 구조·자동 관리(target/limit)·optimal/onepass/multipass·정렬 vs 해시 <span class="tag">완료</span></li>
+    <li><span class="n">16</span>증상→원인→처방 안티패턴 + 자주 쓰는 힌트 <span class="tag">예정</span></li>
   </ul>
   <div class="why"><span class="h">메모</span>구조 지식(HWM·scattered read·버퍼 캐시·블록)은 <b>내부구조편 가이드</b>에, 그걸 활용하는 기법은 이 문서에 쌓는다. 새 수업이 오면 위 로드맵을 하나씩 완료로 바꿔 간다.</div>
 </section>
