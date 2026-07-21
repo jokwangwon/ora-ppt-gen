@@ -90,6 +90,10 @@
     "81": {
       "status": "reviewing",
       "note": "축='나눈 것'을 다루는 네 기술(인덱스=조각 안·Data Pump=조각 백업·병렬=동시 읽기)+global의 대가. 문서 §11.12~11.13(shrink 검증 1006→1·_partition_large_extents 8MB·Data Pump 3시나리오: sqlfile/split/:p1 data_only) + Part 13(§13.1~13.5: pruning 한계 140→local 1:1 PREFIXED 3·ITERATOR Starts 2·global 다른 축 Buffers 5·UNUSABLE ORA-01502/608 우회·ORA-14086 rebuild partition·index split) + Part 14 개막(§14.1~14.3: QC·TQ·IN-OUT·v$pq_tqstat P000/P001·order by RANGE→ORDER 2-TQ). UNUSABLE 방아쇠는 캡처 없음→홈랩. 문제 MCQ8·ESSAY2·TERMS11·PLANQ2(편향0·근거0, 리밸런싱 1회). 덱 22장. DAY_REF 81→Partitioning Concepts, Data Pump/병렬 문제 ref 오버라이드(sutil·parallel-exec 실존 검증)."
+    },
+    "82": {
+      "status": "reviewing",
+      "note": "결석일 — 동료 필기 기반. 축=병렬 비용은 '집합 건너는 통신'(재분배 없애기+데이터 줄이기). 문서 §14.4~14.9(DoP2인데 프로세스4=추출P002/3+정렬P000/1·프로세스=DoP×2/채널=DoP²·서버풀 min4/max40 large pool·IN-OUT 5종 화살표=통신 PCW=무통신 S->P만 직렬·PQ Distrib RANGE/HASH/KEY·gby_pushdown HASH GROUP BY×2·파티션 wise 조인 full(none,none PARTITION LIST ALL)/partial(none,partition SEND PARTITION KEY BUFFERED)) — Part 14 완료. 홀수 DoP·HASH JOIN BUFFERED 세부는 열린 질문→홈랩. 문제 MCQ8·ESSAY2·TERMS11·PLANQ2(편향0·근거0, 리밸런싱). 덱 18장. DAY_REF 82→Parallel Execution."
     }
   }
 }

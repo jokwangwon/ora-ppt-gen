@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>82일차 복습 시트</title>
+<style>
+body{margin:0;background:#f6f8fa;color:#34343c;font-family:'Lato','Noto Sans KR',-apple-system,sans-serif;line-height:1.7}
+.wrap{max-width:820px;margin:0 auto;padding:36px 22px 80px}
+.top{font-size:12px;color:#7c828a;margin-bottom:6px}
+h2{color:#1b1b1f;font-size:22px;margin:4px 0 14px}
+h3{color:#1b1b1f;font-size:16px;margin:26px 0 8px;padding-top:14px;border-top:1px solid #e7ebef}
+h4{font-size:14px;color:#7c828a;margin:16px 0 4px}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(23,32,50,.05)}
+th{text-align:left;font-size:12px;color:#7c828a;padding:9px 12px;border-bottom:2px solid #e7ebef;background:#fbfcfd}
+td{padding:8px 12px;border-bottom:1px solid #eef1f4;vertical-align:top}
+code{font-family:ui-monospace,monospace;font-size:.85em;background:#eef1f4;padding:1px 6px;border-radius:5px}
+.note{background:#e9f2fb;border:1px solid #cfe0fb;border-radius:11px;padding:11px 14px;font-size:13px;color:#1f4f9e;margin:10px 0}
+hr{border:none;border-top:1px dashed #e7ebef;margin:18px 0}
+ul,ol{padding-left:22px}
+.back{position:fixed;right:16px;bottom:16px;background:#1d7dcc;color:#fff;font:700 13px/1 system-ui;text-decoration:none;padding:11px 15px;border-radius:24px;box-shadow:0 4px 14px rgba(0,0,0,.22)}
+</style></head><body><div class="wrap">
+<div class="top">Oracle DBA 학습 자료실 · 일일 복습</div>
+<h2>82일차 복습 시트 (결석 — 동료 필기 기반)</h2>
+<div class='note'>오늘 하루를 한 장으로 — 축·개념·명령어·요약. 막히는 개념은 옆의 [문서 §] 링크로 바로 이동해 다시 읽고, 마지막에 허브에서 문제로 마무리.</div>
+<hr>
+<h3>[오늘의 축]</h3>
+<div class='note'><b>병렬의 모든 비용은 '집합을 건너는 통신'에서 온다 — 재분배를 없애고(파티션 wise 조인), 넘길 데이터를 줄이는(gby_pushdown) 게 병렬 튜닝의 전부다. 그리고 DoP 2인데 프로세스는 4개(추출 집합 + 정렬 집합).</b></div>
+<p>어제 개막한 §14를 v$pq_tqstat으로 파헤친 날 — Producer/Consumer, IN-OUT 5종, PQ Distrib(RANGE/HASH/KEY), gby_pushdown, 파티션 wise 조인(full/partial). 병렬 파트 마무리.</p>
+<h3>[개념 제목] (수업 등장 순)</h3>
+<ol>
+<li><b>추출 집합 vs 정렬 집합</b> — DoP 2인데 프로세스 4개(P002·P003 추출 / P000·P001 정렬) · <a href='../assets/sql_tuning.html#px' class='cmp-link'>문서 §14.4</a></li>
+<li><b>왜 집합을 나누나</b> — 한 프로세스가 다 하면 QC가 재정렬해야 함 → 추출이 RANGE로 미리 분배 · <a href='../assets/sql_tuning.html#px' class='cmp-link'>문서 §14.4</a></li>
+<li><b>병렬 산수</b> — 프로세스=DoP×2, 통신 채널=DoP² · <a href='../assets/sql_tuning.html#px' class='cmp-link'>문서 §14.5</a></li>
+<li><b>QC·병렬 서버·서버 풀</b> — min 4/max 40 미리 띄움, large pool(shared server·UGA·RMAN) · <a href='../assets/sql_tuning.html#px' class='cmp-link'>문서 §14.5</a></li>
+<li><b>서버 집합(server set)</b> — DoP·오퍼레이션 종류에 따라 1~여러 개 · <a href='../assets/sql_tuning.html#px' class='cmp-link'>문서 §14.5</a></li>
+<li><b>intra / inter-operation</b> — 집합 내 무통신 / 집합 간 통신(테이블 큐) · <a href='../assets/sql_tuning.html#px' class='cmp-link'>문서 §14.4</a></li>
+<li><b>IN-OUT 5종</b> — P-&gt;S·P-&gt;P·S-&gt;P(통신○) / PCWC·PCWP(통신✗), S-&gt;P만 직렬 · <a href='../assets/sql_tuning.html#px' class='cmp-link'>문서 §14.6</a></li>
+<li><b>PQ Distrib</b> — RANGE(정렬)·HASH(조인/해시집계)·KEY(파티션) · <a href='../assets/sql_tuning.html#px' class='cmp-link'>문서 §14.7</a></li>
+<li><b>gby_pushdown</b> — 추출하며 미리 group by(HASH GROUP BY ×2), no_gby_pushdown이면 ×1 · <a href='../assets/sql_tuning.html#px' class='cmp-link'>문서 §14.8</a></li>
+<li><b>full partition wise join</b> — 둘 다 조인 키 파티션, 재분배 없음(none,none·PARTITION LIST ALL) · <a href='../assets/sql_tuning.html#px' class='cmp-link'>문서 §14.9</a></li>
+<li><b>partial partition wise join</b> — 한쪽만 파티션, KEY로 재분배(none,partition·SEND PARTITION KEY) · <a href='../assets/sql_tuning.html#px' class='cmp-link'>문서 §14.9</a></li>
+</ol>
+<h3>[실습 명령어 정리] (실행 순서 + 결과 요지)</h3>
+<table><tr><th>#</th><th>명령/플랜</th><th>결과 요지</th></tr>
+<tr><td>1</td><td><code>parallel(e 2)</code> order by + v$pq_tqstat</td><td><b>프로세스 4개</b> — Ranger QC / Producer P002·P003(추출 53309·54559) / Consumer P000·P001(정렬 55000·52000)</td></tr>
+<tr><td>2</td><td>〃 TQ10001</td><td>정렬 집합이 producer로 → QC가 107000행 머지 → user</td></tr>
+<tr><td>3</td><td><code>show parameter parallel_min_servers</code></td><td><b>4</b> — 병렬 없어도 미리 떠 있음</td></tr>
+<tr><td>4</td><td><code>show parameter parallel_max_servers</code></td><td><b>40</b> — 부족 시 여기까지 추가(large pool)</td></tr>
+<tr><td>5</td><td>IN-OUT 판별</td><td>화살표(P-&gt;S·P-&gt;P·S-&gt;P)=통신○ / PCWC·PCWP=통신✗ / S-&gt;P만 직렬</td></tr>
+<tr><td>6</td><td><code>parallel(e 2)</code> group by (gby_pushdown 기본)</td><td><b>HASH GROUP BY ×2</b> — 추출(Id 6 중간집계)→PX SEND HASH→정렬(Id 3 머지)</td></tr>
+<tr><td>7</td><td>v$pq_tqstat (pushdown)</td><td>Producer P002·P003 각 12행(미리 집계) → Consumer P000 8·P001 16</td></tr>
+<tr><td>8</td><td><code>no_gby_pushdown</code></td><td>HASH GROUP BY <b>×1</b> — 추출이 원본 107K(P000 87000·P001 20000) 그대로 넘김</td></tr>
+<tr><td>9</td><td>emp_part·dept_part 생성 (department_id list 파티션)</td><td>조인 키 = 파티션 키로 준비</td></tr>
+<tr><td>10</td><td>full PWJ: <code>pq_distribute(e,none,none)</code></td><td><b>PX PARTITION LIST ALL</b> + HASH JOIN — 재분배 없음</td></tr>
+<tr><td>11</td><td>〃 v$pq_tqstat</td><td>P000이 2번 파티션, P001이 1·3·4번 파티션 조인 → QC 106행 붙여 전달</td></tr>
+<tr><td>12</td><td>emp_non 생성(넌파티션)</td><td>partial 준비</td></tr>
+<tr><td>13</td><td>partial PWJ: <code>pq_distribute(e,none,partition)</code></td><td><b>PX SEND PARTITION (KEY)</b> + HASH JOIN BUFFERED — emp_non을 부서코드 KEY로 재분배</td></tr>
+<tr><td>14</td><td>〃 v$pq_tqstat</td><td>P002·P003 추출→P000(46, null 포함)·P001(61) 재분배→조인결과 45·61→QC 106</td></tr>
+</table>
+<h3>[5줄 요약]</h3>
+<ol>
+<li><b>DoP 2인데 프로세스 4개</b> — order by는 추출 집합(P002·P003)과 정렬 집합(P000·P001)이 따로. 프로세스=DoP×2, 통신 채널=DoP². 한 프로세스가 다 하면 QC가 재정렬해야 하니 나눈다.</li>
+<li><b>IN-OUT은 통신 여부</b> — 화살표(P-&gt;S·P-&gt;P·S-&gt;P)는 집합을 건너니 통신○, PCWC·PCWP는 한 집합 안이라 통신✗. S-&gt;P만 직렬 오퍼레이션(큰 테이블이면 병목 점검).</li>
+<li><b>PQ Distrib이 연산을 말한다</b> — RANGE=정렬(범위 분배), HASH=조인/해시집계(해시 분배), KEY=파티션 맞춤(PART KEY). 재분배는 S-&gt;P·P-&gt;P에서.</li>
+<li><b>gby_pushdown은 미리 세기</b> — 추출하며 부서별 중간 집계(HASH GROUP BY ×2)로 넘길 건수를 줄인다. §8.13 '더 앞 단계에서 더 적은 행으로'의 병렬판. no_gby_pushdown이면 원본 그대로.</li>
+<li><b>파티션 wise 조인</b> — 조인 키=파티션 키면 재분배 없음(full, none,none). 한쪽만 파티션이면 KEY로 재분배(partial, none,partition). 파티션 수만큼 프로세스가 이상적(병렬 프로세스 ≤ 파티션 수).</li>
+</ol>
+<h3>[건너뛴 것 — 매뉴얼 대비]</h3>
+<table><tr><th>안 다룬 것</th><th>추정 이유</th><th>공부하러 가기</th></tr>
+<tr><td>홀수 DoP가 안 되는 이유</td><td>노트에 물음표만</td><td>? → 홈랩 1번</td></tr>
+<tr><td>broadcast 분배(작은 테이블 복제)</td><td>실측은 none/partition만</td><td><a href='https://docs.oracle.com/en/database/oracle/oracle-database/19/vldbg/parallel-exec-intro.html' class='cmp-link'>매뉴얼 § Parallel Execution</a></td></tr>
+<tr><td>parallel DML·DoP 자동 결정(Auto DOP)</td><td>다음 심화 추정</td><td>위 매뉴얼 같은 장</td></tr>
+<tr><td>HASH JOIN BUFFERED의 빌드/프로브 세부</td><td>노트에 열린 질문</td><td>위 매뉴얼 · 홈랩 2번</td></tr>
+</table>
+<h3>홈랩 재현 목록 (결석일 — 열린 질문)</h3>
+<ol>
+<li><b>홀수 DoP 실험</b> — parallel(e 3)으로 order by 실행 시 프로세스 수·동작 확인('짝수 개념'의 진짜 이유)</li>
+<li><b>HASH JOIN BUFFERED</b> — partial 조인에서 빌드/프로브 테이블이 어떻게 만들어지는지 dbms_xplan 상세로</li>
+<li><b>v$pq_tqstat WAITS</b> — 정렬 집합의 WAITS 955가 유독 큰 의미(이월)</li>
+<li><b>full/partial 직접 실행</b> — emp_part⋈dept_part(full), emp_non⋈dept_part(partial) 돌려 v$pq_tqstat 행수를 필기와 대조 (특히 partial의 50번 부서만 P000으로 가는 재분배)</li>
+</ol>
+<hr>
+<h3>복습 동선 (10분)</h3>
+<ol>
+<li><b>[오늘의 축]</b> 한 줄을 소리 내어 설명해보기 — 통신이 곧 비용, 재분배·데이터 줄이기</li>
+<li><b>[개념 제목]</b> 을 훑으며 설명 안 되는 것만 [문서 §] 링크로 이동해 그 부분 재독</li>
+<li><b>[명령어 표]</b> 의 결과(프로세스 4개 / HASH GROUP BY ×2 / none,none vs none,partition)를 가리고 떠올려보기</li>
+<li>마무리 — <a href='../assets/study_hub_full.html' class='cmp-link'>허브에서 82일차 문제 풀기</a> (날짜칩 82 필터)</li>
+</ol>
+</div><a class="back" href="../index.html">&larr; 자료실</a></body></html>
